@@ -1,0 +1,49 @@
+---
+import Layout from "../layouts/Layout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import ResultDisplay from "../components/ResultDisplay.astro";
+---
+
+<Layout title="Attachments">
+  <PageHeader title="Email with Attachments" description="Attach a base64-encoded file to a transactional email." sourcePath="src/pages/api/send-attachment.ts" />
+
+  <form id="example-form" class="form">
+    <div class="field">
+      <label for="to">To</label>
+      <input id="to" name="to" type="email" required placeholder="you@yourdomain.com" />
+      <p class="hint">A generated sample.txt file is attached.</p>
+    </div>
+
+    <button type="submit" id="submit-btn">Send with Attachment</button>
+  </form>
+
+  <ResultDisplay title="Email Sent" />
+
+  <h2>Code Example</h2>
+  <div class="code-block">
+    <pre><code>{`const encoded = Buffer.from("Sample Attachment\\n...").toString("base64");
+
+await emailsApi.emailsTransactionalPost({
+  Recipients: { To: [to] },
+  Content: {
+    From: from,
+    Subject: "Email with Attachment",
+    Body: [{ ContentType: "HTML", Content: "<h1>Your attachment is ready</h1>" }],
+    // BinaryContent is base64. Total message size limit applies.
+    Attachments: [{ BinaryContent: encoded, Name: "sample.txt", ContentType: "text/plain" }],
+  },
+});`}</code></pre>
+  </div>
+
+</Layout>
+
+<script>
+  import { bindForm } from "../lib/client";
+
+  bindForm({
+    endpoint: "/api/send-attachment",
+    method: "POST",
+    fields: ["to"],
+    loadingLabel: "Sending...",
+  });
+</script>

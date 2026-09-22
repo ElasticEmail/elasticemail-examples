@@ -1,0 +1,8 @@
+name = "elasticemail-worker"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Non-secret values. Set ELASTICEMAIL_API_KEY and ELASTICEMAIL_WEBHOOK_TOKEN with `wrangler secret put`.
+[vars]
+EMAIL_FROM = "Acme <hello@yourdomain.com>"

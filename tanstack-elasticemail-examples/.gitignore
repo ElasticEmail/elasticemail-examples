@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# TanStack Start / Vite / Nitro
+.output/
+.nitro/
+.tanstack/
+dist/
+src/routeTree.gen.ts
+src/routeTree.gen.js
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug
+npm-debug.log*
+vite.config.ts.timestamp-*
+vite.config.js.timestamp-*

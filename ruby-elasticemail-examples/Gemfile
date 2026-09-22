@@ -1,0 +1,18 @@
+source "https://rubygems.org"
+
+ruby ">= 3.1"
+
+# Elastic Email SDK
+gem "ElasticEmail", "~> 4.2"
+
+# Environment variables
+gem "dotenv", "~> 3.0"
+
+# Web framework (sinatra_app and examples/double_optin/webhook.rb)
+gem "sinatra", "~> 4.0"
+gem "sinatra-contrib", "~> 4.0"
+gem "rackup", "~> 2.1"
+gem "puma", "~> 6.4"
+
+# JSON parsing
+gem "json", "~> 2.7"

@@ -1,0 +1,19 @@
+{
+    "name": "elasticemail/php-elasticemail-examples",
+    "description": "Elastic Email examples with PHP",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.1",
+        "elasticemail/elasticemail-php": "^4.2",
+        "vlucas/phpdotenv": "^5.6",
+        "slim/slim": "^4.0",
+        "slim/psr7": "^1.6"
+    },
+    "scripts": {
+        "send": "php src/send/basic.php",
+        "send:attachment": "php src/attachments/send.php",
+        "send:scheduled": "php src/scheduling/send.php",
+        "serve": "php -S localhost:8080 src/slim_app.php"
+    }
+}

@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+.yarn/
+.pnp.*
+
+# RedwoodJS
+.redwood/
+api/dist/
+web/dist/
+dist/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug
+npm-debug.log*
+yarn-error.log

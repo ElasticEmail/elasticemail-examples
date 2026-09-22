@@ -1,0 +1,23 @@
+{
+  "name": "redwoodjs-elasticemail-examples-javascript",
+  "version": "1.0.0",
+  "description": "Elastic Email examples with RedwoodJS 8 and JavaScript",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "api",
+      "web"
+    ]
+  },
+  "scripts": {
+    "dev": "rw dev",
+    "build": "rw build",
+    "serve": "rw serve"
+  },
+  "devDependencies": {
+    "@redwoodjs/core": "^8.4.0"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}

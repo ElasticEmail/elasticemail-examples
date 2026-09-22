@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>ElasticEmailExamples</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    MinimalApiApp/ and MvcApp/ are standalone Microsoft.NET.Sdk.Web projects, each
+    with its own .csproj and its own top-level-statement Program.cs. Keep them out
+    of this project's default globs so they are built on their own.
+  -->
+  <ItemGroup>
+    <Compile Remove="MinimalApiApp/**;MvcApp/**" />
+    <Content Remove="MinimalApiApp/**;MvcApp/**" />
+    <EmbeddedResource Remove="MinimalApiApp/**;MvcApp/**" />
+    <None Remove="MinimalApiApp/**;MvcApp/**" />
+  </ItemGroup>
+
+  <!-- Examples/DoubleOptinWebhook.cs hosts a small web server -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ElasticEmail" Version="4.2.0" />
+    <PackageReference Include="DotNetEnv" Version="3.1.1" />
+  </ItemGroup>
+
+</Project>

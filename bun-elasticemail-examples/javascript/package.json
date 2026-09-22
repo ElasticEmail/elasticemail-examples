@@ -1,0 +1,14 @@
+{
+  "name": "bun-elasticemail-examples-javascript",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/index.js",
+    "start": "bun run src/index.js",
+    "example": "bun run"
+  },
+  "dependencies": {
+    "@elasticemail/elasticemail-client-ts-axios": "^4.2.0"
+  }
+}

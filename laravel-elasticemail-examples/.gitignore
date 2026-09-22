@@ -1,0 +1,24 @@
+# Environment
+.env
+
+# Dependencies
+vendor/
+composer.lock
+
+# Laravel
+bootstrap/cache/*.php
+storage/*.key
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,25 @@
+{
+    "name": "elasticemail/symfony-elasticemail-example",
+    "description": "Symfony + Elastic Email example application",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.1",
+        "elasticemail/elasticemail-php": "^4.2",
+        "symfony/framework-bundle": "^6.4 || ^7.0",
+        "symfony/http-kernel": "^6.4 || ^7.0",
+        "symfony/routing": "^6.4 || ^7.0",
+        "symfony/runtime": "^6.4 || ^7.0",
+        "vlucas/phpdotenv": "^5.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "symfony/runtime": true
+        }
+    }
+}

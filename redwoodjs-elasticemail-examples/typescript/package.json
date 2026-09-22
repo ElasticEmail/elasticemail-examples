@@ -1,0 +1,24 @@
+{
+  "name": "redwoodjs-elasticemail-examples-typescript",
+  "version": "1.0.0",
+  "description": "Elastic Email examples with RedwoodJS 8 and TypeScript",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "api",
+      "web"
+    ]
+  },
+  "scripts": {
+    "dev": "rw dev",
+    "build": "rw build",
+    "serve": "rw serve",
+    "typecheck": "rw type-check"
+  },
+  "devDependencies": {
+    "@redwoodjs/core": "^8.4.0"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}

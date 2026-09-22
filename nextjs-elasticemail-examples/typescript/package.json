@@ -1,0 +1,27 @@
+{
+  "name": "nextjs-elasticemail-examples-typescript",
+  "version": "1.0.0",
+  "description": "Elastic Email examples with Next.js 15 and TypeScript",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@elasticemail/elasticemail-client-ts-axios": "^4.2.0",
+    "next": "^15.5.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}

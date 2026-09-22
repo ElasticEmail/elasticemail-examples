@@ -1,0 +1,19 @@
+project_id = "elasticemail-example"
+
+[functions.send]
+# Public endpoint for the curl examples. Remove this line to require a Supabase JWT.
+verify_jwt = false
+
+[functions.webhook]
+# Elastic Email cannot send a Supabase JWT, so the function checks ?token= instead.
+verify_jwt = false
+
+[functions.auth-hook]
+# Supabase Auth calls the hook with a Standard Webhooks signature, not a JWT.
+verify_jwt = false
+
+[auth.hook.send_email]
+enabled = true
+uri = "http://host.docker.internal:54321/functions/v1/auth-hook"
+# Generate with: openssl rand -base64 32 | sed 's/^/v1,whsec_/'
+secrets = "env(SEND_EMAIL_HOOK_SECRET)"

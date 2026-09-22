@@ -1,0 +1,48 @@
+---
+import Layout from "../layouts/Layout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import ResultDisplay from "../components/ResultDisplay.astro";
+---
+
+<Layout title="CID Attachments">
+  <PageHeader title="CID Attachments" description="Embed an inline image referenced by Content-ID." sourcePath="src/pages/api/send-cid.ts" />
+
+  <form id="example-form" class="form">
+    <div class="field">
+      <label for="to">To</label>
+      <input id="to" name="to" type="email" required placeholder="you@yourdomain.com" />
+      <p class="hint">A 1x1 placeholder PNG is embedded as logo.png.</p>
+    </div>
+
+    <button type="submit" id="submit-btn">Send with Inline Image</button>
+  </form>
+
+  <ResultDisplay title="Email Sent" />
+
+  <h2>Code Example</h2>
+  <div class="code-block">
+    <pre><code>{`// Elastic Email derives the Content-ID from the attachment file name.
+// Reference the attachment Name after "cid:" in the HTML.
+await emailsApi.emailsTransactionalPost({
+  Recipients: { To: [to] },
+  Content: {
+    From: from,
+    Subject: "Email with Inline Image",
+    Body: [{ ContentType: "HTML", Content: '<img src="cid:logo.png" alt="Logo" />' }],
+    Attachments: [{ BinaryContent: pngBase64, Name: "logo.png", ContentType: "image/png" }],
+  },
+});`}</code></pre>
+  </div>
+
+</Layout>
+
+<script>
+  import { bindForm } from "../lib/client";
+
+  bindForm({
+    endpoint: "/api/send-cid",
+    method: "POST",
+    fields: ["to"],
+    loadingLabel: "Sending...",
+  });
+</script>

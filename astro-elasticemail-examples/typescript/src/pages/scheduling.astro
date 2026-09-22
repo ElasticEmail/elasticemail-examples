@@ -1,0 +1,54 @@
+---
+import Layout from "../layouts/Layout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import ResultDisplay from "../components/ResultDisplay.astro";
+---
+
+<Layout title="Scheduling">
+  <PageHeader title="Scheduled Sending" description="Delay delivery with Options.TimeOffset (minutes from now)." sourcePath="src/pages/api/send-scheduled.ts" />
+
+  <form id="example-form" class="form">
+    <div class="field">
+      <label for="to">To</label>
+      <input id="to" name="to" type="email" required placeholder="you@yourdomain.com" />
+    </div>
+
+    <div class="field">
+      <label for="delayMinutes">Delay (minutes)</label>
+      <input id="delayMinutes" name="delayMinutes" type="number" required min="1" max="50400" value="60" />
+      <p class="hint">1 to 50400 minutes (35 days). Scheduled emails cannot be cancelled.</p>
+    </div>
+
+    <button type="submit" id="submit-btn">Schedule Email</button>
+  </form>
+
+  <ResultDisplay title="Email Scheduled" />
+
+  <h2>Code Example</h2>
+  <div class="code-block">
+    <pre><code>{`// TimeOffset delays delivery by N minutes from now. Maximum is 35 days (50400 minutes).
+// There is no cancel endpoint for a single delayed email.
+await emailsApi.emailsTransactionalPost({
+  Recipients: { To: [to] },
+  Content: {
+    From: from,
+    Subject: "Scheduled Email",
+    Body: [{ ContentType: "HTML", Content: "<h1>Scheduled Email</h1>" }],
+  },
+  Options: { TimeOffset: 60 },
+});`}</code></pre>
+  </div>
+
+</Layout>
+
+<script>
+  import { bindForm } from "../lib/client";
+
+  bindForm({
+    endpoint: "/api/send-scheduled",
+    method: "POST",
+    fields: ["to", "delayMinutes"],
+    numeric: ["delayMinutes"],
+    loadingLabel: "Scheduling...",
+  });
+</script>

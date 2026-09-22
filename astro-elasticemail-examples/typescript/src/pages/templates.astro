@@ -1,0 +1,63 @@
+---
+import Layout from "../layouts/Layout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import ResultDisplay from "../components/ResultDisplay.astro";
+---
+
+<Layout title="Templates">
+  <PageHeader title="Email Templates" description="Send a stored Elastic Email template with merge fields. The template is created on first use." sourcePath="src/pages/api/send-template.ts" />
+
+  <form id="example-form" class="form">
+    <div class="field">
+      <label for="to">To</label>
+      <input id="to" name="to" type="email" required placeholder="you@yourdomain.com" />
+    </div>
+
+    <div class="field">
+      <label for="firstName">First name (merge field)</label>
+      <input id="firstName" name="firstName" type="text" required value="Ann" />
+    </div>
+
+    <div class="field">
+      <label for="company">Company (merge field)</label>
+      <input id="company" name="company" type="text" required value="Acme" />
+    </div>
+
+    <button type="submit" id="submit-btn">Send Template Email</button>
+  </form>
+
+  <ResultDisplay title="Email Sent" />
+
+  <h2>Code Example</h2>
+  <div class="code-block">
+    <pre><code>{`// Templates are referenced by name. Create it once:
+await templatesApi.templatesPost({
+  Name: templateName,
+  Subject: "Welcome, {firstname}!",
+  Body: [{ ContentType: "HTML", Content: "<h1>Welcome, {firstname}!</h1><p>Thanks for joining {company}.</p>" }],
+  TemplateScope: "Personal",
+});
+
+// Merge values replace {placeholders} in the template subject and body.
+await emailsApi.emailsTransactionalPost({
+  Recipients: { To: [to] },
+  Content: {
+    From: from,
+    TemplateName: templateName,
+    Merge: { firstname: "Ann", company: "Acme" },
+  },
+});`}</code></pre>
+  </div>
+
+</Layout>
+
+<script>
+  import { bindForm } from "../lib/client";
+
+  bindForm({
+    endpoint: "/api/send-template",
+    method: "POST",
+    fields: ["to", "firstName", "company"],
+    loadingLabel: "Sending...",
+  });
+</script>

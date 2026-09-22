@@ -1,0 +1,104 @@
+[package]
+name = "rust-elasticemail-examples"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "rust_elasticemail_examples"
+path = "src/lib.rs"
+
+[dependencies]
+# The SDK is not published on crates.io; it is pulled from GitHub by tag.
+ElasticEmail = { git = "https://github.com/ElasticEmail/elasticemail-rust", tag = "4.2.0" }
+tokio = { version = "1", features = ["full"] }
+dotenvy = "0.15"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+uuid = { version = "1", features = ["v4"] }
+chrono = "0.4"
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+subtle = "2"
+urlencoding = "2"
+url = "2"
+
+# Framework dependencies (used by axum_app and double_optin_webhook)
+axum = "0.8"
+
+[[example]]
+name = "basic_send"
+path = "examples/basic_send.rs"
+
+[[example]]
+name = "batch_send"
+path = "examples/batch_send.rs"
+
+[[example]]
+name = "with_attachments"
+path = "examples/with_attachments.rs"
+
+[[example]]
+name = "with_cid_attachments"
+path = "examples/with_cid_attachments.rs"
+
+[[example]]
+name = "with_template"
+path = "examples/with_template.rs"
+
+[[example]]
+name = "scheduled_send"
+path = "examples/scheduled_send.rs"
+
+[[example]]
+name = "prevent_threading"
+path = "examples/prevent_threading.rs"
+
+[[example]]
+name = "contacts"
+path = "examples/contacts.rs"
+
+[[example]]
+name = "domains"
+path = "examples/domains.rs"
+
+[[example]]
+name = "email_status"
+path = "examples/email_status.rs"
+
+[[example]]
+name = "webhooks"
+path = "examples/webhooks.rs"
+
+[[example]]
+name = "inbound"
+path = "examples/inbound.rs"
+
+[[example]]
+name = "double_optin_subscribe"
+path = "examples/double_optin_subscribe.rs"
+
+[[example]]
+name = "double_optin_webhook"
+path = "examples/double_optin_webhook.rs"
+
+[[example]]
+name = "suppressions"
+path = "examples/suppressions.rs"
+
+[[example]]
+name = "email_verification"
+path = "examples/email_verification.rs"
+
+[[example]]
+name = "statistics"
+path = "examples/statistics.rs"
+
+[[example]]
+name = "sub_accounts"
+path = "examples/sub_accounts.rs"
+
+[[bin]]
+name = "axum_app"
+path = "axum_app/src/main.rs"

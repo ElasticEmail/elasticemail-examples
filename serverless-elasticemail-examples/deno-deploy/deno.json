@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "dev": "deno run -A --env --watch main.ts",
+    "start": "deno run -A main.ts",
+    "check": "deno check main.ts",
+    "deploy": "deployctl deploy --project=elasticemail-example --prod main.ts"
+  },
+  "nodeModulesDir": "none",
+  "compilerOptions": {
+    "strict": true
+  }
+}

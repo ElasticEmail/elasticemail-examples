@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Elastic Email send and webhook endpoints on Lambda + HTTP API
+
+Parameters:
+  ElasticEmailApiKey:
+    Type: String
+    NoEcho: true
+    Description: Elastic Email API key
+  ElasticEmailWebhookToken:
+    Type: String
+    NoEcho: true
+    Default: change_me
+    Description: Shared secret expected in ?token= on /webhook
+  EmailFrom:
+    Type: String
+    Default: Acme <hello@yourdomain.com>
+    Description: Verified sender address
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Architectures: [arm64]
+    Timeout: 15
+    MemorySize: 256
+
+Resources:
+  EmailFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Format: cjs
+        EntryPoints:
+          - src/handler.ts
+    Properties:
+      Handler: handler.handler
+      CodeUri: .
+      Environment:
+        Variables:
+          ELASTICEMAIL_API_KEY: !Ref ElasticEmailApiKey
+          ELASTICEMAIL_WEBHOOK_TOKEN: !Ref ElasticEmailWebhookToken
+          EMAIL_FROM: !Ref EmailFrom
+      Events:
+        Send:
+          Type: HttpApi
+          Properties:
+            Path: /send
+            Method: POST
+        Webhook:
+          Type: HttpApi
+          Properties:
+            Path: /webhook
+            Method: ANY
+        Health:
+          Type: HttpApi
+          Properties:
+            Path: /health
+            Method: GET
+
+Outputs:
+  ApiUrl:
+    Description: Base URL of the HTTP API
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"

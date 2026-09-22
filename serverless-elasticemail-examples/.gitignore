@@ -1,0 +1,30 @@
+# Environment
+.env
+.env.local
+.dev.vars
+
+# Dependencies
+node_modules/
+
+# Build
+dist/
+.wrangler/
+.vercel/
+.netlify/
+.aws-sam/
+.encore/
+encore.gen/
+
+# Supabase local state
+supabase/.temp/
+supabase/.branches/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

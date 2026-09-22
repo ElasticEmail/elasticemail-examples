@@ -1,0 +1,51 @@
+---
+import Layout from "../layouts/Layout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import ResultDisplay from "../components/ResultDisplay.astro";
+---
+
+<Layout title="Prevent Threading">
+  <PageHeader title="Prevent Gmail Threading" description="Send three emails with the same subject that show up as separate conversations." sourcePath="src/pages/api/send-prevent-threading.ts" />
+
+  <form id="example-form" class="form">
+    <div class="field">
+      <label for="to">To</label>
+      <input id="to" name="to" type="email" required placeholder="you@gmail.com" />
+      <p class="hint">Use a Gmail address to see the effect.</p>
+    </div>
+
+    <button type="submit" id="submit-btn">Send 3 Emails</button>
+  </form>
+
+  <ResultDisplay title="Emails Sent" />
+
+  <h2>Code Example</h2>
+  <div class="code-block">
+    <pre><code>{`import { randomUUID } from "node:crypto";
+
+// Gmail groups emails into threads based on subject and Message-ID/References headers.
+// A unique X-Entity-Ref-ID header per email prevents this grouping.
+await emailsApi.emailsTransactionalPost({
+  Recipients: { To: [to] },
+  Content: {
+    From: from,
+    Subject: "Order Confirmation", // Same subject every time
+    Body: [{ ContentType: "HTML", Content: "<h1>Order Confirmation</h1>" }],
+    Headers: { "X-Entity-Ref-ID": randomUUID() },
+  },
+});`}</code></pre>
+  </div>
+
+</Layout>
+
+<script>
+  import { bindForm } from "../lib/client";
+
+  bindForm({
+    endpoint: "/api/send-prevent-threading",
+    method: "POST",
+    fields: ["to"],
+    extra: { count: 3 },
+    loadingLabel: "Sending...",
+  });
+</script>

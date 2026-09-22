@@ -1,0 +1,36 @@
+// GET /.redwood/functions/statistics
+import type { APIGatewayEvent, Context } from "aws-lambda";
+import { apiError, json, query, statisticsApi } from "src/lib/elasticemail";
+
+// Dates are ISO 8601 without timezone (YYYY-MM-DDThh:mm:ss), interpreted as UTC.
+const iso = (d: Date) => d.toISOString().slice(0, 19);
+
+export const handler = async (event: APIGatewayEvent, _context: Context) => {
+  if (event.httpMethod !== "GET") {
+    return json({ error: "Method not allowed" }, 405);
+  }
+
+  const days = Math.min(Math.max(Number(query(event).get("days")) || 30, 1), 365);
+  const to = new Date();
+  const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
+
+  try {
+    const { data } = await statisticsApi.statisticsGet(iso(from), iso(to));
+    return json({
+      from: iso(from),
+      to: iso(to),
+      Recipients: data.Recipients,
+      EmailTotal: data.EmailTotal,
+      Delivered: data.Delivered,
+      Bounced: data.Bounced,
+      InProgress: data.InProgress,
+      Opened: data.Opened,
+      Clicked: data.Clicked,
+      Unsubscribed: data.Unsubscribed,
+      Complaints: data.Complaints,
+    });
+  } catch (err) {
+    const { status, message: error } = apiError(err);
+    return json({ error }, status);
+  }
+};

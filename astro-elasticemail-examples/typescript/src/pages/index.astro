@@ -1,0 +1,95 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Home">
+  <h1>Elastic Email Examples</h1>
+  <p class="muted">
+    Examples for sending and managing email with
+    <a href="https://elasticemail.com" target="_blank" rel="noopener noreferrer">Elastic Email</a>
+    and Astro 5.
+  </p>
+
+  <div class="card">
+    <h3>Quick Setup</h3>
+    <ol>
+      <li>Copy <code>.env.example</code> to <code>.env</code></li>
+      <li>
+        Add your API key from
+        <a href="https://app.elasticemail.com/marketing/settings/new/manage-api" target="_blank" rel="noopener noreferrer">app.elasticemail.com</a>
+        and set <code>EMAIL_FROM</code> to a verified sender
+      </li>
+      <li>Run <code>npm run dev</code></li>
+    </ol>
+  </div>
+
+  <h2 class="section-title">Sending Emails</h2>
+  <div class="grid">
+    <a href="/send-email">
+      <h3>Basic Send</h3>
+      <p>Send a simple HTML email</p>
+    </a>
+    <a href="/attachments">
+      <h3>With Attachments</h3>
+      <p>Attach a base64-encoded file</p>
+    </a>
+    <a href="/cid-attachments">
+      <h3>With CID Attachments</h3>
+      <p>Embed inline images using Content-ID</p>
+    </a>
+    <a href="/templates">
+      <h3>With Templates</h3>
+      <p>Send an Elastic Email template with merge fields</p>
+    </a>
+    <a href="/scheduling">
+      <h3>Scheduled Send</h3>
+      <p>Delay delivery with TimeOffset</p>
+    </a>
+    <a href="/prevent-threading">
+      <h3>Prevent Gmail Threading</h3>
+      <p>Unique X-Entity-Ref-ID per email</p>
+    </a>
+  </div>
+
+  <h2 class="section-title">Receiving Emails and Events</h2>
+  <div class="grid">
+    <a href="/webhooks">
+      <h3>Webhooks</h3>
+      <p>Receive Sent, Opened, Clicked, Error events</p>
+    </a>
+    <a href="/inbound">
+      <h3>Inbound Emails</h3>
+      <p>Receive parsed emails through an inbound route</p>
+    </a>
+  </div>
+
+  <h2 class="section-title">Subscription</h2>
+  <div class="grid">
+    <a href="/double-optin">
+      <h3>Double Opt-In</h3>
+      <p>Subscribe with email confirmation</p>
+    </a>
+  </div>
+
+  <h2 class="section-title">Management</h2>
+  <div class="grid">
+    <a href="/contacts">
+      <h3>Contacts</h3>
+      <p>Add contacts to a list and list them</p>
+    </a>
+    <a href="/domains">
+      <h3>Domains</h3>
+      <p>Add a domain and check DNS verification</p>
+    </a>
+    <a href="/statistics">
+      <h3>Statistics</h3>
+      <p>Account-wide delivery and engagement counts</p>
+    </a>
+  </div>
+
+  <footer>
+    <a href="https://github.com/ElasticEmail/elasticemail-examples" target="_blank" rel="noopener noreferrer">Source on GitHub</a>
+    &middot;
+    <a href="https://elasticemail.com/developers" target="_blank" rel="noopener noreferrer">Elastic Email Developers</a>
+  </footer>
+</Layout>

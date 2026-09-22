@@ -1,0 +1,44 @@
+---
+import Layout from "../layouts/Layout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import ResultDisplay from "../components/ResultDisplay.astro";
+---
+
+<Layout title="Statistics">
+  <PageHeader title="Statistics" description="Account-wide sending statistics for a date range." sourcePath="src/pages/api/statistics.ts" />
+
+  <form id="example-form" class="form">
+    <div class="field">
+      <label for="days">Last N days</label>
+      <input id="days" name="days" type="number" required min="1" max="365" value="30" />
+    </div>
+
+    <button type="submit" id="submit-btn">Load Statistics</button>
+  </form>
+
+  <ResultDisplay title="Statistics" />
+
+  <h2>Code Example</h2>
+  <div class="code-block">
+    <pre><code>{`// Dates are ISO 8601 without timezone (YYYY-MM-DDThh:mm:ss), interpreted as UTC.
+const iso = (d: Date) => d.toISOString().slice(0, 19);
+const to = new Date();
+const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+const { data } = await statisticsApi.statisticsGet(iso(from), iso(to));
+console.log(data.Recipients, data.Delivered, data.Bounced, data.Opened, data.Clicked);`}</code></pre>
+  </div>
+
+</Layout>
+
+<script>
+  import { bindForm } from "../lib/client";
+
+  bindForm({
+    endpoint: "/api/statistics",
+    method: "GET",
+    fields: ["days"],
+    numeric: ["days"],
+    loadingLabel: "Loading...",
+  });
+</script>

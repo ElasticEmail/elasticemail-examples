@@ -1,0 +1,11 @@
+---
+const { title, description, sourcePath } = Astro.props;
+const repo = "https://github.com/ElasticEmail/elasticemail-examples/blob/main/astro-elasticemail-examples/javascript";
+---
+
+<div class="page-header">
+  <a href="/" class="muted">&larr; Back to examples</a>
+  <h1>{title}</h1>
+  <p class="muted">{description}</p>
+  {sourcePath && <a href={`${repo}/${sourcePath}`} target="_blank" rel="noopener noreferrer" class="muted">View source &rarr;</a>}
+</div>

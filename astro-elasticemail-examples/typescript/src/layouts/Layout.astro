@@ -1,0 +1,73 @@
+---
+import "../styles.css";
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+
+const nav = [
+  {
+    href: "/send-email",
+    label: "Send"
+  },
+  {
+    href: "/attachments",
+    label: "Attachments"
+  },
+  {
+    href: "/templates",
+    label: "Templates"
+  },
+  {
+    href: "/scheduling",
+    label: "Scheduling"
+  },
+  {
+    href: "/contacts",
+    label: "Contacts"
+  },
+  {
+    href: "/domains",
+    label: "Domains"
+  },
+  {
+    href: "/statistics",
+    label: "Statistics"
+  },
+  {
+    href: "/double-optin",
+    label: "Double opt-in"
+  },
+  {
+    href: "/webhooks",
+    label: "Webhooks"
+  },
+  {
+    href: "/inbound",
+    label: "Inbound"
+  }
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Examples for sending and managing email with Elastic Email and Astro" />
+    <title>{title} - Elastic Email Examples</title>
+  </head>
+  <body>
+    <nav class="nav">
+      <a href="/" class="nav-brand">Elastic Email Examples</a>
+      <div class="nav-links">
+        {nav.map((item) => <a href={item.href}>{item.label}</a>)}
+      </div>
+    </nav>
+    <main class:list={{ wide: title === "Home" }}>
+      <slot />
+    </main>
+  </body>
+</html>

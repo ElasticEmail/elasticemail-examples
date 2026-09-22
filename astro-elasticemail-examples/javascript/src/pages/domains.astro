@@ -1,0 +1,64 @@
+---
+import Layout from "../layouts/Layout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import ResultDisplay from "../components/ResultDisplay.astro";
+---
+
+<Layout title="Domains">
+  <PageHeader title="Domains" description="Add a sending domain and check its SPF, DKIM, MX and DMARC verification state." sourcePath="src/pages/api/domains.ts" />
+
+  <form id="example-form" class="form">
+    <div class="field">
+      <label for="domain">Domain</label>
+      <input id="domain" name="domain" type="text" placeholder="yourdomain.com" />
+      <p class="hint">Leave empty to use SENDING_DOMAIN from .env.</p>
+    </div>
+
+    <button type="submit" id="submit-btn">Add Domain</button>
+  </form>
+
+  <ResultDisplay title="Domain Status" />
+
+  <h2>Domains on the account</h2>
+  <p id="table-status" class="muted">Loading domains...</p>
+  <table id="table" hidden>
+    <thead>
+      <tr>
+        <th>Domain</th>
+        <th>SPF</th>
+        <th>DKIM</th>
+        <th>MX</th>
+        <th>DMARC</th>
+        <th>Tracking</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h2>Code Example</h2>
+  <div class="code-block">
+    <pre><code>{`// Add the domain (400 "already exists" is fine)
+await domainsApi.domainsPost({ Domain: domain });
+
+// Verification flags flip once the DNS records shown in the dashboard are published
+const { data } = await domainsApi.domainsByDomainGet(domain);
+console.log(data.Spf, data.Dkim, data.MX, data.DMARC, data.TrackingStatus);
+console.log("DKIM record to publish:", data.DKIMRecord);`}</code></pre>
+  </div>
+
+</Layout>
+
+<script>
+  import { bindForm, loadDomains } from "../lib/client";
+
+  bindForm({
+    endpoint: "/api/domains",
+    method: "POST",
+    fields: ["domain"],
+    loadingLabel: "Adding...",
+    onSuccess: () => loadDomains("/api/domains"),
+  });
+
+  loadDomains("/api/domains");
+</script>

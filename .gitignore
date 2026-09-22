@@ -1,0 +1,38 @@
+# Environment
+.env
+.env.local
+
+# Dependencies
+node_modules/
+vendor/
+deps/
+__pycache__/
+*.pyc
+.venv/
+.opencode/
+
+# Build
+dist/
+build/
+target/
+bin/
+obj/
+_build/
+.next/
+.nuxt/
+.svelte-kit/
+.output/
+.astro/
+.vercel/
+.netlify/
+.wrangler/
+.aws-sam/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

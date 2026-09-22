@@ -1,0 +1,21 @@
+{
+  "name": "astro-elasticemail-examples-javascript",
+  "version": "1.0.0",
+  "description": "Elastic Email examples with Astro 5 and JavaScript",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "start": "node dist/server/entry.mjs"
+  },
+  "dependencies": {
+    "@astrojs/node": "^9.4.0",
+    "@elasticemail/elasticemail-client-ts-axios": "^4.2.0",
+    "astro": "^5.13.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

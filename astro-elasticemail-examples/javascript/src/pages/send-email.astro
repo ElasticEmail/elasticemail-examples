@@ -1,0 +1,62 @@
+---
+import Layout from "../layouts/Layout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import ResultDisplay from "../components/ResultDisplay.astro";
+---
+
+<Layout title="Basic Send">
+  <PageHeader title="Basic Send Email" description="Send a simple HTML email through POST /emails/transactional." sourcePath="src/pages/api/send.ts" />
+
+  <form id="example-form" class="form">
+    <div class="field">
+      <label for="to">To</label>
+      <input id="to" name="to" type="email" required placeholder="you@yourdomain.com" />
+      <p class="hint">Elastic Email has no sandbox addresses. Send to yourself.</p>
+    </div>
+
+    <div class="field">
+      <label for="subject">Subject</label>
+      <input id="subject" name="subject" type="text" required value="Hello from Elastic Email!" />
+    </div>
+
+    <div class="field">
+      <label for="message">Message</label>
+      <textarea id="message" name="message" required rows="4">This is a test email sent from the Elastic Email examples app.</textarea>
+    </div>
+
+    <button type="submit" id="submit-btn">Send Email</button>
+  </form>
+
+  <ResultDisplay title="Email Sent" />
+
+  <h2>Code Example</h2>
+  <div class="code-block">
+    <pre><code>{`import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
+
+const config = new Configuration({ apiKey: process.env.ELASTICEMAIL_API_KEY });
+const emailsApi = new EmailsApi(config);
+
+const { data } = await emailsApi.emailsTransactionalPost({
+  Recipients: { To: ["you@yourdomain.com"] },
+  Content: {
+    From: process.env.EMAIL_FROM,
+    Subject: "Hello from Elastic Email!",
+    Body: [{ ContentType: "HTML", Content: "<p>Hello</p>" }],
+  },
+});
+
+console.log(data.TransactionID, data.MessageID);`}</code></pre>
+  </div>
+
+</Layout>
+
+<script>
+  import { bindForm } from "../lib/client";
+
+  bindForm({
+    endpoint: "/api/send",
+    method: "POST",
+    fields: ["to", "subject", "message"],
+    loadingLabel: "Sending...",
+  });
+</script>

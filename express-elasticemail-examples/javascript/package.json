@@ -1,0 +1,16 @@
+{
+  "name": "express-elasticemail-examples-javascript",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node src/index.js",
+    "start": "node src/index.js",
+    "example": "node"
+  },
+  "dependencies": {
+    "@elasticemail/elasticemail-client-ts-axios": "^4.2.0",
+    "dotenv": "^16.4.0",
+    "express": "^5.0.0"
+  }
+}

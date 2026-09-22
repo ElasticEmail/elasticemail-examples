@@ -1,0 +1,10 @@
+---
+// Filled by showResult() in src/lib/client.ts
+interface Props {
+  title?: string;
+}
+
+const { title = "Result" } = Astro.props;
+---
+
+<div id="result" class="result" data-title={title} hidden></div>

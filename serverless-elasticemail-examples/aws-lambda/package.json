@@ -1,0 +1,19 @@
+{
+  "name": "aws-lambda-elasticemail-example",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/handler.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/handler.js",
+    "typecheck": "tsc --noEmit",
+    "deploy": "sam build && sam deploy --guided"
+  },
+  "dependencies": {
+    "@elasticemail/elasticemail-client-ts-axios": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.145",
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}

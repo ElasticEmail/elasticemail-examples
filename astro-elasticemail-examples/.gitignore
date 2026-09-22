@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Astro
+dist/
+.astro/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug
+npm-debug.log*

@@ -1,0 +1,68 @@
+---
+import Layout from "../layouts/Layout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import ResultDisplay from "../components/ResultDisplay.astro";
+---
+
+<Layout title="Double Opt-In">
+  <PageHeader title="Double Opt-In" description="Subscribe a contact only after they confirm through an email link." sourcePath="src/pages/api/double-optin/subscribe.ts" />
+
+  <div class="card">
+    <h3>How it works</h3>
+    <ol>
+      <li>User submits their email address</li>
+      <li>Contact is created with <code>Status: "Transactional"</code> and is not on the list yet</li>
+      <li>A confirmation email with an HMAC-signed link is sent</li>
+      <li><code>/api/double-optin/confirm</code> validates the token and calls <code>listsByNameContactsPost</code></li>
+      <li>Alternative: point an Elastic Email webhook for Clicked events at <code>/api/double-optin/webhook</code></li>
+    </ol>
+  </div>
+
+  <form id="example-form" class="form">
+    <div class="field">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" required placeholder="you@yourdomain.com" />
+    </div>
+
+    <div class="field">
+      <label for="name">Name (optional)</label>
+      <input id="name" name="name" type="text" placeholder="Ann Example" />
+    </div>
+
+    <button type="submit" id="submit-btn">Subscribe</button>
+  </form>
+
+  <ResultDisplay title="Confirmation Sent" />
+
+  <h2>Subscribe</h2>
+  <div class="code-block">
+    <pre><code>{`// 1. Store the contact as Transactional (gets the confirmation, no campaigns yet)
+await contactsApi.contactsPost([{ Email: email, FirstName: name, Status: "Transactional" }]);
+
+// 2. Send a confirmation link signed with HMAC-SHA256(ELASTICEMAIL_WEBHOOK_TOKEN, email)
+const confirmUrl = \`\${publicUrl}/api/double-optin/confirm?email=\${encodeURIComponent(email)}&token=\${hmac(email)}\`;
+await emailsApi.emailsTransactionalPost({
+  Recipients: { To: [email] },
+  Content: { From: from, Subject: "Confirm your subscription", Body: [{ ContentType: "HTML", Content: \`<a href="\${confirmUrl}">Confirm</a>\` }] },
+});`}</code></pre>
+  </div>
+
+  <h2>Confirm</h2>
+  <div class="code-block">
+    <pre><code>{`// GET /api/double-optin/confirm?email=...&token=...
+// After verifying the HMAC, add the contact to the list
+await listsApi.listsByNameContactsPost(listName, { Emails: [email] });`}</code></pre>
+  </div>
+
+</Layout>
+
+<script>
+  import { bindForm } from "../lib/client";
+
+  bindForm({
+    endpoint: "/api/double-optin/subscribe",
+    method: "POST",
+    fields: ["email", "name"],
+    loadingLabel: "Subscribing...",
+  });
+</script>

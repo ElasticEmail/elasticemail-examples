@@ -1,0 +1,74 @@
+---
+import Layout from "../layouts/Layout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import ResultDisplay from "../components/ResultDisplay.astro";
+---
+
+<Layout title="Contacts">
+  <PageHeader title="Contacts" description="Add contacts to the list from ELASTICEMAIL_LIST_NAME and list them." sourcePath="src/pages/api/contacts.ts" />
+
+  <form id="example-form" class="form">
+    <div class="field">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" required placeholder="you@yourdomain.com" />
+    </div>
+
+    <div class="field">
+      <label for="firstName">First name</label>
+      <input id="firstName" name="firstName" type="text" />
+    </div>
+
+    <div class="field">
+      <label for="lastName">Last name</label>
+      <input id="lastName" name="lastName" type="text" />
+    </div>
+
+    <button type="submit" id="submit-btn">Add Contact</button>
+  </form>
+
+  <ResultDisplay title="Contact Added" />
+
+  <h2>Contacts in <span id="list-name">list</span></h2>
+  <p id="table-status" class="muted">Loading contacts...</p>
+  <table id="table" hidden>
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Added</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h2>Code Example</h2>
+  <div class="code-block">
+    <pre><code>{`// Lists are addressed by name. Create it once (400 "already exists" is fine).
+await listsApi.listsPost({ ListName: listName, AllowUnsubscribe: true });
+
+// Add a contact and put it on the list in one call
+await contactsApi.contactsPost(
+  [{ Email: email, FirstName: firstName, LastName: lastName, Status: "Active" }],
+  [listName],
+);
+
+// Read contacts on the list
+const { data } = await listsApi.listsByListnameContactsGet(listName, 50, 0);`}</code></pre>
+  </div>
+
+</Layout>
+
+<script>
+  import { bindForm, loadContacts } from "../lib/client";
+
+  bindForm({
+    endpoint: "/api/contacts",
+    method: "POST",
+    fields: ["email", "firstName", "lastName"],
+    loadingLabel: "Adding...",
+    onSuccess: () => loadContacts("/api/contacts"),
+  });
+
+  loadContacts("/api/contacts");
+</script>

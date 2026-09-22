@@ -1,0 +1,13 @@
+[web]
+  title = "Elastic Email Examples"
+  port = 8910
+  apiUrl = "/.redwood/functions"
+
+[api]
+  port = 8911
+
+[browser]
+  open = false
+
+[notifications]
+  versionUpdates = []

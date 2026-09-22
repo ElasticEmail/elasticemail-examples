@@ -1,0 +1,19 @@
+# Environment
+.env
+
+# Dependencies
+vendor/
+composer.lock
+symfony_app/vendor/
+symfony_app/composer.lock
+symfony_app/var/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
