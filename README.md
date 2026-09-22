@@ -104,6 +104,7 @@ stack, come here when you need the detail.
 1. **Get an API key** from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
 
 2. **Verify a sender domain** in the Elastic Email dashboard. Examples send from `EMAIL_FROM`, which must belong to a verified domain.
+   Publishing the SPF and DKIM records takes a few minutes - [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain) walks through it.
 
 3. **Clone this repository**:
    ```bash

@@ -19,6 +19,8 @@ and copy it. You will not be able to read it again.
 Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
 address must be on a verified domain.
 
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
 ## 3. Install
 
 The SDK is not on Maven Central. It comes from JitPack, which the `pom.xml` already configures:

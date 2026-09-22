@@ -3,6 +3,9 @@
 The `From` address must belong to a domain verified on your account. An unverified sender is rejected
 by the API at send time - you get a 4xx immediately, not a bounce an hour later.
 
+This guide covers what the records do and how to read verification state from the API. To add the
+domain and publish the records in the dashboard, follow [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
 ## Adding a domain and reading its state
 
 ```typescript

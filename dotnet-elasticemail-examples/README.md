@@ -8,7 +8,7 @@ Send transactional and bulk email from .NET and C# with the [Elastic Email](http
 ## Prerequisites
 
 - .NET 8.0 SDK
-- An Elastic Email account with a verified sender domain
+- An Elastic Email account with a verified sender domain ([How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain))
 - API key from https://app.elasticemail.com/marketing/settings/new/manage-api
 
 ## Installation

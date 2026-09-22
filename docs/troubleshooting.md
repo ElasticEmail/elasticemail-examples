@@ -11,8 +11,9 @@ old value exported, and remember that `.env` is read from the working directory 
 
 **400 with a message about the sender**
 `EMAIL_FROM` is not on a verified domain. Run the domains example to see the state, and read
-[Domains and deliverability](domains-and-deliverability.md). The `Name <address>` form is fine; the
-address inside it is what gets checked.
+[Domains and deliverability](domains-and-deliverability.md). If the domain is not verified yet,
+[How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain)
+has the dashboard steps. The `Name <address>` form is fine; the address inside it is what gets checked.
 
 **402 Payment Required**
 Out of credits.

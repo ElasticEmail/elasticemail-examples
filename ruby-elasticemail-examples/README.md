@@ -9,7 +9,7 @@ Send transactional and bulk email from Ruby with the [Elastic Email](https://ela
 
 - Ruby 3.1+
 - Bundler
-- An Elastic Email account with a verified sender domain
+- An Elastic Email account with a verified sender domain ([How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain))
 - API key from https://app.elasticemail.com/marketing/settings/new/manage-api
 
 ## Installation

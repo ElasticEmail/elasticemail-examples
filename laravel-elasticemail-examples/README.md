@@ -14,7 +14,7 @@ as the HTML body. Laravel's Mail transport is not used, so you get the `Transact
 
 - PHP 8.2+
 - Composer
-- An Elastic Email account with a verified sender domain
+- An Elastic Email account with a verified sender domain ([How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain))
 - API key from https://app.elasticemail.com/marketing/settings/new/manage-api
 
 ## Installation

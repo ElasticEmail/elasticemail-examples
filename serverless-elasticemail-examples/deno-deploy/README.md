@@ -9,7 +9,7 @@ A single-file `Deno.serve` app that sends transactional email through the [Elast
 - [Deno](https://deno.com) 2.x
 - `deno install -gArf jsr:@deno/deployctl`
 - A [Deno Deploy](https://dash.deno.com) account and project
-- An Elastic Email account with a verified sender domain
+- An Elastic Email account with a verified sender domain ([How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain))
 - An API key from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
 
 ## Setup

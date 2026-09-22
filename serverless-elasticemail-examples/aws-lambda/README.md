@@ -9,7 +9,7 @@ One Lambda function behind an HTTP API (API Gateway v2) that sends transactional
 - Node.js 20+
 - [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) and configured AWS credentials
 - Docker (only for `sam local start-api`)
-- An Elastic Email account with a verified sender domain
+- An Elastic Email account with a verified sender domain ([How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain))
 - An API key from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
 
 ## Setup

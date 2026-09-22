@@ -59,7 +59,8 @@ The default matches the dev server port, so local links work without editing any
 ## Notes
 
 - A verified sender is not optional. Sending from an unverified domain returns a 4xx from the API,
-  not a bounce later. See [Domains and deliverability](domains-and-deliverability.md).
+  not a bounce later. See [Domains and deliverability](domains-and-deliverability.md), or
+  [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain) for the dashboard steps.
 - `ELASTICEMAIL_WEBHOOK_TOKEN` does double duty: URL secret and HMAC key. If you rotate it, confirm
   links already in people's inboxes stop validating.
 - `PUBLIC_URL` is what gets stored inside Elastic Email when a webhook or inbound route is created.

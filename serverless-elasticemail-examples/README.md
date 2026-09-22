@@ -14,7 +14,7 @@ All of them use the npm package `@elasticemail/elasticemail-client-ts-axios`. On
 ## Prerequisites
 
 - Node.js 20+ (or Deno / Bun where noted)
-- An Elastic Email account with a verified sender domain
+- An Elastic Email account with a verified sender domain ([How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain))
 - An API key from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
 - The platform CLI listed in each folder
 

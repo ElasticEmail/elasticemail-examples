@@ -19,6 +19,8 @@ and copy it. You will not be able to read it again.
 In the dashboard, add your domain and publish the SPF and DKIM records it shows you. Every email you
 send has to come from an address on a verified domain - there is no shared sandbox sender.
 
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
 ## 3. Install
 
 ```bash

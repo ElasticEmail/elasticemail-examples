@@ -8,7 +8,7 @@ Netlify Functions 2.0 (`.mts`, Web `Request`/`Response`) that send transactional
 
 - Node.js 20+ and a Netlify account
 - `npm install -g netlify-cli` (also included as a devDependency)
-- An Elastic Email account with a verified sender domain
+- An Elastic Email account with a verified sender domain ([How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain))
 - An API key from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
 
 ## Setup
