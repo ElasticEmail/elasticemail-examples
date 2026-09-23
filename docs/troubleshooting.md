@@ -121,6 +121,26 @@ has to be built per request.
 **Supabase: the webhook function returns 401 before your code runs**
 JWT verification. Set `verify_jwt = false` for that function, or pass `--no-verify-jwt`.
 
+## SMTP
+
+**`535 Authentication failed`**
+Wrong username or password. The password is the one generated under Settings > SMTP, shown once,
+not your login password and not an API key. Create new credentials if you lost it. In a
+`smtp://user:pass@host` connection string, an email-address username needs its `@` encoded as `%40`.
+
+**Connection times out**
+The port is blocked by your host or network. Try 2525, then 587, then 465. Many cloud providers
+block outbound port 25.
+
+**TLS handshake errors, or the connection hangs after connecting**
+Encryption mode and port don't match. Port 465 is implicit TLS (`secure: true`, `ssl`, `smtps`).
+Ports 2525, 587 and 25 start in plain text and upgrade with STARTTLS (`secure: false`, `tls`,
+`starttls`).
+
+**The server rejects the sender, or accepts the message and nothing arrives**
+Same cause as over the API: the `From` address is not on a verified domain. Plugins and contact
+forms that set `From` to the visitor's address hit this. Put the visitor in `Reply-To` instead.
+
 ## Still stuck
 
 Print the full error body - the `Error` field is usually specific. Every stack has a helper for this;

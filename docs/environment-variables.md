@@ -19,6 +19,20 @@ Every stack reads the same set of variables from a `.env` file next to the proje
 | `CREATE_SUBACCOUNT` | no | unset | Set to `true` to let the sub-accounts example actually create one. Creating a sub-account affects billing, so the example is read-only by default. |
 | `SUBACCOUNT_EMAIL` | no | generated | Address for the sub-account the example creates when `CREATE_SUBACCOUNT=true`. |
 
+## SMTP variables
+
+Only the [SMTP integrations](../smtp-elasticemail-examples/README.md) read these. Framework guides
+map them onto the framework's own names (`MAIL_*` in Laravel, `EMAIL_*` settings in Django).
+
+| Variable | Required | Default | Used by |
+|---|---|---|---|
+| `ELASTICEMAIL_SMTP_HOST` | no | `smtp.elasticemail.com` | SMTP server. |
+| `ELASTICEMAIL_SMTP_PORT` | no | `2525` | `2525`, `587` or `25` with STARTTLS; `465` with implicit TLS. |
+| `ELASTICEMAIL_SMTP_USERNAME` | yes, for SMTP | - | Username from Settings > SMTP in the dashboard. Defaults to your login email there. |
+| `ELASTICEMAIL_SMTP_PASSWORD` | yes, for SMTP | - | SMTP password generated with the credentials and shown once. Not the API key. See [SMTP settings](https://help.elasticemail.com/en/articles/4803409-smtp-settings). |
+
+`EMAIL_FROM` and `EMAIL_TO` mean the same over SMTP as over the API.
+
 ## Default `PUBLIC_URL` per stack
 
 The default matches the dev server port, so local links work without editing anything.

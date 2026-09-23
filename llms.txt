@@ -46,6 +46,7 @@ A machine-readable map from use case to source file for every stack is in [examp
 - [Send email with RedwoodJS](https://github.com/ElasticEmail/elasticemail-examples/blob/main/redwoodjs-elasticemail-examples/QUICKSTART.md): RedwoodJS 8 functions
 - [Send email with TanStack Start](https://github.com/ElasticEmail/elasticemail-examples/blob/main/tanstack-elasticemail-examples/QUICKSTART.md): TanStack Start server routes
 - [Send email from serverless](https://github.com/ElasticEmail/elasticemail-examples/blob/main/serverless-elasticemail-examples/QUICKSTART.md): Cloudflare Workers, Vercel, Supabase Edge, AWS Lambda, Deno Deploy, Netlify, Railway, Encore
+- [Send your first email with SMTP](https://github.com/ElasticEmail/elasticemail-examples/blob/main/smtp-elasticemail-examples/QUICKSTART.md): the SMTP relay (smtp.elasticemail.com) with curl, then Auth0, Customer.io, Liferay, Metabase, Retool, Supabase, WordPress, Nodemailer, NextAuth, PHPMailer, Laravel, Django, Rails
 
 ## For coding agents
 
@@ -61,3 +62,4 @@ A machine-readable map from use case to source file for every stack is in [examp
 - [Plans and pricing](https://elasticemail.com/email-api-pricing)
 - [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain)
 - [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings): creating and scoping API keys
+- [SMTP settings](https://help.elasticemail.com/en/articles/4803409-smtp-settings): SMTP host, ports and credentials

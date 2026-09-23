@@ -25,6 +25,7 @@ code you learn in one stack maps directly to the others.
   examples/                    standalone scripts, one per use case (non-JS stacks and Express/Hono/Bun)
   <framework>_app/             a server app exposing the use cases as HTTP routes
 serverless-elasticemail-examples/<platform>/   one small deployable per platform
+smtp-elasticemail-examples/<service>/          SMTP relay setup for a platform or framework (docs only)
 docs/                          language-neutral guides
 scripts/build-agent-files.mjs  regenerates examples.json and llms-full.txt
 ```
@@ -50,6 +51,11 @@ Each stack is self-contained. There is no root package, workspace or shared buil
   `MessageID`.
 - **Errors** come back as `{"Error": "message"}` with a 4xx/5xx status. Server examples answer
   `{ "error": "<message>" }` with the same status. See [docs/error-handling.md](docs/error-handling.md).
+- **SMTP uses its own credentials.** Host `smtp.elasticemail.com`, port 2525 (or 587/25) with
+  STARTTLS, 465 with implicit TLS. Username and password come from Settings > SMTP in the dashboard;
+  the password is not the API key. Env vars: `ELASTICEMAIL_SMTP_HOST`, `ELASTICEMAIL_SMTP_PORT`,
+  `ELASTICEMAIL_SMTP_USERNAME`, `ELASTICEMAIL_SMTP_PASSWORD`. The SMTP section is
+  [smtp-elasticemail-examples/](smtp-elasticemail-examples/README.md); the `From` rule above applies there too.
 - **Sub-account creation affects billing.** The sub-accounts example is read-only unless
   `CREATE_SUBACCOUNT=true`. Keep it that way.
 
@@ -90,9 +96,12 @@ To actually send, put real values in `.env` and follow the stack's README. Never
 - Stack `README.md` H1: `<Stack> Email API Examples - Elastic Email`. Stack `QUICKSTART.md` H1:
   `Send your first email with <Stack>`. Serverless platform README H1:
   `Send Email from <Platform> - Elastic Email API`. Nested framework app README H1:
-  `<Framework> Email Example - Elastic Email API`.
+  `<Framework> Email Example - Elastic Email API`. SMTP integration README H1:
+  `Send Email from <Service> with SMTP - Elastic Email`.
 - Write a lede that is specific to the stack (name the SDK and runtime). Do not copy it from another stack.
 - The first Resources bullet links to https://elasticemail.com/email-api.
+- SMTP pages link [SMTP settings](https://help.elasticemail.com/en/articles/4803409-smtp-settings)
+  once, where the reader creates SMTP credentials.
 - Link [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain)
   and [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings) once each per page,
   at the step where the reader needs them.

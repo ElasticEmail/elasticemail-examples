@@ -36,6 +36,9 @@ per-recipient merge fields). Both return a `TransactionID` and a `MessageID` you
 The `From` address must belong to a domain you have verified. Failures come back as
 `{"Error": "message"}` with a 4xx or 5xx status.
 
+Tools that only speak SMTP can use the relay at `smtp.elasticemail.com` instead, with SMTP
+credentials rather than the API key. See the [SMTP integrations](../smtp-elasticemail-examples/README.md).
+
 ## Conventions used across every stack
 
 - The examples take configuration from environment variables only. No key is ever hardcoded.
@@ -53,3 +56,4 @@ The `From` address must belong to a domain you have verified. Failures come back
 - [Elastic Email API reference](https://elasticemail.com/developers/api-documentation/rest-api) - every endpoint and parameter
 - [Elastic Email SDKs](https://elasticemail.com/developers/api-libraries) - official client libraries
 - [All example stacks](../README.md) - 20 languages, frameworks and serverless platforms
+- [SMTP integrations](../smtp-elasticemail-examples/README.md) - Auth0, Supabase, WordPress, Django, Rails and more over SMTP

@@ -15,6 +15,7 @@ does:
 | **Inbound email routing** - parse incoming mail and act on it | [Inbound](#receiving), [inbound guide](docs/inbound-email.md) |
 | **Contacts, lists and suppressions** | [Contacts](#contacts-and-lists), [double opt-in](#contacts-and-lists), [suppressions](#contacts-and-lists) |
 | **Secure API keys, sub-accounts, analytics** | [Account](#account), [account guide](docs/account.md) |
+| **SMTP relay** - for tools and frameworks that only speak SMTP | [SMTP integrations](#send-with-smtp) |
 
 Every example runs on the free plan - see [plans and pricing](https://elasticemail.com/email-api-pricing).
 
@@ -45,9 +46,23 @@ links to covers every example and route for that language.
 | **RedwoodJS** | [Send email with RedwoodJS](redwoodjs-elasticemail-examples/QUICKSTART.md) | [RedwoodJS examples](redwoodjs-elasticemail-examples/) | RedwoodJS 8 |
 | **TanStack Start** | [Send email with TanStack Start](tanstack-elasticemail-examples/QUICKSTART.md) | [TanStack Start examples](tanstack-elasticemail-examples/) | TanStack Start |
 | **Serverless** | [Send email from serverless](serverless-elasticemail-examples/QUICKSTART.md) | [All 8 platforms](serverless-elasticemail-examples/) | Cloudflare Workers, Vercel, Supabase Edge, AWS Lambda, Deno Deploy, Netlify, Railway, Encore |
+| **SMTP** | [Send your first email with SMTP](smtp-elasticemail-examples/QUICKSTART.md) | [All 13 integrations](smtp-elasticemail-examples/) | Auth0, Supabase, WordPress, Metabase, Nodemailer, Laravel, Django, Rails and more |
 
 JavaScript and TypeScript stacks use [`@elasticemail/elasticemail-client-ts-axios`](https://github.com/ElasticEmail/elasticemail-ts-axios). Other languages use the matching [Elastic Email SDK](https://elasticemail.com/developers/api-libraries). Elixir calls the REST API directly with Req.
 All stacks are pinned to the 4.2 SDK line and target REST API v4.
+
+## Send with SMTP
+
+Some tools only let you enter an SMTP server: Auth0, Supabase Auth, WordPress, Metabase. Some apps
+already send through their framework's mailer. For both, [`smtp-elasticemail-examples/`](smtp-elasticemail-examples/)
+shows how to point them at `smtp.elasticemail.com`, with no SDK involved. The
+[SMTP quickstart](smtp-elasticemail-examples/QUICKSTART.md) sends a first message with `curl`.
+
+| Platforms | Code |
+|---|---|
+| [Auth0](smtp-elasticemail-examples/auth0/), [Customer.io](smtp-elasticemail-examples/customer-io/), [Liferay](smtp-elasticemail-examples/liferay/), [Metabase](smtp-elasticemail-examples/metabase/), [Retool](smtp-elasticemail-examples/retool/), [Supabase](smtp-elasticemail-examples/supabase/), [WordPress](smtp-elasticemail-examples/wordpress/) | [Nodemailer](smtp-elasticemail-examples/nodemailer/), [NextAuth](smtp-elasticemail-examples/nextauth/), [PHPMailer](smtp-elasticemail-examples/phpmailer/), [Laravel](smtp-elasticemail-examples/laravel/), [Django](smtp-elasticemail-examples/django/), [Rails](smtp-elasticemail-examples/rails/) |
+
+SMTP uses its own credentials (Settings > SMTP in the dashboard), not the API key.
 
 ## Using with AI Agents
 

@@ -159,7 +159,8 @@ writeFileSync("examples.json", JSON.stringify(manifest, null, 2) + "\n");
 const read = (f) => readFileSync(f, "utf8").trim();
 const section = (f) => `\n\n---\n\n<!-- source: ${REPO}/blob/main/${f} -->\n\n${read(f)}`;
 const guides = ["docs/README.md", ...tracked.filter((f) => /^docs\/.+\.md$/.test(f) && f !== "docs/README.md").sort()];
-const quickstarts = [...new Set(stacks.map((s) => s.quickstart))];
+// The SMTP section has no source files for examples.json, only docs.
+const quickstarts = [...new Set([...stacks.map((s) => s.quickstart), "smtp-elasticemail-examples/QUICKSTART.md"])];
 const full = [
   "# Elastic Email Examples - full text for LLMs",
   "",
