@@ -96,6 +96,8 @@ To actually send, put real values in `.env` and follow the stack's README. Never
 - Link [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain)
   and [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings) once each per page,
   at the step where the reader needs them.
+- Send readers who need Elastic Email support to the chat widget on
+  [elasticemail.com](https://elasticemail.com), not to the help center.
 - Never put prices or sending-volume figures in the repo. Link to https://elasticemail.com/email-api-pricing.
 - After adding or renaming an example, run `node scripts/build-agent-files.mjs` and commit the
   regenerated `examples.json` and `llms-full.txt`.

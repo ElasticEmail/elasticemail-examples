@@ -9,8 +9,8 @@ stacks are all welcome.
 template that fits. For a broken example, include the stack, the example or route, the command you ran
 and the full error. Remove your API key and any real recipient addresses first.
 
-Questions about your Elastic Email account, billing or deliverability belong with
-[Elastic Email support](https://help.elasticemail.com), not here.
+Questions about your Elastic Email account, billing or deliverability belong with Elastic Email
+support, not here. Reach them through the chat widget on [elasticemail.com](https://elasticemail.com).
 
 ## Changing an example
 

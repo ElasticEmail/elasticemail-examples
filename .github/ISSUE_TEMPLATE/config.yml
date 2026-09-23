@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: Elastic Email account, billing or deliverability
-    url: https://help.elasticemail.com
-    about: Questions about your account belong with Elastic Email support.
+    url: https://elasticemail.com
+    about: Ask Elastic Email support through the chat widget on elasticemail.com.
   - name: Security vulnerability
     url: https://elasticemail.com
     about: Report security issues privately through the chat widget on elasticemail.com, not as a public issue.
