@@ -46,7 +46,9 @@ Copy `.env.example` to `.env` inside the folder you are working on for local dev
 
 ## Webhooks
 
-Elastic Email does not sign webhook requests. The handlers check a shared secret in the URL (`?token=ELASTICEMAIL_WEBHOOK_TOKEN`) with a constant-time compare and return 401 on mismatch. Events arrive as query parameters (GET) or form fields (POST): `status` (Sent, Opened, Clicked, Error, AbuseReport, Unsubscribed), `to`, `transaction`, `messageid`, `category`, `target`. Elastic Email sends a GET to the URL when the webhook is saved and expects a 2xx response, so the handlers answer `{ ok: true }` to requests without a `status`.
+Elastic Email does not sign webhook requests. The handlers check a shared secret in the URL (`?token=ELASTICEMAIL_WEBHOOK_TOKEN`) with a constant-time compare and return 401 on mismatch. Elastic Email sends each event as a GET request with the details in the query string: `status` (Sent, Opened, Clicked, Error, AbuseReport, Unsubscribed), `to`, `transaction`, `messageid`, `category`, `target`.
+
+When you save a webhook, Elastic Email sends one test event to the URL and saves the webhook only if it gets a 2xx response, so deploy before you register it. The test event carries sample values (`to=test@test.com`, `messageid=abc1234`). The handlers accept it like any other event; in your own app, skip it before it reaches your data.
 
 Register the webhook in the Elastic Email dashboard or with the SDK:
 

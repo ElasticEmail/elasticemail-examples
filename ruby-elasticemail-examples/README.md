@@ -151,7 +151,7 @@ Both server apps expose the same routes and JSON shapes.
 
 - `GET /health` -> `{"status": "ok"}`
 - `POST /send` body `{"to", "subject", "message"}` -> `{"success": true, "transactionId", "messageId"}`
-- `GET|POST /webhook?token=...` - Elastic Email event notifications. Parameters arrive in the query string or as form fields (`status`, `to`, `transaction`, `messageid`, `target`, ...). The `token` must match `ELASTICEMAIL_WEBHOOK_TOKEN`.
+- `GET|POST /webhook?token=...` - Elastic Email event notifications. Elastic Email sends each event as a GET request with the details in the query string (`status`, `to`, `transaction`, `messageid`, `target`, ...). The `token` must match `ELASTICEMAIL_WEBHOOK_TOKEN`.
 - `POST /inbound?token=...` - inbound email pushed by an inbound route (`from_email`, `subject`, `body_html`, `att1_name`, `att1_content`, ...). Forwards a copy to `CONTACT_EMAIL`.
 - `POST /double-optin/subscribe` body `{"email", "name"}` - stores the contact as Transactional and sends a confirmation link
 - `GET /double-optin/confirm?email=&token=` - verifies the HMAC token and adds the contact to `ELASTICEMAIL_LIST_NAME`

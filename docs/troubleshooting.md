@@ -46,17 +46,22 @@ Same subject line. Add a unique `X-Entity-Ref-ID` header per message - see
 ## Webhooks
 
 **Saving the webhook fails**
-Elastic Email sends a GET to the URL on save and expects a 2xx. The URL must be publicly reachable at
-that moment. `localhost` never is - run a tunnel and set `PUBLIC_URL` to it first.
+When you save a webhook, Elastic Email sends a test event (a GET request) to the URL and saves the
+webhook only if it gets a 2xx response. The URL must be publicly reachable at that moment.
+`localhost` never is - run a tunnel and set `PUBLIC_URL` to it first. A route that only accepts POST
+answers 405 and fails the same way.
 
 **Every event answers 401**
 The `token` query parameter does not match `ELASTICEMAIL_WEBHOOK_TOKEN`. It is compared byte for byte:
 watch for a trailing space or newline in `.env`, and for a value that needed URL-encoding.
 
 **Events arrive but the body is empty**
-The payload is form-encoded, not JSON. Mount the urlencoded body parser (`express.urlencoded()` and
-its equivalents). The handlers merge query and body precisely because Elastic Email uses GET for some
-deliveries and POST for others.
+That is expected. Elastic Email sends events as GET requests with everything in the query string, so
+read `status`, `to` and the rest from the query parameters.
+
+**Inbound email arrives but the body is empty**
+Inbound email is a form-encoded POST, not JSON. Mount the urlencoded body parser
+(`express.urlencoded()` and its equivalents).
 
 **403 before the handler runs, on SvelteKit**
 The framework's CSRF check rejects form posts with no `Origin` header. `kit.csrf.checkOrigin` is set

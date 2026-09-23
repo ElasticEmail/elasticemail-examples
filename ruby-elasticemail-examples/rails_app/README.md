@@ -42,9 +42,10 @@ Response: `{"success": true, "transactionId": "...", "messageId": "..."}`
 GET|POST http://localhost:3000/webhook?token=<ELASTICEMAIL_WEBHOOK_TOKEN>
 ```
 
-Elastic Email posts event parameters as form fields (`status`, `to`, `transaction`, `messageid`,
-`target`, ...) and sends a GET to validate the URL when the webhook is saved. Requests without the
-right `token` get 401.
+Elastic Email sends each event as a GET request with the details in the query string (`status`,
+`to`, `transaction`, `messageid`, `target`, ...). When you save a webhook, it sends one test event
+(`to=test@test.com`, `messageid=abc1234`) and saves the webhook only if it gets a 2xx response.
+Requests without the right `token` get 401.
 
 ### Inbound Email
 ```

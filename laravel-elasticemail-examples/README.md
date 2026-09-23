@@ -82,8 +82,10 @@ Sends return `{ success: true, transactionId, messageId }`.
 | POST | `/api/inbound?token=` | Inbound email pushed by an inbound route, forwarded to `CONTACT_EMAIL` |
 
 Elastic Email does not sign webhooks. Both endpoints compare `?token=` with
-`ELASTICEMAIL_WEBHOOK_TOKEN` and return 401 on mismatch. GET without a `status` answers
-`{ ok: true }` so Elastic Email can validate the URL when the webhook is saved.
+`ELASTICEMAIL_WEBHOOK_TOKEN` and return 401 on mismatch. When you save a webhook,
+Elastic Email sends one test event (a GET with `to=test@test.com` and `messageid=abc1234`) and
+saves the webhook only if it gets a 2xx response. The handler accepts it like any other event; in
+your own app, skip it before it reaches your data.
 
 ### Contacts
 

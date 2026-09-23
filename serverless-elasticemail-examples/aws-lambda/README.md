@@ -60,9 +60,9 @@ Logs: `sam logs -n EmailFunction --stack-name <stack> --tail`.
 ## Notes on runtime quirks
 
 - The handler receives an `APIGatewayProxyEventV2` and returns `{ statusCode, headers, body }`. Query parameters are in `event.queryStringParameters`, the method in `event.requestContext.http.method`.
-- HTTP API base64-encodes request bodies it does not recognise as text. `rawBody()` checks `event.isBase64Encoded` before parsing. Elastic Email's form-encoded webhook body is parsed with `URLSearchParams`.
+- HTTP API base64-encodes request bodies it does not recognise as text. `rawBody()` checks `event.isBase64Encoded` before parsing a form-encoded body with `URLSearchParams`. Elastic Email itself sends events as GETs, so this only runs for POSTs you send yourself, such as the curl tests.
 - The `EmailsApi` instance is created lazily and cached in module scope so warm invocations reuse it.
-- `ANY /webhook` covers both the GET validation ping Elastic Email sends on save and the POST notifications.
+- `ANY /webhook` accepts every method. Elastic Email uses GET, both for events and for the test event it sends when you save the webhook.
 - SAM's esbuild build (`Metadata.BuildMethod: esbuild`) bundles the SDK and axios into a single CommonJS file, so no `node_modules` is uploaded. `npm run build` does the same locally for inspection.
 
 ## AI assistant prompt

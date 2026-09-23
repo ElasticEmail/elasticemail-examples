@@ -49,7 +49,7 @@ curl -X POST http://localhost:5173/api/send \
 
 Webhook and inbound handlers need a public URL. Run `ngrok http 5173`, set `PUBLIC_URL` to the HTTPS URL and use `PUBLIC_URL/api/webhook?token=<ELASTICEMAIL_WEBHOOK_TOKEN>` (or `/api/inbound?token=...`) when creating the webhook or inbound route in Elastic Email. Elastic Email does not sign these requests; the token in the query string is what the handlers verify.
 
-Elastic Email posts these notifications form-encoded without an `Origin` header. SvelteKit's built-in CSRF check would answer 403 before the handler runs, so `kit.csrf.checkOrigin` is set to `false` in `svelte.config.js`. Turn it back on if you add form actions that need it.
+Inbound email arrives as a form-encoded POST without an `Origin` header. SvelteKit's built-in CSRF check would answer 403 before the inbound handler runs, so `kit.csrf.checkOrigin` is set to `false` in `svelte.config.js`. Turn it back on if you add form actions that need it.
 
 Typecheck (TypeScript variant): `npm run check`. The project uses `adapter-auto`; pick an adapter (for example `@sveltejs/adapter-node`) for deployment.
 

@@ -114,15 +114,18 @@ bun run dev
 Elastic Email does not sign webhook requests. The examples put a shared secret in the URL
 (`?token=ELASTICEMAIL_WEBHOOK_TOKEN`) and check it with a constant-time compare from `node:crypto`,
 which Bun supports.
-Event parameters arrive in the query string or as form fields: `status` (Sent, Opened, Clicked,
-Error, AbuseReport, Unsubscribed), `to`, `transaction`, `messageid`, `category`, `target`.
-The handlers read form bodies with `req.formData()`.
+Elastic Email sends each event as a GET request with the details in the query string: `status`
+(Sent, Opened, Clicked, Error, AbuseReport, Unsubscribed), `to`, `transaction`, `messageid`,
+`category`, `target`.
 
-Inbound email arrives as form fields (`from_email`, `subject`, `body_text`, `body_html`,
-`att1_name`, `att1_content`, ...). The domain's MX record must point at `mx.inbound.elasticemail.com`.
+Inbound email arrives as a POST with form fields (`from_email`, `subject`, `body_text`, `body_html`,
+`att1_name`, `att1_content`, ...), which the handler reads with `req.formData()`. The domain's MX record must point at `mx.inbound.elasticemail.com`.
 
 For local development expose the server with a tunnel such as ngrok and set `PUBLIC_URL` to it.
-Elastic Email sends a GET to the URL when a webhook is saved and expects a 2xx response.
+When you save a webhook, Elastic Email sends one test event to the URL and saves the webhook only
+if it gets a 2xx response. The test event carries sample values (`to=test@test.com`,
+`messageid=abc1234`). The handlers accept it like any other event; in your own app, skip it before
+it reaches your data.
 
 ## Quick Usage
 

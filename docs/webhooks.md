@@ -42,15 +42,25 @@ const { data } = await webhookApi.webhookPost({
 
 `webhookGet(limit, offset)` lists them, `webhookByPublicidDelete(id)` removes one.
 
-**Elastic Email sends a GET to the URL when the webhook is saved and expects a 2xx.** If your
-endpoint is not reachable at that moment, the save fails. Every handler in this repository answers
-`{ ok: true }` to a request that carries no `status` parameter, which covers both this validation
-ping and idle health checks.
+**Saving a webhook sends a test event.** As soon as you save, Elastic Email calls the URL once and
+keeps the webhook only if the response is 2xx. If your endpoint is not reachable at that moment, the
+save fails.
+
+The test event looks like a real one, with sample values:
+
+```
+?token=...&transaction=<random id>&to=test@test.com&from=fromTest@test.com&account=account@test.com
+ &status=opened&channel=testchannel&category=sent&subject=test&messageid=abc1234
+```
+
+Your `token` is included because it is part of the URL you registered, so the token check passes.
+The handlers in this repository accept the test event and log it. In your own app, skip it before it
+reaches your database, for example by ignoring events where `messageid` is `abc1234`.
 
 ## What arrives
 
-Events come as query parameters on a GET or form fields on a POST. The handlers merge both so one
-code path covers either:
+Every event is a GET request with the details in the query string. There is no request body. The
+handlers also merge in form fields, so a test POST from curl works too:
 
 ```typescript
 const event = { ...req.query, ...(req.body ?? {}) };
@@ -66,10 +76,12 @@ const event = { ...req.query, ...(req.body ?? {}) };
 | `category` | Failure category on an `Error` event |
 | `target` | The clicked URL, on a `Clicked` event |
 | `channel` | Channel name, when the send set one |
-| `IP`, `Useragent`, `Country`, `City` | Where the open or click came from |
+| `account` | Email address of the Elastic Email account that sent the message |
+| `postback` | The `Postback` value you set on the send, if any |
+| `ip`, `useragent`, `country`, `state`, `city` | Where the open or click came from |
 
-Note the inconsistent casing: `status` and `to` are lowercase, `IP` and `Country` are not. Read them
-exactly as listed.
+All parameter names are lowercase. Values are case-sensitive where they matter: a real event has
+`status=Opened`, while the save-time test event has `status=opened`.
 
 ## Handling the events
 
@@ -115,22 +127,20 @@ ngrok http 3000
 Simulate an event without waiting for a real one:
 
 ```bash
-curl -X POST "http://localhost:3000/webhook?token=change_me" \
-  -d "status=Sent&to=you@yourdomain.com&transaction=abc&messageid=xyz"
+curl "http://localhost:3000/webhook?token=change_me&status=Sent&to=you@yourdomain.com&transaction=abc&messageid=xyz"
 
-curl -X POST "http://localhost:3000/webhook?token=change_me" \
-  -d "status=Clicked&to=you@yourdomain.com&target=https://example.com/pricing"
+curl "http://localhost:3000/webhook?token=change_me&status=Clicked&to=you@yourdomain.com&target=https%3A%2F%2Fexample.com%2Fpricing"
 ```
 
 ## Framework-specific traps
 
 | Stack | Trap |
 |---|---|
-| SvelteKit | The built-in CSRF check rejects form posts without an `Origin` header before the handler runs. `kit.csrf.checkOrigin` is set to `false` in `svelte.config.js` for this reason. |
-| Express | Needs `express.urlencoded()` mounted, or the form fields never appear in `req.body`. The examples raise its limit to `25mb` for inbound mail. |
-| Supabase Edge Functions | Set `verify_jwt = false` for the webhook function - Elastic Email posts no JWT. |
+| SvelteKit | The built-in CSRF check rejects form posts without an `Origin` header before the handler runs. Inbound email arrives as exactly that kind of post. `kit.csrf.checkOrigin` is set to `false` in `svelte.config.js` for this reason. |
+| Express | Needs `express.urlencoded()` mounted, or inbound email's form fields never appear in `req.body`. The examples raise its limit to `25mb` for inbound mail. |
+| Supabase Edge Functions | Set `verify_jwt = false` for the webhook function - Elastic Email sends no JWT. |
 | RedwoodJS | Functions receive an API Gateway style event; form bodies are parsed with `URLSearchParams`. |
-| Next.js, Remix, Astro, Nuxt, TanStack | Handlers accept both GET and POST so the save-time validation ping succeeds. |
+| Next.js, Remix, Astro, Nuxt, TanStack | A route that only exports `POST` answers 405 to Elastic Email's GET, and saving the webhook fails. The handlers export both GET and POST. |
 
 ## In this repository
 

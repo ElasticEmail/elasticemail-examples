@@ -61,7 +61,7 @@ The local dashboard at http://localhost:9400 shows traces, including the outgoin
 ## Notes on runtime quirks
 
 - `api()` endpoints take and return typed JSON. Errors must be thrown as `APIError` (`invalidArgument`, `permissionDenied`, `internal`, ...); the code maps the Elastic Email HTTP status onto those codes, so the response shape is Encore's `{ code, message }` rather than `{ error }`.
-- Elastic Email posts webhooks as `application/x-www-form-urlencoded`, which the typed `api()` cannot parse. The webhook is an `api.raw` endpoint that receives Node's `IncomingMessage`/`ServerResponse`, reads the body manually and parses it with `URLSearchParams`. `method: ["GET", "POST"]` covers Elastic Email's GET validation ping.
+- Elastic Email sends webhook events as GET requests with the details in the query string, including the test event it sends when you save the webhook. The webhook is an `api.raw` endpoint that receives Node's `IncomingMessage`/`ServerResponse` and reads the query string itself. `method: ["GET", "POST"]` also lets you test it with a form-encoded POST from curl, which the typed `api()` could not parse.
 - `secret()` returns a function; call it at request time, not at module load, so `encore run` starts even when a secret is missing and the error surfaces on the first request.
 - Encore generates `encore.gen/` on `encore run`; it is gitignored. The `~encore/*` path alias in `tsconfig.json` points there.
 

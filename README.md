@@ -121,12 +121,16 @@ stack, come here when you need the detail.
 ## Notes on webhooks and inbound
 
 Elastic Email does not sign webhook requests. Every example appends a shared secret to the callback URL
-(`?token=ELASTICEMAIL_WEBHOOK_TOKEN`) and verifies it with a constant-time compare. Event data arrives in the
-query string or as form fields (`status`, `to`, `transaction`, `messageid`, `category`, `target`). Inbound email
-arrives as form fields (`from_email`, `subject`, `body_text`, `body_html`, `att1_name`, `att1_content`, ...).
+(`?token=ELASTICEMAIL_WEBHOOK_TOKEN`) and verifies it with a constant-time compare. Elastic Email sends each event
+as a GET request with the details in the query string (`status`, `to`, `transaction`, `messageid`, `category`,
+`target`). Inbound email is different: it arrives as a POST with form fields (`from_email`, `subject`,
+`body_text`, `body_html`, `att1_name`, `att1_content`, ...).
 
-Elastic Email sends a GET request to a webhook URL when it is saved and expects a 2xx response, so run a tunnel
-such as ngrok during local development and set `PUBLIC_URL` accordingly.
+When you save a webhook, Elastic Email sends one test event to the URL and saves the webhook only if it gets a
+2xx response, so the URL has to be publicly reachable at that moment. During local development, run a tunnel
+such as ngrok and set `PUBLIC_URL` accordingly. The test event carries sample values (`to=test@test.com`,
+`messageid=abc1234`). The handlers accept it like any other event; in your own app, skip it before it reaches
+your data.
 
 Full detail: [Webhooks](docs/webhooks.md) and [Inbound email](docs/inbound-email.md).
 

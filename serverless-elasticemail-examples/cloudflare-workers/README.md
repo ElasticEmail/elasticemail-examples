@@ -58,7 +58,7 @@ Watch logs with `wrangler tail`.
 - workerd does not ship `node:http`, which axios uses by default. The code passes `axios.create({ adapter: "fetch" })` as the third argument of `new EmailsApi(configuration, basePath, axios)` so requests go through `fetch`.
 - `nodejs_compat` is enabled so axios' Node-specific imports (`url`, `util`, `stream`) resolve during bundling.
 - Env vars are not globals. They arrive as the second argument of `fetch(request, env)`, so the `EmailsApi` instance is created per request.
-- Elastic Email validates the webhook URL with a GET on save. The handler returns `{ ok: true }` for requests without a `status` parameter.
+- When you save a webhook, Elastic Email sends one test event (a GET with `to=test@test.com` and `messageid=abc1234`) and saves the webhook only if the Worker answers 2xx. The handler accepts it like any other event.
 
 ## AI assistant prompt
 

@@ -212,9 +212,10 @@ await new WebhookApi(config).webhookPost({
 });
 ```
 
-Elastic Email sends a GET to the URL when the webhook is saved and expects a 2xx, so deploy before
-registering. Every handler here answers `{ ok: true }` to a request with no `status` parameter,
-which covers that check.
+When you save a webhook, Elastic Email sends one test event to the URL and saves the webhook only
+if it gets a 2xx response, so deploy before registering. The test event carries sample values
+(`to=test@test.com`, `messageid=abc1234`). The handlers accept it like any other event; in your own
+app, skip it before it reaches your data.
 
 ## Next steps
 
