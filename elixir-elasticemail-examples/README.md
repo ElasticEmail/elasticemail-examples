@@ -9,6 +9,8 @@ REST API v4 directly. JSON keys are the PascalCase names from the API reference.
 > **First time here?** The [Elixir quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · no SDK, Req 0.5 · Elixir 1.15+ (OTP 25+) · Phoenix 1.7
+
 ## Prerequisites
 
 - Elixir 1.15+ (OTP 25+)

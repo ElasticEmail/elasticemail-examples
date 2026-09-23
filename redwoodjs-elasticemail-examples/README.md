@@ -5,6 +5,8 @@ Send transactional and bulk email from RedwoodJS 8 with the [Elastic Email](http
 > **First time here?** The [RedwoodJS quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20, Yarn 4 · RedwoodJS 8
+
 ## Prerequisites
 
 - Node.js 20+ and Yarn (Redwood's CLI expects Yarn; `corepack enable` gives you Yarn 4)

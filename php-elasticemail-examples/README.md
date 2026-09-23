@@ -5,6 +5,8 @@ Send transactional and bulk email from PHP with the [Elastic Email](https://elas
 > **First time here?** The [PHP quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `elasticemail/elasticemail-php@4.2.0` · PHP 8.1+ · Slim 4, Symfony 6.4/7
+
 ## Prerequisites
 
 - PHP 8.1+

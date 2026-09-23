@@ -1,0 +1,63 @@
+# Elastic Email Examples
+
+> Runnable code samples for the Elastic Email email API (REST API v4, official SDKs 4.2.0): transactional and bulk sending, templates, attachments, webhooks, inbound email routing, contacts, double opt-in, suppressions, sending domains and account statistics - in 20 languages, frameworks and serverless platforms.
+
+Every example reads `ELASTICEMAIL_API_KEY`, `EMAIL_FROM` and `EMAIL_TO` from `.env`. `EMAIL_FROM` must belong to a domain verified in Elastic Email. The API base URL is `https://api.elasticemail.com/v4` and authentication is the `X-ElasticEmail-ApiKey` header. Webhooks are unsigned GET requests with event data in the query string; the examples verify a shared `?token=` secret with a constant-time compare. Inbound email arrives as a form POST.
+
+A machine-readable map from use case to source file for every stack is in [examples.json](https://github.com/ElasticEmail/elasticemail-examples/blob/main/examples.json). All guides and quickstarts in one file: [llms-full.txt](https://github.com/ElasticEmail/elasticemail-examples/blob/main/llms-full.txt).
+
+## Guides
+
+- [Overview](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/README.md): the API in one paragraph and the conventions every stack follows
+- [Environment variables](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/environment-variables.md): every variable, where it is used, what breaks without it
+- [Sending email](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/sending-email.md): transactional vs bulk, merge fields, scheduling, threading, delivery lookup
+- [Attachments](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/attachments.md): file attachments and inline (CID) images
+- [Templates](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/templates.md): hosted templates, merge values, creating one from code
+- [Contacts and lists](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/contacts-and-lists.md): lists, contact CRUD, statuses, custom fields
+- [Double opt-in](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/double-opt-in.md): HMAC confirmation link vs the Clicked event
+- [Webhooks](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/webhooks.md): events, parameters, the token scheme, handler design
+- [Inbound email](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/inbound-email.md): inbound routes, MX setup, parsed fields
+- [Suppressions](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/suppressions.md): unsubscribes, bounces, complaints
+- [Domains and deliverability](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/domains-and-deliverability.md): SPF, DKIM, MX, DMARC, tracking, warm-up
+- [Account](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/account.md): statistics, email verification, sub-accounts
+- [Error handling](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/error-handling.md): the error body and how each SDK surfaces it
+- [API map](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/api-map.md): use case to SDK method name in every language
+- [Troubleshooting](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/troubleshooting.md): symptom to cause for common failures
+
+## Quickstarts
+
+- [Send email with Next.js](https://github.com/ElasticEmail/elasticemail-examples/blob/main/nextjs-elasticemail-examples/QUICKSTART.md): Next.js 15 route handlers and server actions, TypeScript and JavaScript
+- [Send email with PHP](https://github.com/ElasticEmail/elasticemail-examples/blob/main/php-elasticemail-examples/QUICKSTART.md): elasticemail-php SDK, Slim and Symfony
+- [Send email with Laravel](https://github.com/ElasticEmail/elasticemail-examples/blob/main/laravel-elasticemail-examples/QUICKSTART.md): Laravel 11 controllers and an Artisan command
+- [Send email with Python](https://github.com/ElasticEmail/elasticemail-examples/blob/main/python-elasticemail-examples/QUICKSTART.md): ElasticEmail PyPI SDK, Flask, FastAPI, Django
+- [Send email with Ruby](https://github.com/ElasticEmail/elasticemail-examples/blob/main/ruby-elasticemail-examples/QUICKSTART.md): ElasticEmail gem, Sinatra and Rails
+- [Send email with Go](https://github.com/ElasticEmail/elasticemail-examples/blob/main/go-elasticemail-examples/QUICKSTART.md): elasticemail-go/v4, Chi and Gin
+- [Send email with Java](https://github.com/ElasticEmail/elasticemail-examples/blob/main/java-elasticemail-examples/QUICKSTART.md): elasticemail-java via JitPack, Javalin and Spring Boot
+- [Send email with .NET](https://github.com/ElasticEmail/elasticemail-examples/blob/main/dotnet-elasticemail-examples/QUICKSTART.md): ElasticEmail NuGet package, Minimal APIs and MVC
+- [Send email with Rust](https://github.com/ElasticEmail/elasticemail-examples/blob/main/rust-elasticemail-examples/QUICKSTART.md): elasticemail-rust, Axum
+- [Send email with Elixir](https://github.com/ElasticEmail/elasticemail-examples/blob/main/elixir-elasticemail-examples/QUICKSTART.md): REST API through Req, Phoenix
+- [Send email with Express](https://github.com/ElasticEmail/elasticemail-examples/blob/main/express-elasticemail-examples/QUICKSTART.md): Express 5, TypeScript and JavaScript
+- [Send email with Hono](https://github.com/ElasticEmail/elasticemail-examples/blob/main/hono-elasticemail-examples/QUICKSTART.md): Hono 4, TypeScript and JavaScript
+- [Send email with Bun](https://github.com/ElasticEmail/elasticemail-examples/blob/main/bun-elasticemail-examples/QUICKSTART.md): Bun.serve(), TypeScript and JavaScript
+- [Send email with Remix](https://github.com/ElasticEmail/elasticemail-examples/blob/main/remix-elasticemail-examples/QUICKSTART.md): Remix 2 resource routes
+- [Send email with Nuxt](https://github.com/ElasticEmail/elasticemail-examples/blob/main/nuxt-elasticemail-examples/QUICKSTART.md): Nuxt 3 server routes
+- [Send email with SvelteKit](https://github.com/ElasticEmail/elasticemail-examples/blob/main/sveltekit-elasticemail-examples/QUICKSTART.md): SvelteKit 2 +server endpoints
+- [Send email with Astro](https://github.com/ElasticEmail/elasticemail-examples/blob/main/astro-elasticemail-examples/QUICKSTART.md): Astro 5 API endpoints
+- [Send email with RedwoodJS](https://github.com/ElasticEmail/elasticemail-examples/blob/main/redwoodjs-elasticemail-examples/QUICKSTART.md): RedwoodJS 8 functions
+- [Send email with TanStack Start](https://github.com/ElasticEmail/elasticemail-examples/blob/main/tanstack-elasticemail-examples/QUICKSTART.md): TanStack Start server routes
+- [Send email from serverless](https://github.com/ElasticEmail/elasticemail-examples/blob/main/serverless-elasticemail-examples/QUICKSTART.md): Cloudflare Workers, Vercel, Supabase Edge, AWS Lambda, Deno Deploy, Netlify, Railway, Encore
+
+## For coding agents
+
+- [AGENTS.md](https://github.com/ElasticEmail/elasticemail-examples/blob/main/AGENTS.md): repository layout, conventions and the rules that are easy to get wrong
+- [Agent skill](https://github.com/ElasticEmail/elasticemail-examples/blob/main/skills/elasticemail/SKILL.md): step-by-step instructions for adding Elastic Email to an existing project
+- [Elastic Email MCP server](https://github.com/ElasticEmail/elasticemail-mcp-server): lets an agent send email, manage contacts, campaigns and templates through MCP
+
+## Optional
+
+- [Elastic Email email API](https://elasticemail.com/email-api): product overview
+- [REST API reference](https://elasticemail.com/developers/api-documentation/rest-api)
+- [API libraries](https://elasticemail.com/developers/api-libraries): every official SDK
+- [Plans and pricing](https://elasticemail.com/email-api-pricing)
+- [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain)
+- [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings): creating and scoping API keys

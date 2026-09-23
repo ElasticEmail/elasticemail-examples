@@ -10,6 +10,8 @@ as the HTML body. Laravel's Mail transport is not used, so you get the `Transact
 > **First time here?** The [Laravel quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `elasticemail/elasticemail-php@4.2.0` · PHP 8.2+ · Laravel 11
+
 ## Prerequisites
 
 - PHP 8.2+

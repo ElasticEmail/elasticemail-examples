@@ -5,6 +5,8 @@ Send transactional and bulk email from Express 5 on Node.js with the [Elastic Em
 > **First time here?** The [Express quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ · Express 5
+
 ## Prerequisites
 
 - Node.js 20+

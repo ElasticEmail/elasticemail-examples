@@ -5,6 +5,8 @@ Send transactional and bulk email from Next.js 15 (App Router) with the [Elastic
 > **First time here?** The [Next.js quickstart](../QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 18.18+ · Next.js 15, React 19
+
 ## Prerequisites
 
 - Node.js 18.18+ (20 or 22 recommended)

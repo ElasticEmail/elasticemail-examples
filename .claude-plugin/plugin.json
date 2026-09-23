@@ -1,0 +1,10 @@
+{
+  "name": "elasticemail",
+  "description": "Add Elastic Email to a project: sending, templates, attachments, webhooks, inbound email and contacts, using working examples for 20 stacks.",
+  "version": "1.0.0",
+  "author": { "name": "Elastic Email", "url": "https://elasticemail.com" },
+  "homepage": "https://github.com/ElasticEmail/elasticemail-examples",
+  "repository": "https://github.com/ElasticEmail/elasticemail-examples",
+  "license": "MIT",
+  "keywords": ["email", "email-api", "transactional-email", "webhooks", "elastic-email"]
+}

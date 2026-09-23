@@ -5,6 +5,8 @@ Send transactional and bulk email from Java with the [Elastic Email](https://ela
 > **First time here?** The [Java quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `com.github.ElasticEmail:elasticemail-java:4.2.0 (JitPack)` · Java 17+, Maven 3.8+ · Javalin, Spring Boot 3.4
+
 ## Prerequisites
 
 - Java 17+

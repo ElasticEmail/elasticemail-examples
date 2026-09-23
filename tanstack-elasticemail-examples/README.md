@@ -5,6 +5,8 @@ Send transactional and bulk email from TanStack Start with the [Elastic Email](h
 > **First time here?** The [TanStack Start quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ · TanStack Start
+
 ## Prerequisites
 
 - Node.js 20+

@@ -4,6 +4,8 @@ One Lambda function behind an HTTP API (API Gateway v2) that sends transactional
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20 (AWS SAM) · AWS Lambda
+
 ## Prerequisites
 
 - Node.js 20+

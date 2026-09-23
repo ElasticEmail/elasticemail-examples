@@ -4,6 +4,8 @@ A small Hono server on Node.js that sends transactional email through the [Elast
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ (Hono) · Railway
+
 ## Prerequisites
 
 - Node.js 20+ and a Railway account

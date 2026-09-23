@@ -5,6 +5,8 @@ Send transactional and bulk email from [Bun](https://bun.sh) with the [Elastic E
 > **First time here?** The [Bun quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Bun 1.1+ · Bun.serve()
+
 ## Prerequisites
 
 - Bun 1.1+

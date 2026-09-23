@@ -1,0 +1,16 @@
+name: New example or stack
+description: Suggest a use case or a language, framework or platform to add.
+labels: [enhancement]
+body:
+  - type: input
+    id: what
+    attributes:
+      label: What should be added
+      placeholder: e.g. Django Ninja stack, suppression export example, Fly.io deployment
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What you are trying to build
+      description: The problem this would solve for you.

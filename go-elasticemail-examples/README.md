@@ -5,6 +5,8 @@ Send transactional and bulk email from Go with the [Elastic Email](https://elast
 > **First time here?** The [Go quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `github.com/elasticemail/elasticemail-go/v4@v4.2.0` · Go 1.22+ · Chi 5, Gin 1.10
+
 ## Prerequisites
 
 - Go 1.22+

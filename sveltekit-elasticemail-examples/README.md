@@ -5,6 +5,8 @@ Send transactional and bulk email from SvelteKit 2 and Svelte 5 with the [Elasti
 > **First time here?** The [SvelteKit quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ · SvelteKit 2, Svelte 5
+
 ## Prerequisites
 
 - Node.js 20+

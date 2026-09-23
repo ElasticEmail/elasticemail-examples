@@ -4,6 +4,8 @@ An Encore.ts service that sends transactional email through the [Elastic Email](
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ (Encore 1.45) · Encore.ts
+
 ## Prerequisites
 
 - Node.js 20+

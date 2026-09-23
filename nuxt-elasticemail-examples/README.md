@@ -5,6 +5,8 @@ Send transactional and bulk email from Nuxt 3 with the [Elastic Email](https://e
 > **First time here?** The [Nuxt quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ · Nuxt 3
+
 ## Prerequisites
 
 - Node.js 20+

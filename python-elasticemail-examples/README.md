@@ -5,6 +5,8 @@ Send transactional and bulk email from Python with the [Elastic Email](https://e
 > **First time here?** The [Python quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `ElasticEmail==4.2.0 (PyPI)` · Python 3.9+ · Flask, FastAPI, Django
+
 ## Prerequisites
 
 - Python 3.9+

@@ -5,6 +5,8 @@ Send transactional and bulk email from .NET and C# with the [Elastic Email](http
 > **First time here?** The [.NET quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `ElasticEmail 4.2.0 (NuGet)` · .NET 8 · ASP.NET Minimal APIs, ASP.NET MVC
+
 ## Prerequisites
 
 - .NET 8.0 SDK

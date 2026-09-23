@@ -1,0 +1,41 @@
+name: Broken example
+description: An example fails to install, compile, run or send.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Remove your API key and real email addresses from everything you paste.
+  - type: dropdown
+    id: stack
+    attributes:
+      label: Stack
+      options: [Next.js, PHP, Laravel, Python, Ruby, Go, Java, .NET, Rust, Elixir, Express, Hono, Bun, Remix, Nuxt, SvelteKit, Astro, RedwoodJS, TanStack Start, Serverless]
+    validations:
+      required: true
+  - type: input
+    id: example
+    attributes:
+      label: Example or route
+      placeholder: e.g. examples/webhooks.py, POST /api/send, cloudflare-workers
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What you ran
+      description: Commands, request body, and the runtime version (`node -v`, `python --version`, ...).
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: What happened
+      description: The full error or the API response.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected

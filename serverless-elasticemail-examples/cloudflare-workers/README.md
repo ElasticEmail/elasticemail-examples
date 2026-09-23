@@ -4,6 +4,8 @@ Send transactional email and receive webhooks from a Cloudflare Worker using the
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · workerd (Wrangler 3) · Cloudflare Workers
+
 ## Prerequisites
 
 - Node.js 20+ and a Cloudflare account

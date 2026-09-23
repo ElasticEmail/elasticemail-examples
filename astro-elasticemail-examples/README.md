@@ -5,6 +5,8 @@ Send transactional and bulk email from an Astro site with the [Elastic Email](ht
 > **First time here?** The [Astro quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ · Astro 5
+
 ## Prerequisites
 
 - Node.js 20+

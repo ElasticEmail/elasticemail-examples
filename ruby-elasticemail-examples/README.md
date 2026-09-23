@@ -5,6 +5,8 @@ Send transactional and bulk email from Ruby with the [Elastic Email](https://ela
 > **First time here?** The [Ruby quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `ElasticEmail ~> 4.2 (RubyGems)` · Ruby 3.1+ · Sinatra 4, Rails 7.2
+
 ## Prerequisites
 
 - Ruby 3.1+

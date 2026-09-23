@@ -4,6 +4,8 @@ A single-file `Deno.serve` app that sends transactional email through the [Elast
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Deno 2 · Deno Deploy
+
 ## Prerequisites
 
 - [Deno](https://deno.com) 2.x

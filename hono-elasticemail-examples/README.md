@@ -5,6 +5,8 @@ Send transactional and bulk email from [Hono](https://hono.dev) on Node.js with 
 > **First time here?** The [Hono quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ · Hono 4
+
 ## Prerequisites
 
 - Node.js 20+

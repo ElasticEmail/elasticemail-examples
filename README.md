@@ -47,10 +47,53 @@ links to covers every example and route for that language.
 | **Serverless** | [Send email from serverless](serverless-elasticemail-examples/QUICKSTART.md) | [All 8 platforms](serverless-elasticemail-examples/) | Cloudflare Workers, Vercel, Supabase Edge, AWS Lambda, Deno Deploy, Netlify, Railway, Encore |
 
 JavaScript and TypeScript stacks use [`@elasticemail/elasticemail-client-ts-axios`](https://github.com/ElasticEmail/elasticemail-ts-axios). Other languages use the matching [Elastic Email SDK](https://elasticemail.com/developers/api-libraries). Elixir calls the REST API directly with Req.
+All stacks are pinned to the 4.2 SDK line and target REST API v4.
+
+## Using with AI Agents
+
+These examples are laid out so a coding agent can find the right file and copy working code
+into your project instead of guessing at the API.
+
+| File | For |
+|---|---|
+| [`AGENTS.md`](AGENTS.md) | Agents working in this repo: layout, conventions, the webhook and sender-domain rules that are easy to get wrong. Claude Code reads it through [`CLAUDE.md`](CLAUDE.md). |
+| [`skills/elasticemail/SKILL.md`](skills/elasticemail/SKILL.md) | An [Agent Skill](https://agentskills.io) that adds Elastic Email to an existing project: detect the stack, copy the matching example, set env vars. |
+| [`examples.json`](examples.json) | Machine-readable map from each use case to its source files, for every stack. |
+| [`llms.txt`](llms.txt) / [`llms-full.txt`](llms-full.txt) | Index of every guide and quickstart, and the same content in one file. |
+
+**Install the skill in Claude Code:**
+
+```bash
+/plugin marketplace add ElasticEmail/elasticemail-examples
+/plugin install elasticemail@elasticemail
+```
+
+For other agents that support skills, copy `skills/elasticemail/` into the agent's skills folder
+(for example `.cursor/skills/` or `~/.codex/skills/`), or run `npx skills add ElasticEmail/elasticemail-examples`.
+
+**Give the agent API access with the [Elastic Email MCP server](https://github.com/ElasticEmail/elasticemail-mcp-server).**
+It sends email and manages contacts, lists, segments, templates and campaigns. The server runs on your
+machine (.NET 10, listening on port 5001) and takes your API key in the `X-Auth-Token` header:
+
+```bash
+# Claude Code
+claude mcp add --transport http elasticemail http://localhost:5001/ --header "X-Auth-Token: $ELASTICEMAIL_API_KEY"
+```
+
+```jsonc
+// Cursor: ~/.cursor/mcp.json
+{ "mcpServers": { "elasticemail": { "url": "http://localhost:5001/", "headers": { "X-Auth-Token": "<api key>" } } } }
+
+// VS Code: .vscode/mcp.json
+{ "servers": { "elasticemail": { "type": "http", "url": "http://localhost:5001/", "headers": { "X-Auth-Token": "<api key>" } } } }
+```
 
 ## Examples Included
 
-Each stack covers the same set of use cases.
+Every language and framework stack covers the sending, webhook, inbound, contacts, double opt-in and
+domain examples. The full-stack framework apps (Next.js, Remix, Nuxt, SvelteKit, Astro, RedwoodJS,
+TanStack Start, Laravel) skip some account-level ones, and the serverless folders focus on send and webhooks.
+[`examples.json`](examples.json) lists exactly which files cover which use case in each stack.
 
 ### Sending
 - **Basic Send** - HTML and plain text transactional email
@@ -147,6 +190,8 @@ Full detail: [Webhooks](docs/webhooks.md) and [Inbound email](docs/inbound-email
 ## Contributing
 
 Found a problem or want to add a stack? [Open an issue](https://github.com/ElasticEmail/elasticemail-examples/issues) or send a pull request.
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the conventions and how to add a stack. To report a security
+issue, see [SECURITY.md](SECURITY.md).
 
 ## License
 

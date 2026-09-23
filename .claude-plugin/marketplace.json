@@ -1,0 +1,11 @@
+{
+  "name": "elasticemail",
+  "owner": { "name": "Elastic Email", "url": "https://elasticemail.com" },
+  "plugins": [
+    {
+      "name": "elasticemail",
+      "source": "./",
+      "description": "Add Elastic Email to a project using working examples for 20 languages, frameworks and serverless platforms."
+    }
+  ]
+}

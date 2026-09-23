@@ -1,0 +1,4633 @@
+# Elastic Email Examples - full text for LLMs
+
+> Every language-neutral guide and every stack quickstart from the Elastic Email examples repository, in one file.
+> Repository: https://github.com/ElasticEmail/elasticemail-examples. Index: https://github.com/ElasticEmail/elasticemail-examples/blob/main/llms.txt. Use-case to file map: https://github.com/ElasticEmail/elasticemail-examples/blob/main/examples.json.
+> Examples target the Elastic Email REST API v4 with the official SDKs at version 4.2.0.
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/README.md -->
+
+# Elastic Email API Guides - Concepts Behind the Examples
+
+Language-neutral guides to the [Elastic Email](https://elasticemail.com/email-api) email API:
+the request shapes, the parameters that matter and the mistakes that cost the most time. They
+explain what every example in this repository is doing, whichever language you picked.
+
+Each stack folder has its own `QUICKSTART.md` (five minutes to a first send) and `README.md`
+(every example, every route). These guides sit underneath both - start from the
+[stack list](../README.md) if you have not sent an email yet.
+
+## Start here
+
+| Guide | What it covers |
+|---|---|
+| [Environment variables](environment-variables.md) | Every variable the examples read, where it is used and what breaks without it |
+| [Sending email](sending-email.md) | Transactional vs bulk, merge fields, scheduling, threading, checking delivery |
+| [Attachments](attachments.md) | File attachments and inline (CID) images |
+| [Templates](templates.md) | Hosted templates, merge values, creating a template from code |
+| [Contacts and lists](contacts-and-lists.md) | Lists, contact CRUD, statuses, custom fields |
+| [Double opt-in](double-opt-in.md) | Both confirmation flows the examples implement, and when to pick which |
+| [Webhooks](webhooks.md) | Event notifications, the parameters they carry, and the token scheme |
+| [Inbound email](inbound-email.md) | Inbound routes, MX setup, the parsed fields you receive |
+| [Suppressions](suppressions.md) | Unsubscribes, bounces, complaints |
+| [Domains and deliverability](domains-and-deliverability.md) | SPF, DKIM, MX, DMARC, tracking CNAME |
+| [Account](account.md) | Statistics, email verification, sub-accounts |
+| [Error handling](error-handling.md) | The error body, and how each SDK surfaces it |
+| [API map](api-map.md) | One table: use case to SDK method, in every language in this repository |
+| [Troubleshooting](troubleshooting.md) | Symptom to cause, for the failures that actually happen |
+
+## The one-paragraph version
+
+Elastic Email's REST API v4 lives at `https://api.elasticemail.com/v4`. Authentication is the
+`X-ElasticEmail-ApiKey` header, which every SDK sets for you once you hand it the key. Sending is
+`POST /emails/transactional` (one message, personal recipients) or `POST /emails` (one bulk job,
+per-recipient merge fields). Both return a `TransactionID` and a `MessageID` you can look up later.
+The `From` address must belong to a domain you have verified. Failures come back as
+`{"Error": "message"}` with a 4xx or 5xx status.
+
+## Conventions used across every stack
+
+- The examples take configuration from environment variables only. No key is ever hardcoded.
+- Server apps expose the same routes with the same JSON shapes, whatever the language:
+  `POST /send` takes `{ to, subject, message }` and answers `{ success, transactionId, messageId }`.
+- Failures answer `{ "error": "<message from the API>" }` with the status the API returned.
+- Webhook and inbound endpoints carry a shared secret in the query string (`?token=...`) and compare
+  it in constant time. Elastic Email does not sign its callbacks, so this is the only check available.
+- Sends set both an HTML and a plain text body part where it makes sense. Some mail clients and most
+  spam filters expect both.
+
+## Resources
+
+- [Elastic Email email API](https://elasticemail.com/email-api) - REST API and SMTP relay overview, features and plans
+- [Elastic Email API reference](https://elasticemail.com/developers/api-documentation/rest-api) - every endpoint and parameter
+- [Elastic Email SDKs](https://elasticemail.com/developers/api-libraries) - official client libraries
+- [All example stacks](../README.md) - 20 languages, frameworks and serverless platforms
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/account.md -->
+
+# Account: statistics, verification, sub-accounts
+
+## Statistics
+
+Account-wide delivery numbers for a date range.
+
+```typescript
+const iso = (d: Date) => d.toISOString().slice(0, 19);   // YYYY-MM-DDThh:mm:ss, no timezone, UTC
+const to = new Date();
+const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+const { data } = await statisticsApi.statisticsGet(iso(from), iso(to));
+```
+
+| Field | Meaning |
+|---|---|
+| `Recipients` | Addresses targeted |
+| `EmailTotal` | Messages submitted |
+| `Delivered` | Accepted by the receiving server |
+| `Bounced` | Rejected |
+| `InProgress` | Still queued, including scheduled sends |
+| `Opened`, `Clicked` | Tracked engagement |
+| `Unsubscribed`, `Complaints` | Opt-outs and spam reports |
+
+The date format has no timezone suffix and is interpreted as UTC. Sending an offset, or a `Z`, gets
+you an error or a surprising window.
+
+Numbers to keep an eye on: bounce rate under about 2%, complaints under 0.1%. Both are computed off
+`EmailTotal`, and both are early warnings - see
+[Domains and deliverability](domains-and-deliverability.md).
+
+The web apps expose this as `GET /statistics?days=30`.
+
+## Email verification
+
+Checks whether an address is deliverable before you send to it. **This is a paid feature** - accounts
+without it get a 4xx.
+
+```typescript
+await verificationsApi.verificationsByEmailPost(email);        // start
+const { data } = await verificationsApi.verificationsByEmailGet(email);  // read result
+```
+
+| Field | Meaning |
+|---|---|
+| `Result` | The verdict |
+| `Reason` | Why |
+| `Disposable` | Throwaway provider |
+| `Role` | Role address such as `info@` or `support@` |
+| `SuggestedSpelling` | Present on a likely typo, for example `gmial.com` |
+
+Where it earns its cost: at signup, to catch typos before the welcome email bounces, and before
+mailing a list that has sat unused for a year. `SuggestedSpelling` is worth surfacing in your signup
+form directly.
+
+## Sub-accounts
+
+Separate sending identities under one parent account - each with its own API key, credits and
+reputation. Useful for isolating customers in a multi-tenant product, or separating staging from
+production.
+
+```typescript
+const { data } = await subAccountsApi.subaccountsGet(20, 0);
+
+await subAccountsApi.subaccountsPost({ Email, Password, SendActivation: false });
+await subAccountsApi.subaccountsByEmailCreditsPatch(Email, { Credits: 1000, Notes: "Initial allocation" });
+const { data: key } = await subAccountsApi.subaccountsByEmailApikeyGet(Email);
+```
+
+**Creating a sub-account affects billing.** The example is read-only unless you opt in:
+
+```bash
+CREATE_SUBACCOUNT=true npx tsx examples/sub-accounts.ts     # Express / Hono / Bun
+CREATE_SUBACCOUNT=true python examples/sub_accounts.py      # Python
+CREATE_SUBACCOUNT=true dotnet run -- sub-accounts           # .NET
+```
+
+Each sub-account is a separate reputation. One tenant's bad list does not sink the others, which is
+the main reason to use them at all.
+
+## In this repository
+
+`statistics`, `email-verification` and `sub-accounts` exist in every stack. See the
+[API map](api-map.md) for the method names in your language.
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/api-map.md -->
+
+# API map
+
+Every SDK in this repository is generated from the same OpenAPI description, so one operation has one
+name in five spellings. Learn the rule once and the table below is readable in any language.
+
+## Naming rule
+
+| Language | Spelling | Example |
+|---|---|---|
+| TypeScript / JavaScript | `camelCase` | `emailsApi.emailsTransactionalPost(...)` |
+| PHP | `camelCase` | `$emailsApi->emailsTransactionalPost(...)` |
+| Java | `camelCase` | `emailsApi.emailsTransactionalPost(...)` |
+| Python | `snake_case` | `emails_api.emails_transactional_post(...)` |
+| Ruby | `snake_case` | `emails_api.emails_transactional_post(...)` |
+| Rust | `snake_case`, free function in a module | `emails_api::emails_transactional_post(&config, data)` |
+| Go | `PascalCase`, builder then `.Execute()` | `client.EmailsAPI.EmailsTransactionalPost(ctx).EmailTransactionalMessageData(*data).Execute()` |
+| C# | `PascalCase` + `Async` | `await emailsApi.EmailsTransactionalPostAsync(...)` |
+| Elixir | no SDK - the REST path directly | `ElasticEmail.post("/emails/transactional", body)` |
+
+## API classes
+
+| Area | TS / PHP / Java / C# | Python / Ruby | Go | Rust module |
+|---|---|---|---|---|
+| Sending, status | `EmailsApi` | `EmailsApi` | `EmailsAPI` | `emails_api` |
+| Contacts | `ContactsApi` | `ContactsApi` | `ContactsAPI` | `contacts_api` |
+| Lists | `ListsApi` | `ListsApi` | `ListsAPI` | `lists_api` |
+| Templates | `TemplatesApi` | `TemplatesApi` | `TemplatesAPI` | `templates_api` |
+| Domains | `DomainsApi` | `DomainsApi` | `DomainsAPI` | `domains_api` |
+| Webhooks | `WebhookApi` | `WebhookApi` | `WebhookAPI` | `webhook_api` |
+| Inbound routes | `InboundRouteApi` | `InboundRouteApi` | `InboundRouteAPI` | `inbound_route_api` |
+| Suppressions | `SuppressionsApi` | `SuppressionsApi` | `SuppressionsAPI` | `suppressions_api` |
+| Statistics | `StatisticsApi` | `StatisticsApi` | `StatisticsAPI` | `statistics_api` |
+| Verifications | `VerificationsApi` | `VerificationsApi` | `VerificationsAPI` | `verifications_api` |
+| Sub-accounts | `SubAccountsApi` | `SubAccountsApi` | `SubAccountsAPI` | `sub_accounts_api` |
+
+## Operations
+
+`camelCase` is the TypeScript, PHP and Java name. `snake_case` is Python, Ruby and Rust. `PascalCase`
+is Go, and C# with `Async` appended.
+
+### Sending
+
+| Use case | REST | camelCase | snake_case | PascalCase |
+|---|---|---|---|---|
+| Transactional send | `POST /emails/transactional` | `emailsTransactionalPost` | `emails_transactional_post` | `EmailsTransactionalPost` |
+| Bulk send | `POST /emails` | `emailsPost` | `emails_post` | `EmailsPost` |
+| Transaction status | `GET /emails/{transactionid}/status` | `emailsByTransactionidStatusGet` | `emails_by_transactionid_status_get` | `EmailsByTransactionidStatusGet` |
+| View a message | `GET /emails/{msgid}/view` | `emailsByMsgidViewGet` | `emails_by_msgid_view_get` | `EmailsByMsgidViewGet` |
+
+### Templates
+
+| Use case | REST | camelCase | snake_case | PascalCase |
+|---|---|---|---|---|
+| Get by name | `GET /templates/{name}` | `templatesByNameGet` | `templates_by_name_get` | `TemplatesByNameGet` |
+| Create | `POST /templates` | `templatesPost` | `templates_post` | `TemplatesPost` |
+
+### Contacts and lists
+
+| Use case | REST | camelCase | snake_case | PascalCase |
+|---|---|---|---|---|
+| Create contacts | `POST /contacts` | `contactsPost` | `contacts_post` | `ContactsPost` |
+| Get a contact | `GET /contacts/{email}` | `contactsByEmailGet` | `contacts_by_email_get` | `ContactsByEmailGet` |
+| Update a contact | `PUT /contacts/{email}` | `contactsByEmailPut` | `contacts_by_email_put` | `ContactsByEmailPut` |
+| Delete a contact | `DELETE /contacts/{email}` | `contactsByEmailDelete` | `contacts_by_email_delete` | `ContactsByEmailDelete` |
+| Create a list | `POST /lists` | `listsPost` | `lists_post` | `ListsPost` |
+| Contacts on a list | `GET /lists/{listname}/contacts` | `listsByListnameContactsGet` | `lists_by_listname_contacts_get` | `ListsByListnameContactsGet` |
+| Add to a list | `POST /lists/{name}/contacts` | `listsByNameContactsPost` | `lists_by_name_contacts_post` | `ListsByNameContactsPost` |
+
+### Domains
+
+| Use case | REST | camelCase | snake_case | PascalCase |
+|---|---|---|---|---|
+| List domains | `GET /domains` | `domainsGet` | `domains_get` | `DomainsGet` |
+| Add a domain | `POST /domains` | `domainsPost` | `domains_post` | `DomainsPost` |
+| Domain details | `GET /domains/{domain}` | `domainsByDomainGet` | `domains_by_domain_get` | `DomainsByDomainGet` |
+| Verify tracking | `PUT /domains/{domain}/verification` | `domainsByDomainVerificationPut` | `domains_by_domain_verification_put` | `DomainsByDomainVerificationPut` |
+| Set default sender | `PATCH /domains/{email}/default` | `domainsByEmailDefaultPatch` | `domains_by_email_default_patch` | `DomainsByEmailDefaultPatch` |
+
+### Webhooks and inbound
+
+| Use case | REST | camelCase | snake_case | PascalCase |
+|---|---|---|---|---|
+| Create a webhook | `POST /webhook` | `webhookPost` | `webhook_post` | `WebhookPost` |
+| List webhooks | `GET /webhook` | `webhookGet` | `webhook_get` | `WebhookGet` |
+| Delete a webhook | `DELETE /webhook/{publicid}` | `webhookByPublicidDelete` | `webhook_by_publicid_delete` | `WebhookByPublicidDelete` |
+| Create a route | `POST /inboundroute` | `inboundroutePost` | `inboundroute_post` | `InboundroutePost` |
+| List routes | `GET /inboundroute` | `inboundrouteGet` | `inboundroute_get` | `InboundrouteGet` |
+| Delete a route | `DELETE /inboundroute/{id}` | `inboundrouteByIdDelete` | `inboundroute_by_id_delete` | `InboundrouteByIdDelete` |
+
+### Suppressions
+
+| Use case | REST | camelCase | snake_case | PascalCase |
+|---|---|---|---|---|
+| Add unsubscribes | `POST /suppressions/unsubscribes` | `suppressionsUnsubscribesPost` | `suppressions_unsubscribes_post` | `SuppressionsUnsubscribesPost` |
+| List | `GET /suppressions` | `suppressionsGet` | `suppressions_get` | `SuppressionsGet` |
+| Get one | `GET /suppressions/{email}` | `suppressionsByEmailGet` | `suppressions_by_email_get` | `SuppressionsByEmailGet` |
+| Remove one | `DELETE /suppressions/{email}` | `suppressionsByEmailDelete` | `suppressions_by_email_delete` | `SuppressionsByEmailDelete` |
+
+### Account
+
+| Use case | REST | camelCase | snake_case | PascalCase |
+|---|---|---|---|---|
+| Statistics | `GET /statistics` | `statisticsGet` | `statistics_get` | `StatisticsGet` |
+| Start verification | `POST /verifications/{email}` | `verificationsByEmailPost` | `verifications_by_email_post` | `VerificationsByEmailPost` |
+| Verification result | `GET /verifications/{email}` | `verificationsByEmailGet` | `verifications_by_email_get` | `VerificationsByEmailGet` |
+| List sub-accounts | `GET /subaccounts` | `subaccountsGet` | `subaccounts_get` | `SubaccountsGet` |
+| Create a sub-account | `POST /subaccounts` | `subaccountsPost` | `subaccounts_post` | `SubaccountsPost` |
+| Assign credits | `PATCH /subaccounts/{email}/credits` | `subaccountsByEmailCreditsPatch` | `subaccounts_by_email_credits_patch` | `SubaccountsByEmailCreditsPatch` |
+| Get its API key | `GET /subaccounts/{email}/apikey` | `subaccountsByEmailApikeyGet` | `subaccounts_by_email_apikey_get` | `SubaccountsByEmailApikeyGet` |
+
+## Model field casing
+
+The wire format is PascalCase (`Recipients`, `Content`, `BinaryContent`, `TimeOffset`). The SDKs
+differ in what they expect from you:
+
+| Language | Field names in your code |
+|---|---|
+| TypeScript / JavaScript | PascalCase, same as the wire |
+| Python | PascalCase on constructors (`ContentType=`, `From=`), snake_case on responses (`result.transaction_id`) |
+| Ruby, PHP, Rust | snake_case (`content_type`, `binary_content`, `time_offset`) |
+| Java, C# | camelCase builders and constructor arguments (`.contentType(...)`, `binaryContent:`) |
+| Go | `SetContentType`, `SetBinaryContent`, `GetTransactionID` |
+| Elixir | PascalCase strings, exactly as the API reference lists them |
+
+## Authentication
+
+Header `X-ElasticEmail-ApiKey`, set once when you build the client.
+
+| Language | How |
+|---|---|
+| TypeScript | `new Configuration({ apiKey })` |
+| Python | `configuration.api_key["apikey"] = key` |
+| Ruby | `config.api_key["X-ElasticEmail-ApiKey"] = key` |
+| PHP | `Configuration::getDefaultConfiguration()->setApiKey('X-ElasticEmail-ApiKey', $key)` |
+| Go | key in the context: `context.WithValue(ctx, ElasticEmail.ContextAPIKeys, map[string]ElasticEmail.APIKey{"apikey": {Key: key}})` |
+| Java | `((ApiKeyAuth) client.getAuthentication("apikey")).setApiKey(key)` |
+| C# | `config.AddApiKey("X-ElasticEmail-ApiKey", key)` |
+| Rust | `Configuration { api_key: Some(ApiKey { prefix: None, key }), ..Default::default() }` |
+| Elixir | `Req.new(headers: [{"X-ElasticEmail-ApiKey", key}])` |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/attachments.md -->
+
+# Attachments and inline images
+
+Attachments are base64 strings inside `Content.Attachments`. There is no upload step and no separate
+endpoint - the file travels with the send call.
+
+```typescript
+Attachments: [
+  {
+    BinaryContent: Buffer.from(fileContents).toString("base64"),
+    Name: "invoice.pdf",
+    ContentType: "application/pdf",
+  },
+]
+```
+
+| Field | Notes |
+|---|---|
+| `BinaryContent` | Base64 of the raw bytes. Not a data URI - no `data:...;base64,` prefix. |
+| `Name` | File name the recipient sees. Also the Content-ID for inline images (below). |
+| `ContentType` | MIME type. Clients use it to pick an icon and decide whether to preview. |
+
+Base64 inflates the payload by roughly a third, so a 6 MB file becomes about 8 MB on the wire. Large
+files belong behind a link, not in the message.
+
+## Inline images (CID)
+
+Elastic Email derives an attachment's Content-ID from its file name. Reference it as `cid:<Name>` in
+the HTML and the image renders in the body rather than appearing as a download.
+
+```typescript
+const { data } = await emailsApi.emailsTransactionalPost({
+  Recipients: { To: [to] },
+  Content: {
+    From: from,
+    Subject: "Email with Inline Image",
+    Body: [
+      {
+        ContentType: "HTML",
+        Content: `<img src="cid:logo.png" alt="Company Logo" width="100" height="100" />
+                  <h1>Welcome!</h1>`,
+      },
+    ],
+    Attachments: [
+      { BinaryContent: pngBase64, Name: "logo.png", ContentType: "image/png" },
+    ],
+  },
+});
+```
+
+The `cid:` value must match `Name` exactly, extension included. `cid:logo` will not resolve
+`logo.png`.
+
+### CID versus hosted images
+
+| | Inline (CID) | Hosted URL |
+|---|---|---|
+| Shows without "load images" | usually yes | no |
+| Message size | grows with the image | unchanged |
+| Works offline in the client | yes | no |
+| Open tracking via image | no | yes, this is how the tracking pixel works |
+
+Use CID for a logo or a signature image. Use hosted URLs for anything large or anything you might
+want to swap out after the send.
+
+## Reading attachments off inbound mail
+
+Inbound email arrives with attachments already base64-encoded in `att1_content`, `att2_content` and
+so on, paired with `att1_name`. That is the same shape `Attachments` expects, so forwarding is a
+straight copy:
+
+```typescript
+const attachments = Object.keys(mail)
+  .filter((k) => /^att\d+_name$/.test(k))
+  .map((k) => ({ Name: mail[k], BinaryContent: mail[k.replace("_name", "_content")] }));
+```
+
+See [Inbound email](inbound-email.md) for the rest of the fields.
+
+## Per-language notes
+
+| Language | Encoding the bytes | Field name |
+|---|---|---|
+| TypeScript / JavaScript | `Buffer.from(bytes).toString("base64")` | `BinaryContent` |
+| Python | `base64.b64encode(data).decode()` | `BinaryContent` |
+| Ruby | `Base64.strict_encode64(data)` | `binary_content` |
+| PHP | `base64_encode($data)` | `binary_content` |
+| Go | `base64.StdEncoding.EncodeToString(data)` | `SetBinaryContent` |
+| Java | `Base64.getEncoder().encodeToString(bytes)` | `.binaryContent(...)` |
+| C# | `Convert.ToBase64String(bytes)` | `binaryContent:` |
+| Rust | `base64::engine::general_purpose::STANDARD.encode(bytes)` | `binary_content` |
+| Elixir | `Base.encode64(data)` | `"BinaryContent"` |
+
+The examples in every stack (`with-attachments` and `with-cid-attachments`) build the payload
+in-memory, so they run without any sample file on disk.
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/contacts-and-lists.md -->
+
+# Contacts and lists
+
+Elastic Email lists are addressed by **name**, not by id. That makes the API pleasant to use and
+means a typo creates a second list rather than an error.
+
+## The five operations the examples use
+
+```typescript
+// 1. Create the list (400 when it already exists - treat that as success)
+await listsApi.listsPost({ ListName: "Newsletter", AllowUnsubscribe: true });
+
+// 2. Add a contact and put it on the list in one call
+await contactsApi.contactsPost(
+  [{ Email: "ann@example.com", FirstName: "Ann", LastName: "Example", Status: "Active",
+     CustomFields: { plan: "Pro" } }],
+  ["Newsletter"],
+);
+
+// 3. Read it back
+const { data } = await contactsApi.contactsByEmailGet("ann@example.com");
+
+// 4. Update
+await contactsApi.contactsByEmailPut("ann@example.com", { FirstName: "Anna" });
+
+// 5. Page through the list
+const { data: contacts } = await listsApi.listsByListnameContactsGet("Newsletter", 10, 0);
+```
+
+The second argument to `contactsPost` is an array of list names. Passing it is what puts the contact
+on a list; without it the contact exists account-wide but belongs to nothing.
+
+## Contact status
+
+| Status | Meaning |
+|---|---|
+| `Active` | Subscribed. Receives campaigns and transactional mail. |
+| `Transactional` | Receives transactional mail only, excluded from campaigns. The double opt-in flow parks people here until they confirm. |
+| `Unsubscribed` | Opted out. Also lands on the unsubscribe suppression list. |
+| `Bounced`, `Complaint` | Set by the system from delivery feedback. |
+
+Creating a contact as `Transactional` is the piece that makes double opt-in honest: you can send the
+confirmation email without ever having treated the address as a subscriber. See
+[Double opt-in](double-opt-in.md).
+
+## Custom fields
+
+`CustomFields` only stores keys that already exist as custom fields on the account. Unknown keys are
+dropped silently - no error, no value. Create the field in the dashboard first, then populate it.
+
+## "Already exists" is not an error
+
+Both `listsPost` and `domainsPost` answer 400 with a message containing "exist" when the thing is
+already there. Every example treats that specific case as success:
+
+```typescript
+catch (err: any) {
+  if (err.response?.status === 400 && /exist/i.test(JSON.stringify(err.response?.data))) {
+    // fine, it is already there
+  } else {
+    throw err;
+  }
+}
+```
+
+The same helper exists in the other languages: `ee_already_exists()` in PHP, `already_exists()` in
+Rust, and the equivalent checks in the Python, Ruby, Go, Java and C# examples.
+
+## Adding an existing contact to a list
+
+```typescript
+await listsApi.listsByNameContactsPost("Newsletter", { Emails: ["ann@example.com"] });
+```
+
+This is how both double opt-in variants complete a subscription: the contact already exists as
+`Transactional`, and confirming moves it onto the list.
+
+## Paging
+
+`listsByListnameContactsGet(listName, limit, offset)` takes limit and offset. So do
+`contactsGet`, `suppressionsGet`, `webhookGet` and `subaccountsGet`. The examples ask for the first
+10 or 50 rows; there is no cursor, so walk the offset for a full export.
+
+## Deleting
+
+```typescript
+await contactsApi.contactsByEmailDelete("ann@example.com");
+```
+
+Deletion removes the contact and its history. If the goal is "stop emailing this person", a
+suppression is the right tool instead - it survives re-import and proves intent later. See
+[Suppressions](suppressions.md).
+
+## In this repository
+
+`contacts` in every stack walks all five operations end to end, with the delete commented out so
+repeated runs stay harmless. The server apps expose `GET /contacts` and `POST /contacts`; Laravel
+additionally exposes `GET`, `PATCH` and `DELETE /api/contacts/{email}`.
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/domains-and-deliverability.md -->
+
+# Domains and deliverability
+
+The `From` address must belong to a domain verified on your account. An unverified sender is rejected
+by the API at send time - you get a 4xx immediately, not a bounce an hour later.
+
+This guide covers what the records do and how to read verification state from the API. To add the
+domain and publish the records in the dashboard, follow [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## Adding a domain and reading its state
+
+```typescript
+await domainsApi.domainsPost({ Domain: "yourdomain.com" });   // 400 "already exists" is fine
+
+const { data } = await domainsApi.domainsByDomainGet("yourdomain.com");
+// data.Spf, data.Dkim, data.MX, data.DMARC, data.TrackingStatus, data.DefaultDomain, data.DKIMRecord
+```
+
+`data.DKIMRecord` contains the record to publish. `domainsGet()` lists every domain with its flags.
+
+## The DNS records
+
+| Record | What it does | Skippable? |
+|---|---|---|
+| SPF | Authorizes Elastic Email's servers to send for the domain | No |
+| DKIM | Cryptographically signs your mail | No |
+| DMARC | Tells receivers what to do when SPF and DKIM fail, and where to send reports | Technically yes, increasingly not in practice |
+| MX | Required only for [inbound email](inbound-email.md) | Yes, unless you receive |
+| Tracking CNAME | Serves open and click tracking from your own domain instead of a shared one | Yes, but shared tracking domains carry other senders' reputation |
+
+Gmail and Yahoo require SPF, DKIM and DMARC from bulk senders. "Bulk" is lower than most people
+assume. Publish all three.
+
+DNS propagation is minutes to hours. The flags flip to true on their own; re-run the domains example
+to check rather than re-adding the domain.
+
+## Verifying tracking and setting the default sender
+
+```typescript
+await domainsApi.domainsByDomainVerificationPut("yourdomain.com", "Http");  // tracking CNAME
+await domainsApi.domainsByEmailDefaultPatch("hello@yourdomain.com");        // account default sender
+```
+
+Both are commented out in the examples so a run cannot change account-wide settings by accident.
+
+## Subdomain strategy
+
+Reputation is tracked per domain and per subdomain. Splitting streams keeps a marketing campaign from
+taking receipts down with it:
+
+| Subdomain | Traffic |
+|---|---|
+| `mail.yourdomain.com` | Transactional: receipts, password resets, alerts |
+| `news.yourdomain.com` | Marketing: campaigns, newsletters |
+| `reply.yourdomain.com` | Inbound, with the MX record pointed at Elastic Email |
+
+The apex domain keeps its own MX for your normal company mail.
+
+## Warming up
+
+A brand new domain sending 50,000 messages on day one looks exactly like a compromised account.
+Start with hundreds a day to your most engaged recipients and grow the volume over one to two weeks.
+Bounces and complaints during this window cost far more than they will later.
+
+## Content-level things that decide whether mail lands
+
+- Send a `PlainText` part alongside the HTML. A body with no text alternative is a spam signal.
+- Keep the `From` address stable. Rotating sender addresses resets recognition every time.
+- Make unsubscribe easy and one click. Lists created by the examples set `AllowUnsubscribe: true`.
+- Remove people who have not opened anything in six months. Inactive recipients drag engagement rates
+  down, and engagement is what receivers score you on.
+- Watch complaints. Above roughly 0.1% is trouble; above 0.3% is a blocklist.
+
+Check the numbers with [statistics](account.md), and react to them with [webhooks](webhooks.md).
+
+## In this repository
+
+`domains` in every stack adds `SENDING_DOMAIN`, prints the verification state with the DKIM record to
+publish, and lists every domain on the account. Laravel additionally exposes
+`POST /api/domains/{domain}/verify-tracking` and `POST /api/domains/{domain}/default`.
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/double-opt-in.md -->
+
+# Double opt-in
+
+Double opt-in means nobody joins a list until they click a link in an email sent to that address. It
+keeps bots and typos off your list, and it is the evidence you want when a complaint arrives.
+
+The examples implement two flows. Both end with the contact on `ELASTICEMAIL_LIST_NAME`.
+
+## Flow A - signed confirm link (default)
+
+Three steps, no dependency on click tracking.
+
+```
+POST /double-optin/subscribe  { email, name }
+      |
+      |  1. contactsPost([{ Email, Status: "Transactional" }])
+      |  2. send confirmation with a link carrying HMAC-SHA256(secret, email)
+      v
+GET  /double-optin/confirm?email=...&token=...
+      |
+      |  3. recompute the HMAC, compare, then listsByNameContactsPost(listName, { Emails: [email] })
+      v
+   redirect to CONFIRM_REDIRECT_URL, or JSON
+```
+
+The token is a hex HMAC of the email address keyed with `ELASTICEMAIL_WEBHOOK_TOKEN`:
+
+```typescript
+const confirmToken = createHmac("sha256", secret).update(email).digest("hex");
+const confirmUrl = `${publicUrl}/double-optin/confirm?email=${encodeURIComponent(email)}&token=${confirmToken}`;
+```
+
+Nothing is stored between the two requests. The link is self-validating, which is why this flow works
+in a stateless function as happily as in a long-running server.
+
+What it does not do: expire. The HMAC has no timestamp, so a link stays valid until you rotate
+`ELASTICEMAIL_WEBHOOK_TOKEN`. For production, sign `email + "|" + expiryTimestamp`, put the expiry in
+the URL, and reject it once past.
+
+## Flow B - confirm on the Clicked event
+
+Same confirmation email, but no confirm endpoint of your own. Elastic Email's click tracking reports
+the click, and the webhook handler completes the subscription.
+
+```typescript
+app.post("/double-optin/webhook", async (req, res) => {
+  if (!tokenOk(req.query.token)) return res.status(401).json({ error: "Invalid token" });
+
+  const event = { ...req.query, ...req.body };
+  if (event.status !== "Clicked" || !String(event.target).includes("/double-optin/confirm")) {
+    return res.json({ received: true, message: "Event ignored" });
+  }
+
+  await listsApi.listsByNameContactsPost(listName, { Emails: [event.to] });
+  res.json({ received: true, confirmed: true });
+});
+```
+
+The `target` parameter carries the clicked URL, which is how the handler tells the confirm link apart
+from any other link in the message.
+
+## Picking one
+
+| | Flow A (signed link) | Flow B (Clicked event) |
+|---|---|---|
+| Needs a public endpoint | yes, for the confirm link | yes, for the webhook |
+| Needs click tracking enabled | no | yes |
+| Confirms on link preview / scanner | only if it follows the link | same risk, plus every scanner click counts |
+| Works with the confirm link off-domain | yes | yes |
+| Visible feedback to the person | immediate page or redirect | none, unless the link also lands somewhere useful |
+
+Flow A is the default in every stack because it gives the subscriber a page and does not depend on an
+account setting. Flow B is useful when the confirmation email is sent by a system you do not control.
+
+Both share the same weakness: corporate mail scanners click links before the human sees them. If
+false confirmations matter, put a button and a `POST` behind the link rather than confirming on `GET`.
+
+## Security notes taken from the code
+
+- The token comparison is constant-time everywhere (`timingSafeEqual` in Node, `hash_equals` in PHP,
+  `Plug.Crypto.secure_compare` in Elixir, `subtle::ConstantTimeEq` in Rust). A naive `==` leaks
+  timing information one byte at a time.
+- Values coming from the request are stripped of `\r` and `\n` before they reach a log line
+  (`sanitize()` in the examples). Without that, anything logged is forgeable.
+- `ELASTICEMAIL_WEBHOOK_TOKEN` is both the URL secret and the HMAC key. Rotating it invalidates every
+  confirm link already in flight.
+
+## Running it locally
+
+```bash
+# terminal 1 - the app
+npm run dev
+
+# terminal 2 - a public URL, then set PUBLIC_URL to it and restart
+ngrok http 3000
+
+# terminal 3
+curl -X POST http://localhost:3000/double-optin/subscribe \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@yourdomain.com","name":"Ann"}'
+```
+
+The standalone scripts do the same without a server:
+`npx tsx examples/double-optin-subscribe.ts user@example.com "John Doe"` prints the confirm URL it
+generated, so you can open it directly.
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/environment-variables.md -->
+
+# Environment variables
+
+Every stack reads the same set of variables from a `.env` file next to the project. Copy
+`.env.example` to `.env` and fill in the first three; the rest have working defaults.
+
+| Variable | Required | Default | Used by |
+|---|---|---|---|
+| `ELASTICEMAIL_API_KEY` | yes | - | Every example. Without it the SDK is not configured and the scripts exit early with a message. Create one in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings). |
+| `EMAIL_FROM` | yes | `Acme <hello@yourdomain.com>` | The `From` header on every send. Must belong to a domain verified on the account. |
+| `EMAIL_TO` | yes | `you@yourdomain.com` | Test recipient for the standalone scripts. Elastic Email has no sandbox address, so use one of your own inboxes. |
+| `CONTACT_EMAIL` | no | falls back to `EMAIL_FROM` | Team inbox. The inbound handler forwards parsed mail here; the contact form example sends its notification here. |
+| `ELASTICEMAIL_WEBHOOK_TOKEN` | no | `change_me` | Shared secret appended to webhook and inbound URLs as `?token=`, and the HMAC key for double opt-in confirm links. Change it before exposing anything publicly. |
+| `ELASTICEMAIL_LIST_NAME` | no | `Newsletter` | Contact list used by the contacts and double opt-in examples. Created on first run if missing. |
+| `ELASTICEMAIL_TEMPLATE_NAME` | no | `welcome-example` | Template used by the template example. Created on first run if missing. |
+| `PUBLIC_URL` | no | per stack (see below) | Base URL used to build confirm links and the webhook/inbound URLs that get registered with Elastic Email. Set it to your tunnel URL during local development. |
+| `SENDING_DOMAIN` | no | `yourdomain.com` | Domain used by the domains example and as the inbound route filter (`*@SENDING_DOMAIN`). |
+| `CONFIRM_REDIRECT_URL` | no | empty | Where to send the browser after a successful double opt-in confirmation. Empty means the endpoint answers with JSON instead. |
+| `PORT` | no | `3000` | Port for the server apps that read it. |
+| `CREATE_SUBACCOUNT` | no | unset | Set to `true` to let the sub-accounts example actually create one. Creating a sub-account affects billing, so the example is read-only by default. |
+| `SUBACCOUNT_EMAIL` | no | generated | Address for the sub-account the example creates when `CREATE_SUBACCOUNT=true`. |
+
+## Default `PUBLIC_URL` per stack
+
+The default matches the dev server port, so local links work without editing anything.
+
+| Stack | Default | Stack | Default |
+|---|---|---|---|
+| Next.js, Express, Hono, Bun, Nuxt, TanStack Start | `http://localhost:3000` | Astro | `http://localhost:4321` |
+| Remix, SvelteKit | `http://localhost:5173` | RedwoodJS | `http://localhost:8910` |
+| Laravel | `http://localhost:8000` | Go, Java, .NET, Rust, Elixir, PHP, Python, Ruby | `http://localhost:3000` |
+
+## Where the file lives
+
+| Stack | Location |
+|---|---|
+| Express, Hono, Bun, Astro, Nuxt, SvelteKit, Remix, RedwoodJS, TanStack Start | `.env.example` sits in the stack folder; copy it into the `typescript/` or `javascript/` variant you are running |
+| Next.js | `.env.example` is inside each variant folder already |
+| Python, Ruby, Go, Java, .NET, Rust, Elixir, PHP, Laravel | stack folder root |
+| Serverless | inside each platform folder; production values are set through the platform CLI, not a file |
+
+## Loading behaviour per runtime
+
+| Runtime | How `.env` is read |
+|---|---|
+| Node scripts (Express, Hono) | `import "dotenv/config"` at the top of each example |
+| Bun | loaded automatically, no import needed |
+| Next.js, Astro, Nuxt, Remix, SvelteKit, TanStack, RedwoodJS | the framework dev server loads it; production builds read `process.env` only |
+| Python | `python-dotenv`, via `examples/ee.py` |
+| Ruby | `dotenv`, via `examples/ee.rb` |
+| PHP | `vlucas/phpdotenv`, via `src/bootstrap.php` |
+| Laravel | Laravel's own `.env` handling, surfaced through `config/elasticemail.php` |
+| Go | `godotenv.Load()` in `internal/ee`; the file must be in the working directory |
+| Java | `dotenv-java` with `ignoreIfMissing()`, in `Ee.java` |
+| .NET | `DotNetEnv` with `TraversePath()`, so subprojects find the root `.env` |
+| Rust | `dotenvy::dotenv()` in `src/lib.rs` |
+| Elixir | `config/runtime.exs` loads it and stops with a clear message when the key is missing |
+| Serverless | platform secrets (`wrangler secret put`, `vercel env add`, `supabase secrets set`, SAM parameters, Netlify env, Railway variables) |
+
+## Notes
+
+- A verified sender is not optional. Sending from an unverified domain returns a 4xx from the API,
+  not a bounce later. See [Domains and deliverability](domains-and-deliverability.md), or
+  [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain) for the dashboard steps.
+- `ELASTICEMAIL_WEBHOOK_TOKEN` does double duty: URL secret and HMAC key. If you rotate it, confirm
+  links already in people's inboxes stop validating.
+- `PUBLIC_URL` is what gets stored inside Elastic Email when a webhook or inbound route is created.
+  Creating a route while it still points at `localhost` registers a URL Elastic Email cannot reach.
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/error-handling.md -->
+
+# Error handling
+
+Every failure from the API has the same body:
+
+```json
+{"Error": "Invalid API key"}
+```
+
+with a 4xx or 5xx status. The work in each language is getting from the SDK's exception type to that
+status and that message. Every stack in this repository has a helper that does exactly this, and the
+server apps use it to answer `{ "error": "<message>" }` with the API's own status code.
+
+## Per language
+
+### TypeScript / JavaScript
+
+Axios errors. Status on `err.response.status`, body on `err.response.data`.
+
+```typescript
+export function apiError(err: unknown): { status: number; message: string } {
+  const e = err as { response?: { status?: number; data?: { Error?: string } }; message?: string };
+  return {
+    status: e.response?.status ?? 500,
+    message: e.response?.data?.Error ?? e.message ?? "Unknown error",
+  };
+}
+```
+
+### Python
+
+```python
+except ElasticEmail.ApiException as e:
+    # e.status, e.body
+```
+
+`examples/ee.py` wraps this in `print_api_error(step, e)`.
+
+### Ruby
+
+```ruby
+rescue ElasticEmail::ApiError => e
+  # e.code, e.response_body
+```
+
+`examples/ee.rb` wraps this in `api_error(step, e)`.
+
+### PHP
+
+```php
+catch (ElasticEmail\ApiException $e) {
+    $status = $e->getCode();
+    $body = $e->getResponseBody();   // {"Error": "..."}
+}
+```
+
+`src/bootstrap.php` provides `ee_error_details()`, `ee_error()` and `ee_already_exists()`.
+Laravel's `App\Services\ElasticEmail::errorDetails()` is the same logic behind a service class.
+
+### Go
+
+The SDK returns `(result, *http.Response, error)`. The status comes off the response, the body off
+`*ElasticEmail.GenericOpenAPIError`:
+
+```go
+func APIError(resp *http.Response, err error) (int, string)   // internal/ee
+```
+
+Check `err` first; `resp` is nil on a transport failure, which is why `StatusCode()` guards for it.
+
+### Java
+
+```java
+catch (ApiException e) {
+    e.getCode();           // HTTP status
+    e.getResponseBody();   // {"Error": "..."}
+}
+```
+
+`Ee.printApiError(step, e)` formats both.
+
+### C#
+
+```csharp
+catch (ApiException e) {
+    e.ErrorCode;       // HTTP status
+    e.ErrorContent;    // raw body
+}
+```
+
+`Ee.ErrorMessage(e)` parses the `Error` property out of `ErrorContent` and falls back to the raw
+body when it is not JSON.
+
+### Rust
+
+`Error<T>` from the SDK. Only the `ResponseError` variant carries a status and a body:
+
+```rust
+pub fn api_error_message<T: std::fmt::Debug>(err: &Error<T>) -> (u16, String)
+```
+
+`src/lib.rs` also has `is_not_found()` and `already_exists()` for the two cases worth branching on.
+
+### Elixir
+
+No SDK, so the shape is explicit. Results are `{:ok, body}` or `{:error, status, body}`, with
+`{:error, 0, reason}` for a transport failure:
+
+```elixir
+ElasticEmail.format_error({:error, 400, %{"Error" => "Invalid API key"}})  # "400: Invalid API key"
+ElasticEmail.error_message(...)   # message only, for JSON responses
+```
+
+## Status codes you will meet
+
+| Status | Usual cause |
+|---|---|
+| 400 | Malformed payload, or "already exists" from `listsPost` / `domainsPost` - see below |
+| 401 | Missing or wrong API key |
+| 402 | Out of credits |
+| 403 | The key lacks permission for this operation, or the feature is not on the plan |
+| 404 | No such template, contact, domain or transaction |
+| 429 | Rate limited - back off and retry |
+| 5xx | Server side; retry with backoff |
+
+## "Already exists" is a 400
+
+`listsPost` and `domainsPost` answer 400 with a message containing "exist" when the resource is
+already there. Every example treats that one case as success, which is what makes the scripts safe
+to re-run:
+
+```typescript
+if (err.response?.status === 400 && /exist/i.test(JSON.stringify(err.response?.data))) {
+  // already there
+}
+```
+
+The equivalents: `ee_already_exists()` (PHP), `already_exists()` (Rust), and inline checks in the
+Python, Ruby, Go, Java and C# examples.
+
+## Retrying
+
+Retry 429 and 5xx with exponential backoff. Do not retry 4xx - the payload will not become valid on
+its own. Sends are not idempotent: a retry after a timeout can deliver twice. If that matters, record
+the `TransactionID` and check the status before retrying.
+
+## Logging
+
+Values from webhook and inbound requests are attacker-controlled. Every example strips carriage
+returns and newlines before logging:
+
+```typescript
+const sanitize = (value: unknown): string => String(value ?? "").replace(/[\r\n]/g, "");
+```
+
+Without that, anyone who can trigger a webhook can forge lines in your logs.
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/inbound-email.md -->
+
+# Inbound email
+
+An inbound route tells Elastic Email what to do with mail arriving at your domain. The examples use
+`NotifyViaHttp`: the message is parsed and POSTed to your endpoint as form fields.
+
+## Prerequisite: MX record
+
+The domain's MX record must point at Elastic Email:
+
+```
+yourdomain.com.   MX   10   mx.inbound.elasticemail.com.
+```
+
+Until that resolves, nothing arrives. This also means the domain can no longer deliver to your own
+mailbox provider, so use a subdomain (`reply.yourdomain.com`, `inbound.yourdomain.com`) unless you
+really intend to take over the whole domain's mail.
+
+## Creating a route
+
+```typescript
+const { data } = await inboundApi.inboundroutePost({
+  Name: "examples-inbound",
+  Filter: `*@${domain}`,
+  FilterType: "EmailAddress",
+  ActionType: "NotifyViaHttp",
+  HttpAddress: `${publicUrl}/inbound?token=${encodeURIComponent(token)}`,
+});
+// data.PublicId
+```
+
+| Field | Notes |
+|---|---|
+| `Filter` | Which addresses match. `*@domain.com` catches everything. |
+| `FilterType` | `EmailAddress` for the pattern above. |
+| `ActionType` | `NotifyViaHttp` posts to `HttpAddress`. Other actions forward or drop. |
+| `HttpAddress` | Your endpoint, including the `?token=` shared secret. |
+| `SortOrder` | Routes are evaluated in order; the first match wins. |
+
+`inboundrouteGet()` lists routes, `inboundrouteByIdDelete(id)` removes one.
+
+## What you receive
+
+Form-encoded fields, not JSON:
+
+| Field | Contents |
+|---|---|
+| `from_email`, `from_name` | Parsed `From` header |
+| `env_from`, `env_to_list` | SMTP envelope sender and recipients |
+| `to_list` | Parsed `To` header |
+| `header_list` | Raw headers |
+| `subject` | Subject line |
+| `body_text` | Plain text body |
+| `body_html` | HTML body, when the message had one |
+| `att1_name`, `att1_content` | First attachment: file name and base64 content. Then `att2_*`, `att3_*`, and so on. |
+
+The same `?token=` check as [webhooks](webhooks.md) guards the endpoint - inbound requests are
+unsigned too.
+
+## Forwarding to a human
+
+The handler in every stack forwards the parsed message to `CONTACT_EMAIL`, keeping attachments and
+setting `ReplyTo` to the original sender so a reply reaches them rather than your service address:
+
+```typescript
+const attachments = Object.keys(mail)
+  .filter((k) => /^att\d+_name$/.test(k))
+  .map((k) => ({ Name: mail[k], BinaryContent: mail[k.replace("_name", "_content")] }));
+
+await emailsApi.emailsTransactionalPost({
+  Recipients: { To: [contactEmail] },
+  Content: {
+    From: from,
+    ReplyTo: mail.from_email,
+    Subject: `Fwd: ${mail.subject ?? "(no subject)"}`,
+    Body: [{ ContentType: "HTML", Content: mail.body_html || `<pre>${escapeHtml(mail.body_text ?? "")}</pre>` }],
+    Attachments: attachments.filter((a) => a.BinaryContent),
+  },
+});
+```
+
+Note the escaping on the text fallback. `body_text` came from the internet; dropping it into HTML
+unescaped is a straight injection into whatever reads the forwarded mail.
+
+## Body size
+
+Inbound messages with attachments are large. Express raises its urlencoded limit to `25mb` for this
+reason; the equivalent setting exists in every framework and the default is usually far lower. A
+truncated body with no error is almost always this.
+
+## Local development
+
+```bash
+ngrok http 3000
+# set PUBLIC_URL to the https URL, restart, then create the route
+```
+
+Simulate a delivery without sending real mail:
+
+```bash
+curl -X POST "http://localhost:3000/inbound?token=change_me" \
+  --data-urlencode "from_email=sender@example.com" \
+  --data-urlencode "subject=Test inbound" \
+  --data-urlencode "body_text=Hello from a fake inbound message" \
+  --data-urlencode "att1_name=note.txt" \
+  --data-urlencode "att1_content=SGVsbG8gd29ybGQ="
+```
+
+## Things worth guarding against
+
+- **Loops.** Forwarding inbound mail to an address handled by the same route mails yourself forever.
+  Keep `CONTACT_EMAIL` outside the inbound domain.
+- **Auto-replies.** Out-of-office messages arriving at a catch-all route can ping-pong. Drop messages
+  carrying `Auto-Submitted` or `Precedence: bulk` headers.
+- **Trust.** Anyone can send mail to your address. `from_email` is unverified; it is an input, not an
+  identity.
+
+## In this repository
+
+- `inbound` in every stack creates, lists and deletes a route.
+- The server apps expose `POST /inbound?token=...` with the forwarding handler.
+- Laravel renders the forwarded copy through `resources/views/emails/inbound-forwarded.blade.php`.
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/sending-email.md -->
+
+# Sending email
+
+Two endpoints do all the sending. Everything else - attachments, templates, scheduling, custom
+headers - is a field inside one of them.
+
+| Endpoint | SDK method (TypeScript) | Use it for |
+|---|---|---|
+| `POST /emails/transactional` | `emailsApi.emailsTransactionalPost(...)` | One message to one set of recipients. Each recipient sees the To/CC list. Up to 50 recipients per call. |
+| `POST /emails` | `emailsApi.emailsPost(...)` | One bulk job, one personalized copy per recipient. Recipients never see each other. Up to 1000 recipients per call. |
+
+Both answer with `{ TransactionID, MessageID }`. Keep the transaction id: it is how you look up
+delivery later, and bulk sends return only that one id for the whole job.
+
+## Transactional send
+
+```typescript
+const { data } = await emailsApi.emailsTransactionalPost({
+  Recipients: { To: [to] },
+  Content: {
+    From: from,
+    Subject: "Hello from Elastic Email!",
+    Body: [
+      { ContentType: "HTML", Content: "<h1>Welcome!</h1><p>Thanks for signing up.</p>" },
+      { ContentType: "PlainText", Content: "Welcome! Thanks for signing up." },
+    ],
+  },
+});
+```
+
+`Body` is an array of parts. Send both `HTML` and `PlainText` where you can: some clients render the
+text part, and a message with no text alternative scores worse with spam filters.
+
+### The Content object
+
+| Field | Type | Notes |
+|---|---|---|
+| `From` | string | `Name <address>` or a bare address. The domain must be verified. |
+| `ReplyTo` | string | Where replies go, when that differs from `From`. The inbound forwarder uses this to keep replies flowing to the original sender. |
+| `Subject` | string | Ignored when `TemplateName` is set and the template defines its own subject. |
+| `Body` | array | `{ ContentType: "HTML" \| "PlainText", Content: "..." }`. |
+| `Attachments` | array | See [Attachments](attachments.md). |
+| `Headers` | object | Arbitrary headers, for example `X-Entity-Ref-ID`. |
+| `TemplateName` | string | Send a stored template instead of an inline body. See [Templates](templates.md). |
+| `Merge` | object | Values substituted into `{placeholders}` in the template or inline body. |
+| `Postback` | string | Value echoed back on webhook events for this message. |
+
+### Recipients
+
+- Transactional: `Recipients: { To: [...], CC: [...], BCC: [...] }`.
+- Bulk: `Recipients: [{ Email, Fields }, ...]` - a flat array, one entry per person.
+
+## Bulk send with merge fields
+
+One call, one personalized email each. `Fields` values replace `{placeholders}` anywhere in the
+subject or body.
+
+```typescript
+const recipients = [
+  { Email: "ann@example.com", Fields: { firstname: "Ann", plan: "Pro" } },
+  { Email: "ben@example.com", Fields: { firstname: "Ben", plan: "Starter" } },
+];
+
+const { data } = await emailsApi.emailsPost({
+  Recipients: recipients,
+  Content: {
+    From: from,
+    Subject: "Hi {firstname}, your {plan} plan is ready",
+    Body: [
+      { ContentType: "HTML", Content: "<h1>Hi {firstname}!</h1><p>Your <strong>{plan}</strong> plan is now active.</p>" },
+      { ContentType: "PlainText", Content: "Hi {firstname}! Your {plan} plan is now active." },
+    ],
+  },
+});
+```
+
+Placeholders are single braces, not double. A placeholder with no matching field is left in the
+message as literal text, so proofread the field names.
+
+## Scheduling
+
+`Options.TimeOffset` delays delivery by N minutes from now. Maximum 50400 minutes (35 days).
+
+```typescript
+await emailsApi.emailsTransactionalPost({
+  Recipients: { To: [to] },
+  Content: { From: from, Subject: "Scheduled", Body: [{ ContentType: "HTML", Content: "<p>Later.</p>" }] },
+  Options: { TimeOffset: 60 },
+});
+```
+
+There is no cancel endpoint for a single delayed message. Pick the offset deliberately, and prefer
+your own job queue when you need the ability to change your mind.
+
+## Preventing Gmail threading
+
+Gmail groups messages with the same subject into one conversation. Receipts, alerts and order
+confirmations disappear into a collapsed thread that way. A unique `X-Entity-Ref-ID` header per
+message stops the grouping:
+
+```typescript
+Headers: { "X-Entity-Ref-ID": randomUUID() }
+```
+
+The examples send three messages with an identical subject and different ref ids so you can see the
+effect in a real inbox.
+
+## Checking what happened
+
+Every send returns two ids:
+
+- `TransactionID` - the job. One per API call, shared by every recipient of a bulk send.
+- `MessageID` - the individual message.
+
+```typescript
+const { data } = await emailsApi.emailsByTransactionidStatusGet(
+  transactionId,
+  true, // showFailed
+  true, // showSent
+  true, // showDelivered
+  true, // showPending
+  true, // showOpened
+  true, // showClicked
+);
+// data.Status, data.RecipientsCount, data.DeliveredCount, data.FailedCount, data.Failed[...]
+```
+
+`emailsApi.emailsByMsgidViewGet(messageId)` returns the rendered message itself - `Preview.From`,
+`Preview.Subject`, `Preview.Body` and `Status.StatusName` - which is the fastest way to confirm that
+merge values and inline images came out the way you expected.
+
+Polling status is for debugging. For production, subscribe to [webhooks](webhooks.md).
+
+## Limits and sizing
+
+| Thing | Limit |
+|---|---|
+| Recipients per transactional call | 50 |
+| Recipients per bulk call | 1000 |
+| `TimeOffset` | 50400 minutes (35 days) |
+| Message size | account-dependent; attachments are base64, so they cost about a third more than the file on disk |
+
+## In this repository
+
+| Example | File (Express/TypeScript) | Equivalent elsewhere |
+|---|---|---|
+| Basic send | `examples/basic-send.ts` | `basic_send.*`, `BasicSend.*`, `src/send/basic.php` |
+| Bulk send | `examples/batch-send.ts` | `batch_send.*`, `BatchSend.*`, `src/send/batch.php` |
+| Scheduled | `examples/scheduled-send.ts` | `scheduled_send.*`, `ScheduledSend.*`, `src/scheduling/send.php` |
+| Threading | `examples/prevent-threading.ts` | `prevent_threading.*`, `PreventThreading.*`, `src/send/prevent_threading.php` |
+| Status lookup | `examples/email-status.ts` | `email_status.*`, `EmailStatus.*`, `src/send/status.php` |
+
+See the [API map](api-map.md) for the method name in your language.
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/suppressions.md -->
+
+# Suppressions
+
+A suppression stops mail to an address regardless of what your lists say. Elastic Email keeps three
+kinds: unsubscribes, bounces and complaints.
+
+```typescript
+// Add
+await suppressionsApi.suppressionsUnsubscribesPost(["someone@example.com"]);
+
+// Read one
+const { data } = await suppressionsApi.suppressionsByEmailGet("someone@example.com");
+// data.Email, data.FriendlyErrorMessage, data.DateUpdated
+
+// Page through all of them
+const { data: all } = await suppressionsApi.suppressionsGet(10, 0);
+
+// Remove
+await suppressionsApi.suppressionsByEmailDelete("someone@example.com");
+```
+
+## The three kinds
+
+| Kind | Added by | Remove it? |
+|---|---|---|
+| Unsubscribe | The recipient clicking the unsubscribe link, or your own call | Only if the person asks to resubscribe. Do it through a fresh opt-in, not silently. |
+| Bounce | A hard failure reported by the receiving server | No. The address does not exist. Removing it buys another bounce and a worse sender reputation. |
+| Complaint | The recipient pressing "this is spam" | Never. Mailing again after a complaint is what gets domains blocked. |
+
+Suppressions are account-wide and outrank every list. Importing a suppressed address back onto a list
+does not make it deliverable.
+
+## Suppression vs deleting the contact
+
+Deleting removes the record. Nothing then stops the address being re-imported next week and mailed
+again. A suppression is the durable "do not send" and the record you want when someone asks why they
+stopped receiving mail.
+
+## Where they come from automatically
+
+- `Unsubscribed` webhook events, when the list has `AllowUnsubscribe: true`.
+- `Error` webhook events with a hard bounce category.
+- `AbuseReport` webhook events.
+
+You do not need to mirror these into your own database for sending to work - Elastic Email enforces
+them. Mirror them anyway if your product shows an email-preferences screen, so the UI tells the truth.
+
+## In this repository
+
+`suppressions` in every stack adds an address, reads it back, lists the first page and removes it
+again, so a run leaves no trace. Pass an address to target a specific one:
+
+```bash
+npx tsx examples/suppressions.ts someone@example.com    # Express / Hono / Bun (TypeScript)
+python examples/suppressions.py someone@example.com     # Python
+go run ./examples/suppressions/ someone@example.com     # Go
+dotnet run -- suppressions someone@example.com          # .NET
+```
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/templates.md -->
+
+# Templates and merge fields
+
+Templates are stored in your Elastic Email account and referenced by name at send time. The payload
+shrinks to a name plus a bag of values, and the copy can change without a deploy.
+
+## Sending with a template
+
+```typescript
+await emailsApi.emailsTransactionalPost({
+  Recipients: { To: [to] },
+  Content: {
+    From: from,
+    TemplateName: "welcome-example",
+    Merge: { firstname: "Ann", company: "Acme" },
+  },
+});
+```
+
+`Merge` values replace `{placeholders}` in both the template's subject and its body. No `Subject` or
+`Body` is needed - the template supplies them.
+
+## Creating one from code
+
+The examples create the template on first run so nothing has to be clicked in the dashboard first.
+The pattern is get-then-create, because a missing template answers 404:
+
+```typescript
+async function ensureTemplate() {
+  try {
+    await templatesApi.templatesByNameGet(templateName);
+  } catch (err: any) {
+    if (err.response?.status !== 404) throw err;
+    await templatesApi.templatesPost({
+      Name: templateName,
+      Subject: "Welcome, {firstname}!",
+      Body: [
+        { ContentType: "HTML", Content: "<h1>Welcome, {firstname}!</h1><p>Thanks for joining {company}.</p>" },
+      ],
+      TemplateScope: "Personal",
+    });
+  }
+}
+```
+
+| Field | Notes |
+|---|---|
+| `Name` | The handle you send with. Unique per account. |
+| `Subject` | Supports the same `{placeholders}` as the body. |
+| `Body` | Same array of parts as an inline send - add a `PlainText` part for the text alternative. |
+| `TemplateScope` | `Personal` keeps it to your account; `Global` shares it with sub-accounts. |
+
+Re-running the example is a no-op once the template exists. To change the copy, edit it in the
+dashboard or delete it and let the script recreate it.
+
+## Placeholder rules
+
+- Single braces: `{firstname}`, not `{{firstname}}`.
+- Unmatched placeholders stay in the message as literal text. That is the usual cause of an email
+  reading "Hi {firstname}".
+- Merge keys are supplied per send with `Merge`, or per recipient with `Fields` on a bulk send. Both
+  feed the same substitution.
+
+## Template vs inline body
+
+| | Template | Inline |
+|---|---|---|
+| Change copy without deploying | yes | no |
+| Non-developers can edit | yes, in the dashboard | no |
+| Content lives with the code, reviewable in git | no | yes |
+| Payload size | small | grows with the HTML |
+
+A common split: templates for marketing-owned messages, inline HTML for machine-generated ones
+(receipts, alerts) where the copy and the code change together.
+
+Laravel takes a third path worth knowing about: Blade views rendered with `view()->render()` and
+passed as the HTML body, which keeps the templating in the app while still returning the
+`TransactionID` from the API.
+
+## In this repository
+
+`with-template` in every stack: reads `ELASTICEMAIL_TEMPLATE_NAME`, creates the template if it is
+missing, then sends with `Merge`. See the [API map](api-map.md) for the method names.
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/troubleshooting.md -->
+
+# Troubleshooting
+
+Symptom first, cause second.
+
+## Sending
+
+**401 Unauthorized**
+The key is missing, wrong, or not reaching the process. Check for a stale shell that still has the
+old value exported, and remember that `.env` is read from the working directory - running
+`go run ./examples/basic_send/` from the wrong folder finds no file and loads nothing.
+
+**400 with a message about the sender**
+`EMAIL_FROM` is not on a verified domain. Run the domains example to see the state, and read
+[Domains and deliverability](domains-and-deliverability.md). If the domain is not verified yet,
+[How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain)
+has the dashboard steps. The `Name <address>` form is fine; the address inside it is what gets checked.
+
+**402 Payment Required**
+Out of credits.
+
+**403 Forbidden**
+The API key lacks permission for that operation, or the feature is not on the plan. Email
+verification is the usual one - it is a paid add-on. Check the key in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+**The call succeeds but no email arrives**
+In order of likelihood: it is in spam; the address is suppressed (`suppressionsByEmailGet` tells you
+in one call); you scheduled it with `TimeOffset` and forgot; it bounced. Look up the transaction with
+the status call - `Failed` carries the reason.
+
+```bash
+npx tsx examples/email-status.ts <transactionId>
+```
+
+**Placeholders appear literally, as "Hi {firstname}"**
+The merge key does not match. Single braces, exact spelling, and on a bulk send the values go in each
+recipient's `Fields`, not in `Merge`.
+
+**The inline image does not render**
+`cid:` must match the attachment `Name` exactly, extension included. `cid:logo` will not find
+`logo.png`. Verify with `emailsByMsgidViewGet(messageId)`, which returns the rendered body.
+
+**Everything lands in one Gmail thread**
+Same subject line. Add a unique `X-Entity-Ref-ID` header per message - see
+[Sending email](sending-email.md).
+
+## Webhooks
+
+**Saving the webhook fails**
+When you save a webhook, Elastic Email sends a test event (a GET request) to the URL and saves the
+webhook only if it gets a 2xx response. The URL must be publicly reachable at that moment.
+`localhost` never is - run a tunnel and set `PUBLIC_URL` to it first. A route that only accepts POST
+answers 405 and fails the same way.
+
+**Every event answers 401**
+The `token` query parameter does not match `ELASTICEMAIL_WEBHOOK_TOKEN`. It is compared byte for byte:
+watch for a trailing space or newline in `.env`, and for a value that needed URL-encoding.
+
+**Events arrive but the body is empty**
+That is expected. Elastic Email sends events as GET requests with everything in the query string, so
+read `status`, `to` and the rest from the query parameters.
+
+**Inbound email arrives but the body is empty**
+Inbound email is a form-encoded POST, not JSON. Mount the urlencoded body parser
+(`express.urlencoded()` and its equivalents).
+
+**403 before the handler runs, on SvelteKit**
+The framework's CSRF check rejects form posts with no `Origin` header. `kit.csrf.checkOrigin` is set
+to `false` in `svelte.config.js` for this reason.
+
+**Duplicate events**
+Expected. `NotifyOncePerEmail: false` produces several events per message, and retries can repeat
+one. Deduplicate on `messageid` plus `status`.
+
+## Inbound
+
+**Nothing arrives**
+Check the MX record first: `dig MX yourdomain.com` must show `mx.inbound.elasticemail.com`. Then check
+that the route's `Filter` matches the address, and that `HttpAddress` points at a reachable URL with
+the right token.
+
+**The body is truncated, or the request fails on large mail**
+Attachments arrive base64-encoded in the form body. Raise the body size limit - Express uses `25mb`
+in these examples, and most frameworks default to far less.
+
+## Local development
+
+**`ngrok` URL changes on every restart**
+It does, on the free plan. Update `PUBLIC_URL` and recreate the webhook or inbound route, or use a
+reserved domain.
+
+**`.env` is ignored**
+| Runtime | Gotcha |
+|---|---|
+| Go | `godotenv.Load()` reads the current working directory. Run from the stack root. |
+| Next.js, Astro, Nuxt, Remix, SvelteKit, TanStack | The dev server loads it; the production build reads `process.env` only. For Astro: `node --env-file=.env dist/server/entry.mjs`. |
+| .NET | `DotNetEnv.Env.TraversePath()` walks up, so a root `.env` serves `MinimalApiApp` and `MvcApp`. |
+| Java Spring Boot | Export the variables; the app does not read `.env` the way the standalone examples do. |
+| Elixir | `config/runtime.exs` loads it and stops with a clear message when the key is missing. |
+| Serverless | `.env` is for local runs only. Production values go through the platform CLI. |
+
+**Two servers fighting for a port**
+The Gin app defaults to 3001 and the ASP.NET MVC app to 3001 so they can run beside their siblings.
+Everything else defaults to 3000 and honours `PORT`.
+
+## Serverless runtimes
+
+**`node:http` cannot be resolved, or axios fails at runtime**
+Runtimes without Node's http module (Cloudflare Workers, Vercel Edge, Netlify Edge, Deno, Supabase)
+need the SDK handed a fetch-based axios instance:
+
+```typescript
+const emailsApi = new EmailsApi(config, undefined, axios.create({ adapter: "fetch" }));
+```
+
+Keep the top-level `axios` dependency on the same range the SDK uses (`~1.18.0`) so npm dedupes it.
+
+**Cloudflare Workers: env vars are undefined**
+They are not globals. They arrive as the second argument of `fetch(request, env)`, so the API client
+has to be built per request.
+
+**Supabase: the webhook function returns 401 before your code runs**
+JWT verification. Set `verify_jwt = false` for that function, or pass `--no-verify-jwt`.
+
+## Still stuck
+
+Print the full error body - the `Error` field is usually specific. Every stack has a helper for this;
+see [Error handling](error-handling.md). Then check the
+[REST API reference](https://elasticemail.com/developers/api-documentation/rest-api).
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/webhooks.md -->
+
+# Webhooks
+
+Elastic Email pushes delivery events to a URL you register. This is the only way to learn about
+opens, clicks, bounces and complaints without polling.
+
+## The thing to know first
+
+**Elastic Email does not sign webhook requests.** There is no signature header to verify. Every
+example therefore puts a shared secret in the URL and checks it:
+
+```
+https://your-app.example.com/webhook?token=<ELASTICEMAIL_WEBHOOK_TOKEN>
+```
+
+```typescript
+const tokenOk = (token: unknown): boolean => {
+  const a = Buffer.from(String(token ?? ""));
+  const b = Buffer.from(secret);
+  return a.length === b.length && timingSafeEqual(a, b);
+};
+```
+
+Constant-time comparison, 401 on mismatch. The URL carries a secret, so it belongs in secret storage
+and not in a shared log or a screenshot.
+
+## Registering one
+
+```typescript
+const { data } = await webhookApi.webhookPost({
+  Name: "examples-webhook",
+  URL: `${publicUrl}/webhook?token=${encodeURIComponent(token)}`,
+  NotifyOncePerEmail: false,
+  NotificationForSent: true,
+  NotificationForOpened: true,
+  NotificationForClicked: true,
+  NotificationForUnsubscribed: true,
+  NotificationForAbuseReport: true,
+  NotificationForError: true,
+});
+// data.WebhookID
+```
+
+`webhookGet(limit, offset)` lists them, `webhookByPublicidDelete(id)` removes one.
+
+**Saving a webhook sends a test event.** As soon as you save, Elastic Email calls the URL once and
+keeps the webhook only if the response is 2xx. If your endpoint is not reachable at that moment, the
+save fails.
+
+The test event looks like a real one, with sample values:
+
+```
+?token=...&transaction=<random id>&to=test@test.com&from=fromTest@test.com&account=account@test.com
+ &status=opened&channel=testchannel&category=sent&subject=test&messageid=abc1234
+```
+
+Your `token` is included because it is part of the URL you registered, so the token check passes.
+The handlers in this repository accept the test event and log it. In your own app, skip it before it
+reaches your database, for example by ignoring events where `messageid` is `abc1234`.
+
+## What arrives
+
+Every event is a GET request with the details in the query string. There is no request body. The
+handlers also merge in form fields, so a test POST from curl works too:
+
+```typescript
+const event = { ...req.query, ...(req.body ?? {}) };
+```
+
+| Parameter | Meaning |
+|---|---|
+| `status` | `Sent`, `Opened`, `Clicked`, `Error`, `AbuseReport`, `Unsubscribed` |
+| `to` | Recipient address |
+| `from`, `subject`, `date` | Message headers |
+| `transaction` | `TransactionID` from the original send |
+| `messageid` | `MessageID` from the original send |
+| `category` | Failure category on an `Error` event |
+| `target` | The clicked URL, on a `Clicked` event |
+| `channel` | Channel name, when the send set one |
+| `account` | Email address of the Elastic Email account that sent the message |
+| `postback` | The `Postback` value you set on the send, if any |
+| `ip`, `useragent`, `country`, `state`, `city` | Where the open or click came from |
+
+All parameter names are lowercase. Values are case-sensitive where they matter: a real event has
+`status=Opened`, while the save-time test event has `status=opened`.
+
+## Handling the events
+
+```typescript
+switch (status) {
+  case "Sent":         /* accepted by the receiving server */ break;
+  case "Opened":       /* tracking pixel loaded */ break;
+  case "Clicked":      /* event.target holds the URL */ break;
+  case "Error":        /* bounce; event.category says what kind */ break;
+  case "AbuseReport":  /* spam complaint - suppress immediately */ break;
+  case "Unsubscribed": /* opt-out */ break;
+}
+```
+
+What each one is worth in practice:
+
+- `Sent` means the receiving server accepted it, not that a human saw it.
+- `Opened` undercounts badly. Image blocking is the default in most clients, and privacy proxies
+  inflate it in the other direction. Treat it as a trend, not a fact about one person.
+- `Clicked` requires click tracking, which rewrites links through a tracking domain.
+- `Error` with a hard bounce category should stop future sends to that address.
+- `AbuseReport` is the one to act on immediately. Suppress, and find out which send caused it.
+
+## Writing a handler that survives production
+
+- **Answer fast, work later.** Return 2xx and hand the event to a queue. A slow handler causes retries
+  and duplicates.
+- **Expect duplicates.** `NotifyOncePerEmail: false` means several events per message, and retries
+  can repeat one. Key your processing on `messageid` plus `status`.
+- **Never log raw event values.** They are attacker-controlled. The examples strip `\r` and `\n`
+  with `sanitize()` before anything reaches a log line.
+- **Do not assume ordering.** `Opened` can arrive before `Sent` finishes processing on your side.
+
+## Local development
+
+Elastic Email has to reach the URL, so `localhost` will not do:
+
+```bash
+ngrok http 3000
+# set PUBLIC_URL to the https URL ngrok prints, restart the app, then create the webhook
+```
+
+Simulate an event without waiting for a real one:
+
+```bash
+curl "http://localhost:3000/webhook?token=change_me&status=Sent&to=you@yourdomain.com&transaction=abc&messageid=xyz"
+
+curl "http://localhost:3000/webhook?token=change_me&status=Clicked&to=you@yourdomain.com&target=https%3A%2F%2Fexample.com%2Fpricing"
+```
+
+## Framework-specific traps
+
+| Stack | Trap |
+|---|---|
+| SvelteKit | The built-in CSRF check rejects form posts without an `Origin` header before the handler runs. Inbound email arrives as exactly that kind of post. `kit.csrf.checkOrigin` is set to `false` in `svelte.config.js` for this reason. |
+| Express | Needs `express.urlencoded()` mounted, or inbound email's form fields never appear in `req.body`. The examples raise its limit to `25mb` for inbound mail. |
+| Supabase Edge Functions | Set `verify_jwt = false` for the webhook function - Elastic Email sends no JWT. |
+| RedwoodJS | Functions receive an API Gateway style event; form bodies are parsed with `URLSearchParams`. |
+| Next.js, Remix, Astro, Nuxt, TanStack | A route that only exports `POST` answers 405 to Elastic Email's GET, and saving the webhook fails. The handlers export both GET and POST. |
+
+## In this repository
+
+- `webhooks` in every stack creates, lists and deletes a webhook.
+- The server apps expose `GET|POST /webhook?token=...` with the full event switch.
+- `double-optin-webhook` shows a handler that acts on one specific event type.
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/nextjs-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with Next.js
+
+Five minutes from a clean clone to a delivered email, using Next.js 15 (App Router) and the Elastic
+Email TypeScript SDK.
+
+## Prerequisites
+
+- Node.js 18.18+ (20 or 22 recommended)
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+In the dashboard, add your domain and publish the SPF and DKIM records it shows you. Every email you
+send has to come from an address on a verified domain - there is no shared sandbox sender.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/nextjs-elasticemail-examples/typescript   # or javascript
+
+npm install
+cp .env.example .env
+```
+
+In a project of your own:
+
+```bash
+npm install @elasticemail/elasticemail-client-ts-axios
+```
+
+## 4. Set your environment variables
+
+Edit `.env`:
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+```
+
+`EMAIL_FROM` must be on the domain you verified in step 2. The remaining variables are documented in
+[docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+`src/app/api/send/route.ts`:
+
+```typescript
+import { NextResponse } from "next/server";
+import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
+
+const emailsApi = new EmailsApi(new Configuration({ apiKey: process.env.ELASTICEMAIL_API_KEY }));
+
+export async function POST(request: Request) {
+  const { to, subject, message } = await request.json();
+
+  try {
+    const { data } = await emailsApi.emailsTransactionalPost({
+      Recipients: { To: [to] },
+      Content: {
+        From: process.env.EMAIL_FROM!,
+        Subject: subject,
+        Body: [
+          { ContentType: "HTML", Content: `<p>${message}</p>` },
+          { ContentType: "PlainText", Content: message },
+        ],
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      transactionId: data.TransactionID,
+      messageId: data.MessageID,
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err.response?.data?.Error ?? err.message },
+      { status: err.response?.status ?? 500 },
+    );
+  }
+}
+```
+
+Keep this on the server. An API route, a Server Action or a Route Handler all work; a Client
+Component does not, because the key would ship to the browser.
+
+## 6. Run it
+
+```bash
+npm run dev
+```
+
+```bash
+curl -X POST http://localhost:3000/api/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Sent from Next.js"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+Check the inbox. If nothing arrives, the response body carries the reason - see
+[docs/troubleshooting.md](../docs/troubleshooting.md).
+
+## 7. Open the example app
+
+http://localhost:3000 has a page per feature, each with a form and a result box: attachments, inline
+images, templates, scheduling, contacts, domains, statistics, double opt-in, webhooks and inbound.
+
+## Next steps
+
+| Do this | Read |
+|---|---|
+| Send to many people at once with per-person values | [Sending email](../docs/sending-email.md) |
+| Attach a file or embed an image | [Attachments](../docs/attachments.md) |
+| Move the copy into a hosted template | [Templates](../docs/templates.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Build a signup that confirms by email | [Double opt-in](../docs/double-opt-in.md) |
+| Every route and file in this example | [README.md](typescript/README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/php-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with PHP
+
+Five minutes from a clean clone to a delivered email, using the Elastic Email PHP SDK. Works plain,
+with Slim, or with Symfony.
+
+## Prerequisites
+
+- PHP 8.1+ and Composer
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/php-elasticemail-examples
+
+composer install
+cp .env.example .env
+```
+
+In a project of your own:
+
+```bash
+composer require elasticemail/elasticemail-php vlucas/phpdotenv
+```
+
+## 4. Set your environment variables
+
+Edit `.env`:
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+```
+
+Full list in [docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+```php
+<?php
+require 'vendor/autoload.php';
+
+use ElasticEmail\Api\EmailsApi;
+use ElasticEmail\Configuration;
+use ElasticEmail\Model\BodyPart;
+use ElasticEmail\Model\EmailContent;
+use ElasticEmail\Model\EmailTransactionalMessageData;
+use ElasticEmail\Model\TransactionalRecipient;
+
+$config = Configuration::getDefaultConfiguration()
+    ->setApiKey('X-ElasticEmail-ApiKey', getenv('ELASTICEMAIL_API_KEY'));
+
+$emailsApi = new EmailsApi(new GuzzleHttp\Client(), $config);
+
+$result = $emailsApi->emailsTransactionalPost(new EmailTransactionalMessageData([
+    'recipients' => new TransactionalRecipient(['to' => ['you@yourdomain.com']]),
+    'content' => new EmailContent([
+        'from' => 'Acme <hello@yourdomain.com>',
+        'subject' => 'Hello from Elastic Email!',
+        'body' => [
+            new BodyPart(['content_type' => 'HTML', 'content' => '<h1>Welcome!</h1>']),
+            new BodyPart(['content_type' => 'PlainText', 'content' => 'Welcome!']),
+        ],
+    ]),
+]));
+
+echo 'Transaction ID: ' . $result->getTransactionId() . "\n";
+```
+
+Model constructors take **snake_case** keys - `content_type`, `binary_content`, `template_name`,
+`time_offset` - while the wire format is PascalCase. The SDK translates.
+
+Run the version in this repository:
+
+```bash
+php src/send/basic.php
+```
+
+`src/bootstrap.php` loads `.env`, builds the `Configuration` once and exposes `ee_config()`,
+`ee_from()`, `ee_to()` and the error helpers every script uses.
+
+## 6. Or run a web app
+
+Slim:
+
+```bash
+php -S localhost:8080 src/slim_app.php
+
+curl -X POST http://localhost:8080/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Hi from PHP!"}'
+```
+
+Symfony:
+
+```bash
+cd symfony_app
+composer install
+php -S localhost:8081 -t public
+```
+
+Both expose the same routes and the same JSON shapes.
+
+## Handling failures
+
+```php
+try {
+    $result = $emailsApi->emailsTransactionalPost($data);
+} catch (ElasticEmail\ApiException $e) {
+    $status = $e->getCode();
+    $body = $e->getResponseBody();   // {"Error": "..."}
+}
+```
+
+`ee_error_details()` in `src/bootstrap.php` turns that into `['status' => int, 'message' => string]`,
+which is what the web apps return. See [Error handling](../docs/error-handling.md).
+
+## Next steps
+
+```bash
+php src/send/batch.php             # one call, personalized per recipient
+php src/attachments/send.php       # base64 file attachment
+php src/attachments/send_cid.php   # inline image via cid:
+php src/templates/send.php         # hosted template + merge values
+php src/webhooks/manage.php        # create, list, delete a webhook
+```
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Receive email, not just send it | [Inbound email](../docs/inbound-email.md) |
+| Every script and route | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/laravel-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with Laravel
+
+Five minutes from a clean Laravel 11 project to a delivered email, calling the Elastic Email PHP SDK
+through a small service class.
+
+## Why not Laravel's Mail facade?
+
+You can point Laravel's SMTP transport at Elastic Email and use `Mail::send()`. These examples take
+the API route instead, because the API hands back a `TransactionID` and a `MessageID` for every send.
+Those ids are what you need to check delivery, correlate webhook events and support a customer asking
+where their receipt went. Blade still renders the HTML - it is passed as the body rather than handed
+to a mailer.
+
+## Prerequisites
+
+- PHP 8.2+ and Composer
+- A Laravel 11 project (`composer create-project laravel/laravel`)
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+These files drop into a fresh Laravel 11 project. Copy `app/`, `config/`, `routes/api.php` and
+`resources/views/emails/` over the skeleton, then:
+
+```bash
+composer require elasticemail/elasticemail-php:^4.2
+
+cp .env.example .env
+php artisan key:generate
+php artisan install:api     # Laravel 11 ships without routes/api.php
+```
+
+## 4. Set your environment variables
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+CONTACT_EMAIL=team@yourdomain.com
+PUBLIC_URL=http://localhost:8000
+```
+
+`config/elasticemail.php` reads these, so the rest of the app never touches `env()` directly. Full
+list in [docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+`App\Services\ElasticEmail` is registered as a singleton and autowired into controllers:
+
+```php
+use App\Services\ElasticEmail;
+
+class EmailController extends Controller
+{
+    public function __construct(private ElasticEmail $ee) {}
+
+    public function sendWelcome(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'name' => 'required|string',
+        ]);
+
+        try {
+            $html = view('emails.welcome', [
+                'name' => $request->name,
+                'actionUrl' => config('elasticemail.public_url'),
+            ])->render();
+
+            return $this->sent($this->ee->sendHtml($request->email, "Welcome, {$request->name}!", $html));
+        } catch (\Exception $e) {
+            return $this->fail($e);
+        }
+    }
+}
+```
+
+`sent()` and `fail()` are two helpers on the base controller: one returns
+`{ success, transactionId, messageId }`, the other turns an `ApiException` into
+`{ error }` with the API's own status code.
+
+`sendHtml()` covers the common case. Extra `EmailContent` keys (snake_case: `attachments`, `headers`,
+`reply_to`) go in the third argument; `Options` such as `time_offset` in the fourth.
+
+## 6. Run it
+
+```bash
+php artisan serve
+```
+
+```bash
+curl -X POST http://localhost:8000/api/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Hi from Laravel!"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+Or from the console:
+
+```bash
+php artisan email:send-test you@yourdomain.com --name="Ann"
+```
+
+## What else is wired up
+
+| Route | Does |
+|---|---|
+| `POST /api/send/welcome` | Blade view rendered and sent |
+| `POST /api/send/attachment` | Uploaded file attached (multipart) |
+| `POST /api/send/cid` | Inline image referenced as `cid:logo.png` |
+| `POST /api/send/template` | Hosted template, created on first use |
+| `POST /api/send/batch` | Bulk send with per-recipient merge fields |
+| `POST /api/contact` | Contact form: confirmation to the visitor, notification to the team |
+| `GET|POST /api/webhook?token=` | Event notifications |
+| `POST /api/inbound?token=` | Inbound mail, forwarded to `CONTACT_EMAIL` |
+| `/api/contacts`, `/api/domains`, `/api/double-optin/*` | Full CRUD, see the README |
+
+## Next steps
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Build a signup that confirms by email | [Double opt-in](../docs/double-opt-in.md) |
+| Every route, request shape and response | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/python-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with Python
+
+Five minutes from a clean clone to a delivered email, using the Elastic Email Python SDK. Works
+plain, with Flask, FastAPI or Django.
+
+## Prerequisites
+
+- Python 3.9+
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/python-elasticemail-examples
+
+python -m venv venv && source venv/bin/activate     # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+In a project of your own:
+
+```bash
+pip install ElasticEmail python-dotenv
+```
+
+## 4. Set your environment variables
+
+Edit `.env`:
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+```
+
+Full list in [docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+```python
+import os
+import ElasticEmail
+from dotenv import load_dotenv
+
+load_dotenv()
+
+configuration = ElasticEmail.Configuration()
+configuration.api_key["apikey"] = os.environ["ELASTICEMAIL_API_KEY"]
+
+with ElasticEmail.ApiClient(configuration) as api_client:
+    emails_api = ElasticEmail.EmailsApi(api_client)
+
+    result = emails_api.emails_transactional_post(
+        ElasticEmail.EmailTransactionalMessageData(
+            Recipients=ElasticEmail.TransactionalRecipient(To=[os.environ["EMAIL_TO"]]),
+            Content=ElasticEmail.EmailContent(
+                From=os.environ["EMAIL_FROM"],
+                Subject="Hello from Elastic Email!",
+                Body=[
+                    ElasticEmail.BodyPart(ContentType="HTML", Content="<h1>Welcome!</h1>"),
+                    ElasticEmail.BodyPart(ContentType="PlainText", Content="Welcome!"),
+                ],
+            ),
+        )
+    )
+
+    print("Transaction ID:", result.transaction_id)
+```
+
+Two casings in one snippet, and that is not a typo: model **constructors** take PascalCase keyword
+arguments (`ContentType=`, `From=`), while **responses** expose snake_case attributes
+(`result.transaction_id`).
+
+Run the version in this repository:
+
+```bash
+python examples/basic_send.py
+```
+
+`examples/ee.py` holds the shared setup - `get_configuration()`, `FROM`, `TO` and
+`print_api_error()`.
+
+## 6. Or run a web app
+
+```bash
+python examples/flask_app.py            # Flask,   http://localhost:3000
+python examples/fastapi_app.py          # FastAPI, http://localhost:3000
+cd django_app && python manage.py runserver 8001    # Django
+```
+
+```bash
+curl -X POST http://localhost:3000/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Hi from Python!"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+All three expose the same routes with the same JSON shapes.
+
+## Handling failures
+
+```python
+try:
+    result = emails_api.emails_transactional_post(message)
+except ElasticEmail.ApiException as e:
+    print(e.status, e.body)     # body is {"Error": "..."}
+```
+
+See [Error handling](../docs/error-handling.md).
+
+## Next steps
+
+```bash
+python examples/batch_send.py            # one call, personalized per recipient
+python examples/with_attachments.py      # base64 file attachment
+python examples/with_cid_attachments.py  # inline image via cid:
+python examples/with_template.py         # hosted template + merge values
+python examples/webhooks.py              # create, list, delete a webhook
+```
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Receive email, not just send it | [Inbound email](../docs/inbound-email.md) |
+| Every script and route | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/ruby-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with Ruby
+
+Five minutes from a clean clone to a delivered email, using the Elastic Email Ruby SDK. Works plain,
+with Sinatra or with Rails.
+
+## Prerequisites
+
+- Ruby 3.1+ and Bundler
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/ruby-elasticemail-examples
+
+bundle install
+cp .env.example .env
+```
+
+In a project of your own:
+
+```ruby
+# Gemfile
+gem "ElasticEmail", "~> 4.2"
+gem "dotenv", "~> 3.0"
+```
+
+## 4. Set your environment variables
+
+Edit `.env`:
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+```
+
+Full list in [docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+```ruby
+require "ElasticEmail"
+require "dotenv/load"
+
+ElasticEmail.configure do |config|
+  config.api_key["X-ElasticEmail-ApiKey"] = ENV.fetch("ELASTICEMAIL_API_KEY")
+end
+
+result = ElasticEmail::EmailsApi.new.emails_transactional_post(
+  ElasticEmail::EmailTransactionalMessageData.new(
+    recipients: ElasticEmail::TransactionalRecipient.new(to: [ENV.fetch("EMAIL_TO")]),
+    content: ElasticEmail::EmailContent.new(
+      from: ENV.fetch("EMAIL_FROM"),
+      subject: "Hello from Elastic Email!",
+      body: [
+        ElasticEmail::BodyPart.new(content_type: "HTML", content: "<h1>Welcome!</h1>"),
+        ElasticEmail::BodyPart.new(content_type: "PlainText", content: "Welcome!")
+      ]
+    )
+  )
+)
+
+puts "Transaction ID: #{result.transaction_id}"
+```
+
+Ruby model attributes are snake_case throughout - `content_type`, `binary_content`, `template_name`,
+`time_offset` - while the wire format is PascalCase. The SDK translates.
+
+Run the version in this repository:
+
+```bash
+ruby examples/basic_send.rb
+```
+
+`examples/ee.rb` loads `.env`, configures the SDK and exits early with a clear message when
+`ELASTICEMAIL_API_KEY` is missing.
+
+## 6. Or run a web app
+
+```bash
+ruby sinatra_app/app.rb                       # Sinatra, http://localhost:3000
+cd rails_app && bundle exec rails server -p 3000   # Rails
+```
+
+```bash
+curl -X POST http://localhost:3000/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Hi from Ruby!"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+## Handling failures
+
+```ruby
+rescue ElasticEmail::ApiError => e
+  e.code           # HTTP status
+  e.response_body  # {"Error": "..."}
+```
+
+See [Error handling](../docs/error-handling.md).
+
+## Next steps
+
+```bash
+ruby examples/batch_send.rb            # one call, personalized per recipient
+ruby examples/with_attachments.rb      # base64 file attachment
+ruby examples/with_cid_attachments.rb  # inline image via cid:
+ruby examples/with_template.rb         # hosted template + merge values
+ruby examples/webhooks.rb              # create, list, delete a webhook
+```
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Receive email, not just send it | [Inbound email](../docs/inbound-email.md) |
+| Every script and route | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/go-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with Go
+
+Five minutes from a clean clone to a delivered email, using the Elastic Email Go SDK. Works plain,
+with Chi or with Gin.
+
+## Prerequisites
+
+- Go 1.22+
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/go-elasticemail-examples
+
+go mod tidy
+cp .env.example .env
+```
+
+In a project of your own:
+
+```bash
+go get github.com/elasticemail/elasticemail-go/v4
+go get github.com/joho/godotenv
+```
+
+## 4. Set your environment variables
+
+Edit `.env`:
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+```
+
+`godotenv.Load()` reads the file from the **current working directory**, so run the commands below
+from this folder. Full list in
+[docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+The API key travels in the context, not in the configuration struct:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+
+	ElasticEmail "github.com/elasticemail/elasticemail-go/v4"
+	"github.com/joho/godotenv"
+)
+
+func main() {
+	_ = godotenv.Load()
+
+	ctx := context.WithValue(context.Background(), ElasticEmail.ContextAPIKeys,
+		map[string]ElasticEmail.APIKey{"apikey": {Key: os.Getenv("ELASTICEMAIL_API_KEY")}})
+
+	client := ElasticEmail.NewAPIClient(ElasticEmail.NewConfiguration())
+
+	html := ElasticEmail.NewBodyPart(ElasticEmail.BODYCONTENTTYPE_HTML)
+	html.SetContent("<h1>Welcome!</h1><p>Sent from Go.</p>")
+
+	text := ElasticEmail.NewBodyPart(ElasticEmail.BODYCONTENTTYPE_PLAIN_TEXT)
+	text.SetContent("Welcome! Sent from Go.")
+
+	content := ElasticEmail.NewEmailContent(os.Getenv("EMAIL_FROM"))
+	content.SetSubject("Hello from Elastic Email!")
+	content.SetBody([]ElasticEmail.BodyPart{*html, *text})
+
+	recipients := ElasticEmail.NewTransactionalRecipient([]string{os.Getenv("EMAIL_TO")})
+	data := ElasticEmail.NewEmailTransactionalMessageData(*recipients, *content)
+
+	result, resp, err := client.EmailsAPI.
+		EmailsTransactionalPost(ctx).
+		EmailTransactionalMessageData(*data).
+		Execute()
+	if err != nil {
+		log.Fatalf("send failed: %d %v", resp.StatusCode, err)
+	}
+
+	fmt.Println("Transaction ID:", result.GetTransactionID())
+}
+```
+
+Three things to notice: the API key rides in the context, calls are a builder chain ending in
+`.Execute()`, and every call returns `(result, *http.Response, error)` - the response carries the
+status, the error carries the body.
+
+Run the version in this repository:
+
+```bash
+go run ./examples/basic_send/
+```
+
+`internal/ee` holds the shared setup: `NewClient()`, `From()`, `To()`, `Fail()` and `APIError()`.
+
+## 6. Or run a web app
+
+```bash
+go run ./chi_app/     # Chi, http://localhost:3000
+go run ./gin_app/     # Gin, http://localhost:3001
+```
+
+The Gin app defaults to 3001 so both can run side by side. Set `PORT` to change either.
+
+```bash
+curl -X POST http://localhost:3000/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Hi from Go!"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+## Handling failures
+
+```go
+result, resp, err := client.EmailsAPI.EmailsTransactionalPost(ctx).
+	EmailTransactionalMessageData(*data).Execute()
+if err != nil {
+	status, message := ee.APIError(resp, err)   // parses {"Error": "..."} out of the body
+}
+```
+
+`resp` is nil on a transport failure, which is why `ee.StatusCode()` guards for it. See
+[Error handling](../docs/error-handling.md).
+
+## Next steps
+
+```bash
+go run ./examples/batch_send/             # one call, personalized per recipient
+go run ./examples/with_attachments/       # base64 file attachment
+go run ./examples/with_cid_attachments/   # inline image via cid:
+go run ./examples/with_template/          # hosted template + merge values
+go run ./examples/webhooks/               # create, list, delete a webhook
+```
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Receive email, not just send it | [Inbound email](../docs/inbound-email.md) |
+| Every program and route | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/java-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with Java
+
+Five minutes from a clean clone to a delivered email, using the Elastic Email Java SDK. Works plain,
+with Javalin or with Spring Boot.
+
+## Prerequisites
+
+- Java 17+ and Maven 3.8+
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+The SDK is not on Maven Central. It comes from JitPack, which the `pom.xml` already configures:
+
+```xml
+<repository>
+  <id>jitpack.io</id>
+  <url>https://jitpack.io</url>
+</repository>
+
+<dependency>
+  <groupId>com.github.ElasticEmail</groupId>
+  <artifactId>elasticemail-java</artifactId>
+  <version>4.2.0</version>
+</dependency>
+```
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/java-elasticemail-examples
+
+mvn compile          # first build pulls the SDK from JitPack
+cp .env.example .env
+```
+
+## 4. Set your environment variables
+
+Edit `.env`:
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+```
+
+The standalone examples read it through `dotenv-java`. The Spring Boot app expects real environment
+variables instead - `export ELASTICEMAIL_API_KEY=...` before `mvn spring-boot:run`. Full list in
+[docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+```java
+import com.elasticemail.api.EmailsApi;
+import com.elasticemail.client.ApiClient;
+import com.elasticemail.client.ApiException;
+import com.elasticemail.client.Configuration;
+import com.elasticemail.client.auth.ApiKeyAuth;
+import com.elasticemail.model.*;
+
+import java.util.List;
+
+public class Send {
+    public static void main(String[] args) {
+        ApiClient client = Configuration.getDefaultApiClient();
+        ((ApiKeyAuth) client.getAuthentication("apikey")).setApiKey(System.getenv("ELASTICEMAIL_API_KEY"));
+
+        EmailTransactionalMessageData data = new EmailTransactionalMessageData()
+                .recipients(new TransactionalRecipient().to(List.of(System.getenv("EMAIL_TO"))))
+                .content(new EmailContent()
+                        .from(System.getenv("EMAIL_FROM"))
+                        .subject("Hello from Elastic Email!")
+                        .body(List.of(
+                                new BodyPart().contentType(BodyContentType.HTML).content("<h1>Welcome!</h1>"),
+                                new BodyPart().contentType(BodyContentType.PLAIN_TEXT).content("Welcome!"))));
+
+        try {
+            EmailSend result = new EmailsApi(client).emailsTransactionalPost(data);
+            System.out.println("Transaction ID: " + result.getTransactionID());
+        } catch (ApiException e) {
+            System.err.println(e.getCode() + " " + e.getResponseBody());   // {"Error": "..."}
+        }
+    }
+}
+```
+
+Models are fluent builders, and body content types are the `BodyContentType` enum rather than
+strings.
+
+Run the version in this repository:
+
+```bash
+mvn -q exec:java -Dexec.mainClass=com.elasticemail.examples.BasicSend
+```
+
+`Ee.java` holds the shared setup: `client()`, `from()`, `to()` and `printApiError()`.
+
+## 6. Or run a web app
+
+```bash
+# Javalin - compiled together with the examples
+mvn -q exec:java -Dexec.mainClass=com.elasticemail.javalin.App
+
+# Spring Boot
+cd spring_boot_app
+export ELASTICEMAIL_API_KEY=your_api_key
+mvn spring-boot:run
+```
+
+Both listen on 3000 and expose the same routes:
+
+```bash
+curl -X POST http://localhost:3000/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Hi from Java!"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+## Next steps
+
+```bash
+mvn -q exec:java -Dexec.mainClass=com.elasticemail.examples.BatchSend
+mvn -q exec:java -Dexec.mainClass=com.elasticemail.examples.WithAttachments
+mvn -q exec:java -Dexec.mainClass=com.elasticemail.examples.WithTemplate
+mvn -q exec:java -Dexec.mainClass=com.elasticemail.examples.Webhooks
+```
+
+Arguments go through `-Dexec.args="..."`:
+
+```bash
+mvn -q exec:java -Dexec.mainClass=com.elasticemail.examples.EmailStatus -Dexec.args="<transactionId>"
+```
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Receive email, not just send it | [Inbound email](../docs/inbound-email.md) |
+| Every class and route | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/dotnet-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with .NET
+
+Five minutes from a clean clone to a delivered email, using the Elastic Email C# SDK. Works as a
+console app, with ASP.NET Minimal APIs or with ASP.NET MVC.
+
+## Prerequisites
+
+- .NET 8.0 SDK
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/dotnet-elasticemail-examples
+
+dotnet restore
+cp .env.example .env
+```
+
+In a project of your own:
+
+```bash
+dotnet add package ElasticEmail
+dotnet add package DotNetEnv
+```
+
+## 4. Set your environment variables
+
+Edit `.env`:
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+```
+
+`DotNetEnv.Env.TraversePath().Load()` walks up the directory tree, so one `.env` at the root serves
+the console examples, `MinimalApiApp` and `MvcApp`. Full list in
+[docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+```csharp
+using ElasticEmail.Api;
+using ElasticEmail.Client;
+using ElasticEmail.Model;
+
+DotNetEnv.Env.TraversePath().Load();
+
+var config = new Configuration();
+config.AddApiKey("X-ElasticEmail-ApiKey", Environment.GetEnvironmentVariable("ELASTICEMAIL_API_KEY"));
+
+var emailsApi = new EmailsApi(config);
+
+try
+{
+    var result = await emailsApi.EmailsTransactionalPostAsync(new EmailTransactionalMessageData(
+        recipients: new TransactionalRecipient(
+            to: new List<string> { Environment.GetEnvironmentVariable("EMAIL_TO")! }),
+        content: new EmailContent(
+            from: Environment.GetEnvironmentVariable("EMAIL_FROM"),
+            subject: "Hello from Elastic Email!",
+            body: new List<BodyPart>
+            {
+                new BodyPart(BodyContentType.HTML, "<h1>Welcome!</h1>"),
+                new BodyPart(BodyContentType.PlainText, "Welcome!"),
+            })));
+
+    Console.WriteLine($"Transaction ID: {result.TransactionID}");
+}
+catch (ApiException e)
+{
+    Console.Error.WriteLine($"{e.ErrorCode} {e.ErrorContent}");   // {"Error": "..."}
+}
+```
+
+Every method has an `Async` suffix, models use named constructor arguments in camelCase, and body
+content types are the `BodyContentType` enum.
+
+Run the version in this repository:
+
+```bash
+dotnet run -- basic-send
+```
+
+`Program.cs` is a dispatcher - `dotnet run` with no arguments lists all 18 examples.
+`Examples/Ee.cs` holds the shared setup: `Config()`, `From`, `To`, `ErrorMessage()` and `Fail()`.
+
+## 6. Or run a web app
+
+```bash
+cd MinimalApiApp && dotnet run     # http://localhost:3000
+cd MvcApp && dotnet run            # http://localhost:3001
+```
+
+Both read `PORT` and `ASPNETCORE_URLS`.
+
+```bash
+curl -X POST http://localhost:3000/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Hi from .NET!"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+## Handling failures
+
+`ApiException.ErrorContent` holds the raw body. `Ee.ErrorMessage(e)` parses the `Error` property out
+of it and falls back to the raw body when it is not JSON. See
+[Error handling](../docs/error-handling.md).
+
+## Next steps
+
+```bash
+dotnet run -- batch-send             # one call, personalized per recipient
+dotnet run -- with-attachments       # base64 file attachment
+dotnet run -- with-cid-attachments   # inline image via cid:
+dotnet run -- with-template          # hosted template + merge values
+dotnet run -- webhooks               # create, list, delete a webhook
+dotnet run -- email-status <transactionId>
+```
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Receive email, not just send it | [Inbound email](../docs/inbound-email.md) |
+| Every example and route | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/rust-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with Rust
+
+Five minutes from a clean clone to a delivered email, using the Elastic Email Rust SDK with Tokio.
+The web example uses Axum.
+
+## Prerequisites
+
+- Rust 1.75+ with Cargo
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+The SDK is not published on crates.io. Cargo pulls it from GitHub by tag:
+
+```toml
+[dependencies]
+ElasticEmail = { git = "https://github.com/ElasticEmail/elasticemail-rust", tag = "4.2.0" }
+tokio = { version = "1", features = ["full"] }
+dotenvy = "0.15"
+```
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/rust-elasticemail-examples
+
+cargo build          # first build fetches the SDK from GitHub
+cp .env.example .env
+```
+
+## 4. Set your environment variables
+
+Edit `.env`:
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+```
+
+Full list in [docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+```rust
+use ElasticEmail::apis::configuration::{ApiKey, Configuration};
+use ElasticEmail::apis::emails_api;
+use ElasticEmail::models::{
+    BodyContentType, BodyPart, EmailContent, EmailTransactionalMessageData, TransactionalRecipient,
+};
+
+#[tokio::main]
+async fn main() {
+    dotenvy::dotenv().ok();
+
+    let config = Configuration {
+        api_key: Some(ApiKey { prefix: None, key: std::env::var("ELASTICEMAIL_API_KEY").unwrap() }),
+        ..Default::default()
+    };
+
+    let content = EmailContent {
+        subject: Some("Hello from Elastic Email!".to_string()),
+        body: Some(vec![
+            BodyPart {
+                content: Some("<h1>Welcome!</h1>".to_string()),
+                ..BodyPart::new(BodyContentType::Html)
+            },
+            BodyPart {
+                content: Some("Welcome!".to_string()),
+                ..BodyPart::new(BodyContentType::PlainText)
+            },
+        ]),
+        ..EmailContent::new(std::env::var("EMAIL_FROM").unwrap())
+    };
+
+    let data = EmailTransactionalMessageData::new(
+        TransactionalRecipient::new(vec![std::env::var("EMAIL_TO").unwrap()]),
+        content,
+    );
+
+    match emails_api::emails_transactional_post(&config, data).await {
+        Ok(result) => println!("Transaction ID: {}", result.transaction_id.unwrap_or_default()),
+        Err(e) => eprintln!("send failed: {e}"),
+    }
+}
+```
+
+Two idioms worth noting: API calls are free functions in a module (`emails_api::...`) taking
+`&Configuration`, and models use `::new(required_fields)` plus struct update syntax (`..`) for the
+optional ones.
+
+Run the version in this repository:
+
+```bash
+cargo run --example basic_send
+```
+
+`src/lib.rs` holds the shared helpers: `config()`, `from()`, `to()`, `print_api_error()`,
+`api_error_message()`, plus `token_ok()` and `hmac_hex()` for the webhook and double opt-in examples.
+
+## 6. Or run the Axum app
+
+```bash
+cargo run --bin axum_app
+```
+
+```bash
+curl -X POST http://localhost:3000/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Hi from Axum!"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+## Handling failures
+
+```rust
+match emails_api::emails_transactional_post(&config, data).await {
+    Ok(result) => { /* ... */ }
+    Err(e) => {
+        let (status, message) = api_error_message(&e);   // parses {"Error": "..."}
+    }
+}
+```
+
+Only the `Error::ResponseError` variant carries a status and a body; everything else is a transport
+failure. `is_not_found()` and `already_exists()` cover the two cases worth branching on. See
+[Error handling](../docs/error-handling.md).
+
+## Next steps
+
+```bash
+cargo run --example batch_send            # one call, personalized per recipient
+cargo run --example with_attachments      # base64 file attachment
+cargo run --example with_cid_attachments  # inline image via cid:
+cargo run --example with_template         # hosted template + merge values
+cargo run --example webhooks              # create, list, delete a webhook
+cargo run --example email_status -- <transactionId>
+```
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Receive email, not just send it | [Inbound email](../docs/inbound-email.md) |
+| Every example and route | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/elixir-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with Elixir
+
+Five minutes from a clean clone to a delivered email. There is no official Elixir SDK, so these
+examples call the REST API directly through a small `ElasticEmail` module built on
+[Req](https://hex.pm/packages/req). The web example uses Phoenix.
+
+## Prerequisites
+
+- Elixir 1.15+ (OTP 25+)
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/elixir-elasticemail-examples
+
+mix deps.get
+cp .env.example .env
+```
+
+In a project of your own:
+
+```elixir
+# mix.exs
+defp deps do
+  [
+    {:req, "~> 0.5"},
+    {:jason, "~> 1.4"}
+  ]
+end
+```
+
+## 4. Set your environment variables
+
+Edit `.env`:
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+```
+
+`config/runtime.exs` loads the file and stops with a clear message when the key is missing. Full list
+in [docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+The whole client is one module. Requests carry the key as a header; JSON keys are the PascalCase
+names straight from the API reference:
+
+```elixir
+defmodule MyApp.ElasticEmail do
+  @base_url "https://api.elasticemail.com/v4"
+
+  def new do
+    Req.new(
+      base_url: @base_url,
+      headers: [{"X-ElasticEmail-ApiKey", System.fetch_env!("ELASTICEMAIL_API_KEY")}]
+    )
+  end
+
+  def send_transactional(data) do
+    case Req.post(new(), url: "/emails/transactional", json: data) do
+      {:ok, %Req.Response{status: status, body: body}} when status in 200..299 -> {:ok, body}
+      {:ok, %Req.Response{status: status, body: body}} -> {:error, status, body}
+      {:error, exception} -> {:error, 0, Exception.message(exception)}
+    end
+  end
+end
+
+MyApp.ElasticEmail.send_transactional(%{
+  "Recipients" => %{"To" => [System.fetch_env!("EMAIL_TO")]},
+  "Content" => %{
+    "From" => System.fetch_env!("EMAIL_FROM"),
+    "Subject" => "Hello from Elastic Email!",
+    "Body" => [
+      %{"ContentType" => "HTML", "Content" => "<h1>Welcome!</h1>"},
+      %{"ContentType" => "PlainText", "Content" => "Welcome!"}
+    ]
+  }
+})
+```
+
+Results are `{:ok, body}` for 2xx and `{:error, status, body}` otherwise, with `{:error, 0, reason}`
+for a transport failure. API errors have the shape `%{"Error" => "message"}`.
+
+Run the version in this repository:
+
+```bash
+mix run examples/basic_send.exs
+```
+
+`lib/elastic_email.ex` adds `get/2`, `post/3`, `put/2`, `patch/2`, `delete/1`, `path_segment/1` for
+encoding emails and list names into URLs, and `format_error/1`.
+
+## 6. Or run the Phoenix app
+
+```bash
+cd phoenix_app
+mix deps.get
+mix phx.server
+```
+
+It reads `../.env`, so one file serves both the scripts and the server.
+
+```bash
+curl -X POST http://localhost:3000/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Hi from Phoenix!"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+## Next steps
+
+```bash
+mix run examples/batch_send.exs            # one call, personalized per recipient
+mix run examples/with_attachments.exs      # base64 file attachment
+mix run examples/with_cid_attachments.exs  # inline image via cid:
+mix run examples/with_template.exs         # hosted template + merge values
+mix run examples/webhooks.exs              # create, list, delete a webhook
+```
+
+Because there is no SDK in the way, the [API map](../docs/api-map.md) doubles as your reference: every
+operation there lists the REST path this module takes.
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Receive email, not just send it | [Inbound email](../docs/inbound-email.md) |
+| Every script and route | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/express-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with Express
+
+Five minutes from a clean clone to a delivered email, using Express 5 and the Elastic Email
+TypeScript SDK.
+
+## Prerequisites
+
+- Node.js 20+
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. Every email has
+to come from an address on a verified domain - there is no shared sandbox sender.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/express-elasticemail-examples/typescript   # or javascript
+
+npm install
+cp ../.env.example .env
+```
+
+In a project of your own:
+
+```bash
+npm install @elasticemail/elasticemail-client-ts-axios dotenv
+```
+
+## 4. Set your environment variables
+
+Edit `.env`:
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+```
+
+Full list in [docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+The shortest possible version - this is `examples/basic-send.ts`:
+
+```typescript
+import "dotenv/config";
+import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
+
+const emailsApi = new EmailsApi(new Configuration({ apiKey: process.env.ELASTICEMAIL_API_KEY }));
+
+const { data } = await emailsApi.emailsTransactionalPost({
+  Recipients: { To: [process.env.EMAIL_TO!] },
+  Content: {
+    From: process.env.EMAIL_FROM!,
+    Subject: "Hello from Elastic Email!",
+    Body: [
+      { ContentType: "HTML", Content: "<h1>Welcome!</h1><p>Sent from Express.</p>" },
+      { ContentType: "PlainText", Content: "Welcome! Sent from Express." },
+    ],
+  },
+});
+
+console.log("Transaction ID:", data.TransactionID);
+```
+
+Run it:
+
+```bash
+npx tsx examples/basic-send.ts     # TypeScript
+node examples/basic-send.js        # JavaScript
+```
+
+## 6. Or run the server
+
+```bash
+npm run dev
+```
+
+```bash
+curl -X POST http://localhost:3000/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Hi from Express!"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+The route in `src/index.ts`:
+
+```typescript
+app.post("/send", async (req, res) => {
+  const { to, subject, message } = req.body ?? {};
+  if (!to || !subject || !message) {
+    return res.status(400).json({ error: "Missing required fields: to, subject, message" });
+  }
+
+  try {
+    const { data } = await emailsApi.emailsTransactionalPost({
+      Recipients: { To: [to] },
+      Content: {
+        From: from,
+        Subject: subject,
+        Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
+      },
+    });
+    res.json({ success: true, transactionId: data.TransactionID, messageId: data.MessageID });
+  } catch (err) {
+    const { status, message: error } = apiError(err);
+    res.status(status).json({ error });
+  }
+});
+```
+
+## Next steps
+
+There are 18 standalone examples in `examples/`. Run any of them the same way:
+
+```bash
+npx tsx examples/batch-send.ts            # one call, personalized per recipient
+npx tsx examples/with-attachments.ts      # base64 file attachment
+npx tsx examples/with-template.ts         # hosted template + merge values
+npx tsx examples/scheduled-send.ts        # delayed delivery
+npx tsx examples/webhooks.ts              # create, list, delete a webhook
+```
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Receive delivery events | [Webhooks](../docs/webhooks.md) |
+| Receive email, not just send it | [Inbound email](../docs/inbound-email.md) |
+| Handle API failures properly | [Error handling](../docs/error-handling.md) |
+| Every example and route | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/hono-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with Hono
+
+Five minutes from a clean clone to a delivered email, using Hono and the Elastic Email TypeScript
+SDK. The same code runs on Node, Bun, Deno, Cloudflare Workers and Vercel - see the note at the end.
+
+## Prerequisites
+
+- Node.js 20+
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/hono-elasticemail-examples/typescript   # or javascript
+
+npm install
+cp ../.env.example .env
+```
+
+In a project of your own:
+
+```bash
+npm install hono @hono/node-server @elasticemail/elasticemail-client-ts-axios dotenv
+```
+
+## 4. Set your environment variables
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+```
+
+Full list in [docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+```typescript
+import { Hono } from "hono";
+import { serve } from "@hono/node-server";
+import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
+
+const emailsApi = new EmailsApi(new Configuration({ apiKey: process.env.ELASTICEMAIL_API_KEY }));
+const app = new Hono();
+
+app.post("/send", async (c) => {
+  const { to, subject, message } = await c.req.json();
+
+  try {
+    const { data } = await emailsApi.emailsTransactionalPost({
+      Recipients: { To: [to] },
+      Content: {
+        From: process.env.EMAIL_FROM!,
+        Subject: subject,
+        Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
+      },
+    });
+    return c.json({ success: true, transactionId: data.TransactionID, messageId: data.MessageID });
+  } catch (err: any) {
+    return c.json(
+      { error: err.response?.data?.Error ?? err.message },
+      err.response?.status ?? 500,
+    );
+  }
+});
+
+serve({ fetch: app.fetch, port: 3000 });
+```
+
+## 6. Run it
+
+```bash
+npm run dev
+```
+
+```bash
+curl -X POST http://localhost:3000/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Hi from Hono!"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+Or skip the server entirely - the 18 scripts in `examples/` do not depend on Hono:
+
+```bash
+npx tsx examples/basic-send.ts     # TypeScript
+node examples/basic-send.js        # JavaScript
+```
+
+## Running on an edge runtime
+
+Cloudflare Workers, Deno and Vercel Edge have no `node:http`, which axios reaches for by default.
+Hand the SDK a fetch-based axios instance instead:
+
+```typescript
+import axios from "axios";
+const emailsApi = new EmailsApi(config, undefined, axios.create({ adapter: "fetch" }));
+```
+
+On Workers, environment variables are not globals either - they arrive as `c.env`, so build the
+client inside the handler. The
+[serverless examples](../serverless-elasticemail-examples/) cover this per platform.
+
+## Next steps
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Deploy to an edge platform | [Serverless examples](../serverless-elasticemail-examples/) |
+| Every example and route | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/bun-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with Bun
+
+Five minutes from a clean clone to a delivered email, using `Bun.serve()` and the Elastic Email
+TypeScript SDK. No build step and no dotenv package - Bun runs TypeScript directly and loads `.env`
+on its own.
+
+## Prerequisites
+
+- [Bun](https://bun.sh) 1.0+
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/bun-elasticemail-examples/typescript   # or javascript
+
+bun install
+cp ../.env.example .env
+```
+
+In a project of your own:
+
+```bash
+bun add @elasticemail/elasticemail-client-ts-axios
+```
+
+## 4. Set your environment variables
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+```
+
+Bun loads `.env` into `process.env` on startup - no `dotenv` import anywhere. Full list in
+[docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+```typescript
+import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
+
+const emailsApi = new EmailsApi(new Configuration({ apiKey: process.env.ELASTICEMAIL_API_KEY }));
+
+const { data } = await emailsApi.emailsTransactionalPost({
+  Recipients: { To: [process.env.EMAIL_TO!] },
+  Content: {
+    From: process.env.EMAIL_FROM!,
+    Subject: "Hello from Elastic Email!",
+    Body: [
+      { ContentType: "HTML", Content: "<h1>Welcome!</h1><p>Sent from Bun.</p>" },
+      { ContentType: "PlainText", Content: "Welcome! Sent from Bun." },
+    ],
+  },
+});
+
+console.log("Transaction ID:", data.TransactionID);
+```
+
+Run it straight from the file, no compile step:
+
+```bash
+bun run examples/basic-send.ts     # TypeScript
+bun run examples/basic-send.js     # JavaScript
+```
+
+## 6. Or run the server
+
+The app uses `Bun.serve()` with a single `fetch` handler that routes on
+`new URL(req.url).pathname`.
+
+```bash
+bun run dev
+```
+
+```bash
+curl -X POST http://localhost:3000/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Hi from Bun!"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+## Next steps
+
+18 standalone examples live in `examples/`:
+
+```bash
+bun run examples/batch-send.ts        # one call, personalized per recipient
+bun run examples/with-attachments.ts  # base64 file attachment
+bun run examples/with-template.ts     # hosted template + merge values
+bun run examples/webhooks.ts          # create, list, delete a webhook
+```
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Handle API failures properly | [Error handling](../docs/error-handling.md) |
+| Every example and route | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/remix-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with Remix
+
+Five minutes from a clean clone to a delivered email, using Remix 2 resource routes and the Elastic
+Email TypeScript SDK.
+
+## Prerequisites
+
+- Node.js 20+
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/remix-elasticemail-examples
+
+cp .env.example typescript/.env   # or javascript/.env
+cd typescript                     # or javascript
+npm install
+```
+
+In a project of your own:
+
+```bash
+npm install @elasticemail/elasticemail-client-ts-axios
+```
+
+## 4. Set your environment variables
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+PUBLIC_URL=http://localhost:5173
+```
+
+Full list in [docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+`app/routes/api.send.ts` - a resource route, so it exports an `action` and no component:
+
+```typescript
+import type { ActionFunctionArgs } from "@remix-run/node";
+import { json } from "@remix-run/node";
+import { apiError, emailsApi, from, readJson } from "../lib/elasticemail.server";
+
+export async function action({ request }: ActionFunctionArgs) {
+  const { to, subject, message } = await readJson(request);
+
+  if (!to || !subject || !message) {
+    return json({ error: "Missing required fields: to, subject, message" }, { status: 400 });
+  }
+
+  try {
+    const { data } = await emailsApi.emailsTransactionalPost({
+      Recipients: { To: [to] },
+      Content: {
+        From: from,
+        Subject: subject,
+        Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
+      },
+    });
+    return json({ success: true, transactionId: data.TransactionID, messageId: data.MessageID });
+  } catch (err) {
+    const { status, message: error } = apiError(err);
+    return json({ error }, { status });
+  }
+}
+```
+
+The `.server.ts` suffix on `app/lib/elasticemail.server.ts` is what guarantees the module - and the
+API key with it - never reaches a client bundle.
+
+## 6. Run it
+
+```bash
+npm run dev
+```
+
+```bash
+curl -X POST http://localhost:5173/api/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Sent from Remix"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+## 7. Open the example app
+
+http://localhost:5173 has a page per feature. The pages submit to the same resource routes with
+`useFetcher`, so anything the UI does, curl can do too.
+
+Production build: `npm run build && npm start` (port 3000 by default).
+
+## Next steps
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Build a signup that confirms by email | [Double opt-in](../docs/double-opt-in.md) |
+| Every route and file | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/nuxt-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with Nuxt
+
+Five minutes from a clean clone to a delivered email, using Nuxt 3 server routes (Nitro) and the
+Elastic Email TypeScript SDK.
+
+## Prerequisites
+
+- Node.js 20+
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/nuxt-elasticemail-examples
+
+cp .env.example typescript/.env   # or javascript/.env
+cd typescript                     # or javascript
+npm install
+```
+
+In a project of your own:
+
+```bash
+npm install @elasticemail/elasticemail-client-ts-axios
+```
+
+## 4. Set your environment variables
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+```
+
+Nuxt loads `.env` for `nuxt dev` and `nuxt build`. For `node .output/server/index.mjs` export the
+variables yourself. Full list in
+[docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+`server/api/send.post.ts`:
+
+```typescript
+import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
+
+const emailsApi = new EmailsApi(new Configuration({ apiKey: process.env.ELASTICEMAIL_API_KEY }));
+
+export default defineEventHandler(async (event) => {
+  const { to, subject, message } = await readBody(event);
+
+  try {
+    const { data } = await emailsApi.emailsTransactionalPost({
+      Recipients: { To: [to] },
+      Content: {
+        From: process.env.EMAIL_FROM!,
+        Subject: subject,
+        Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
+      },
+    });
+    return { success: true, transactionId: data.TransactionID, messageId: data.MessageID };
+  } catch (err: any) {
+    setResponseStatus(event, err.response?.status ?? 500);
+    return { error: err.response?.data?.Error ?? err.message };
+  }
+});
+```
+
+Anything under `server/` stays on the server, so the API key never reaches the browser. The shared
+setup lives in `server/utils/elasticemail.ts`, which Nuxt auto-imports.
+
+## 6. Run it
+
+```bash
+npm run dev
+```
+
+```bash
+curl -X POST http://localhost:3000/api/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Sent from Nuxt"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+## 7. Open the example app
+
+http://localhost:3000 has a page per feature, each calling one of the server routes with `$fetch`.
+
+## Next steps
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Build a signup that confirms by email | [Double opt-in](../docs/double-opt-in.md) |
+| Every route and file | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/sveltekit-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with SvelteKit
+
+Five minutes from a clean clone to a delivered email, using SvelteKit 2 `+server` routes and the
+Elastic Email TypeScript SDK.
+
+## Prerequisites
+
+- Node.js 20+
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/sveltekit-elasticemail-examples
+
+cp .env.example typescript/.env   # or javascript/.env
+cd typescript                     # or javascript
+npm install
+```
+
+In a project of your own:
+
+```bash
+npm install @elasticemail/elasticemail-client-ts-axios
+```
+
+## 4. Set your environment variables
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+PUBLIC_URL=http://localhost:5173
+```
+
+The examples read them through `$env/dynamic/private`, so values are looked up at runtime rather
+than baked into the build. Full list in
+[docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+Keep the client in one server-only module, then use it from a `+server.ts` route:
+
+```typescript
+// src/lib/server/elasticemail.ts
+import { env } from "$env/dynamic/private";
+import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
+
+export const from = env.EMAIL_FROM || "Acme <hello@yourdomain.com>";
+export const emailsApi = new EmailsApi(new Configuration({ apiKey: env.ELASTICEMAIL_API_KEY }));
+```
+
+```typescript
+// src/routes/api/send/+server.ts
+import { json } from "@sveltejs/kit";
+import type { RequestHandler } from "./$types";
+import { emailsApi, from } from "$lib/server/elasticemail";
+
+export const POST: RequestHandler = async ({ request }) => {
+  const { to, subject, message } = await request.json();
+
+  try {
+    const { data } = await emailsApi.emailsTransactionalPost({
+      Recipients: { To: [to] },
+      Content: {
+        From: from,
+        Subject: subject,
+        Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
+      },
+    });
+    return json({ success: true, transactionId: data.TransactionID, messageId: data.MessageID });
+  } catch (err: any) {
+    return json({ error: err.response?.data?.Error ?? err.message }, { status: err.response?.status ?? 500 });
+  }
+};
+```
+
+Two guardrails do the work here. `$lib/server/` is a directory SvelteKit refuses to import from
+client code, and `$env/dynamic/private` is server-only too. Either mistake is a build error
+rather than a leaked key.
+
+## 6. Run it
+
+```bash
+npm run dev
+```
+
+```bash
+curl -X POST http://localhost:5173/api/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Sent from SvelteKit"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+## 7. Open the example app
+
+http://localhost:5173 has a page per feature, each calling one of the `+server` routes with `fetch`.
+
+## One SvelteKit-specific setting
+
+Elastic Email posts webhooks form-encoded and without an `Origin` header. SvelteKit's built-in CSRF
+check would answer 403 before the handler runs, so `kit.csrf.checkOrigin` is set to `false` in
+`svelte.config.js`. Turn it back on if you add form actions that need it, and exempt the webhook
+routes instead.
+
+## Next steps
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Build a signup that confirms by email | [Double opt-in](../docs/double-opt-in.md) |
+| Every route and file | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/astro-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with Astro
+
+Five minutes from a clean clone to a delivered email, using Astro 5 API routes and the Elastic Email
+TypeScript SDK.
+
+## Prerequisites
+
+- Node.js 20+
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/astro-elasticemail-examples
+
+cp .env.example typescript/.env   # or javascript/.env
+cd typescript                     # or javascript
+npm install
+```
+
+In a project of your own:
+
+```bash
+npm install @elasticemail/elasticemail-client-ts-axios @astrojs/node
+```
+
+The Node adapter matters. Sending happens on the server, so `astro.config.mjs` sets
+`output: "server"`:
+
+```javascript
+import { defineConfig } from "astro/config";
+import node from "@astrojs/node";
+
+export default defineConfig({
+  output: "server",
+  adapter: node({ mode: "standalone" }),
+  // Elastic Email posts webhook and inbound notifications form-encoded without an Origin
+  // header, which Astro's default CSRF check rejects. The handlers verify ?token= instead.
+  security: { checkOrigin: false },
+});
+```
+
+## 4. Set your environment variables
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+PUBLIC_URL=http://localhost:4321
+```
+
+Full list in [docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+`src/pages/api/send.ts`:
+
+```typescript
+import type { APIRoute } from "astro";
+import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
+
+const emailsApi = new EmailsApi(new Configuration({ apiKey: process.env.ELASTICEMAIL_API_KEY }));
+
+export const POST: APIRoute = async ({ request }) => {
+  const { to, subject, message } = await request.json();
+
+  try {
+    const { data } = await emailsApi.emailsTransactionalPost({
+      Recipients: { To: [to] },
+      Content: {
+        From: process.env.EMAIL_FROM!,
+        Subject: subject,
+        Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
+      },
+    });
+
+    return new Response(
+      JSON.stringify({ success: true, transactionId: data.TransactionID, messageId: data.MessageID }),
+      { headers: { "Content-Type": "application/json" } },
+    );
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.response?.data?.Error ?? err.message }), {
+      status: err.response?.status ?? 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+};
+```
+
+The example project builds the client lazily in `src/lib/elasticemail.ts`, so importing the module
+during `astro build` does not throw when no `.env` is present.
+
+## 6. Run it
+
+```bash
+npm run dev
+```
+
+```bash
+curl -X POST http://localhost:4321/api/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Sent from Astro"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+## 7. Open the example app
+
+http://localhost:4321 has a page per feature - plain `.astro` files with a small `<script>` that
+posts JSON to the same endpoints you just called with curl.
+
+## Production build
+
+```bash
+npm run build
+node --env-file=.env dist/server/entry.mjs
+```
+
+The standalone Node server reads `process.env` only, so export the variables yourself or pass
+`--env-file` as above.
+
+## Next steps
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Build a signup that confirms by email | [Double opt-in](../docs/double-opt-in.md) |
+| Every route and file | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/redwoodjs-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with RedwoodJS
+
+Five minutes from a clean clone to a delivered email, using RedwoodJS 8 serverless functions and the
+Elastic Email TypeScript SDK.
+
+## Prerequisites
+
+- Node.js 20+ and Yarn
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/redwoodjs-elasticemail-examples
+
+cp .env.example typescript/.env   # or javascript/.env
+cd typescript                     # or javascript
+yarn install
+```
+
+In a project of your own:
+
+```bash
+yarn workspace api add @elasticemail/elasticemail-client-ts-axios
+```
+
+The dependency belongs to the `api` side. Adding it to `web` would put an API client - and the
+temptation to use a key there - into the browser bundle.
+
+## 4. Set your environment variables
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+PUBLIC_URL=http://localhost:8910
+```
+
+Redwood loads `.env` from the project root for both sides. Full list in
+[docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+`api/src/functions/send.ts` - functions receive an API Gateway style `event`, so the JSON body comes
+off `event.body` as a string:
+
+```typescript
+import type { APIGatewayEvent } from "aws-lambda";
+import { emailsApi, from, apiError } from "src/lib/elasticemail";
+
+export const handler = async (event: APIGatewayEvent) => {
+  const { to, subject, message } = JSON.parse(event.body ?? "{}");
+
+  try {
+    const { data } = await emailsApi.emailsTransactionalPost({
+      Recipients: { To: [to] },
+      Content: {
+        From: from,
+        Subject: subject,
+        Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
+      },
+    });
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ success: true, transactionId: data.TransactionID, messageId: data.MessageID }),
+    };
+  } catch (err) {
+    const { status, message: error } = apiError(err);
+    return { statusCode: status, body: JSON.stringify({ error }) };
+  }
+};
+```
+
+Webhook and inbound notifications arrive form-encoded, not as JSON; `api/src/lib/elasticemail.ts`
+parses those with `URLSearchParams`.
+
+## 6. Run it
+
+```bash
+yarn rw dev
+```
+
+The web side proxies `/.redwood/functions/*` to the API server on port 8911, so one URL works from
+the browser and from curl:
+
+```bash
+curl -X POST http://localhost:8910/.redwood/functions/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Sent from RedwoodJS"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+## 7. Open the example app
+
+http://localhost:8910 has a page per feature, each posting to one of the functions.
+
+When you register a webhook or inbound route, the URL is
+`PUBLIC_URL/.redwood/functions/webhook?token=...` - note the `.redwood/functions` prefix.
+
+## Next steps
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Build a signup that confirms by email | [Double opt-in](../docs/double-opt-in.md) |
+| Every function and page | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/tanstack-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with TanStack Start
+
+Five minutes from a clean clone to a delivered email, using TanStack Start server routes and the
+Elastic Email TypeScript SDK.
+
+## Prerequisites
+
+- Node.js 20+
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/tanstack-elasticemail-examples
+
+cp .env.example typescript/.env   # or javascript/.env
+cd typescript                     # or javascript
+npm install
+```
+
+In a project of your own:
+
+```bash
+npm install @elasticemail/elasticemail-client-ts-axios
+```
+
+## 4. Set your environment variables
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+```
+
+Full list in [docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+Server routes live next to the page routes in `src/routes/api/` and export a `Route` with
+`server.handlers`:
+
+```typescript
+// src/routes/api/send.ts
+import { createFileRoute } from "@tanstack/react-router";
+import { apiError, emailsApi, from } from "../../lib/elasticemail";
+
+export const Route = createFileRoute("/api/send")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        const { to, subject, message } = await request.json();
+
+        try {
+          const { data } = await emailsApi.emailsTransactionalPost({
+            Recipients: { To: [to] },
+            Content: {
+              From: from,
+              Subject: subject,
+              Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
+            },
+          });
+          return Response.json({
+            success: true,
+            transactionId: data.TransactionID,
+            messageId: data.MessageID,
+          });
+        } catch (err) {
+          const { status, message: error } = apiError(err);
+          return Response.json({ error }, { status });
+        }
+      },
+    },
+  },
+});
+```
+
+`src/lib/elasticemail.ts` builds the API clients lazily, so importing it during a client build does
+not throw when the key is absent.
+
+## 6. Run it
+
+```bash
+npm run dev
+```
+
+```bash
+curl -X POST http://localhost:3000/api/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Sent from TanStack Start"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+## 7. Open the example app
+
+http://localhost:3000 has a page per feature, each calling one of the server routes with `fetch`.
+
+`src/routeTree.gen.ts` is generated by the router plugin on the first `dev` or `build` and is not
+committed - if your editor complains about it before the first run, that is why.
+
+## Next steps
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Attach files or embed images | [Attachments](../docs/attachments.md) |
+| React to opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
+| Build a signup that confirms by email | [Double opt-in](../docs/double-opt-in.md) |
+| Every route and file | [README.md](README.md) |
+
+---
+
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/serverless-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email from a serverless function
+
+Five minutes from a clean clone to a delivered email, on the platform of your choice. Every folder
+here is a standalone project with the same three endpoints:
+
+- `GET /health` -> `{ status: "ok" }`
+- `POST /send` with `{ to, subject, message }` -> `{ success, transactionId, messageId }`
+- `GET|POST /webhook?token=...` -> Elastic Email event handler
+
+## Prerequisites
+
+- Node.js 20+ (or Deno, where noted)
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+- The CLI for your platform
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`
+address must be on a verified domain.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. The code, on every platform
+
+```typescript
+import axios from "axios";
+import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
+
+const config = new Configuration({ apiKey: process.env.ELASTICEMAIL_API_KEY });
+
+// The third argument is only needed on runtimes without Node's http module.
+const emailsApi = new EmailsApi(config, undefined, axios.create({ adapter: "fetch" }));
+
+const { data } = await emailsApi.emailsTransactionalPost({
+  Recipients: { To: [to] },
+  Content: {
+    From: process.env.EMAIL_FROM!,
+    Subject: subject,
+    Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
+  },
+});
+// data.TransactionID, data.MessageID
+```
+
+**The fetch adapter is the one thing that trips everyone up.** Cloudflare Workers, Vercel Edge,
+Netlify Edge, Deno and Supabase have no `node:http`, which axios reaches for by default. Passing a
+fetch-based axios instance as the third constructor argument is what makes the SDK work there. Keep
+your top-level `axios` dependency on the same range the SDK uses (`~1.18.0`) so npm dedupes it.
+
+On plain Node runtimes (AWS Lambda, Railway, Encore, Vercel's Node functions) the third argument is
+unnecessary.
+
+## 4. Pick a platform
+
+### Cloudflare Workers
+
+```bash
+cd cloudflare-workers
+npm install
+cp .dev.vars.example .dev.vars
+wrangler login
+wrangler secret put ELASTICEMAIL_API_KEY
+wrangler secret put ELASTICEMAIL_WEBHOOK_TOKEN
+
+npm run dev      # http://localhost:8787
+npm run deploy
+```
+
+Environment variables are not globals on Workers - they arrive as the second argument of
+`fetch(request, env)`, so the `EmailsApi` is built per request. `nodejs_compat` is enabled in
+`wrangler.toml` so axios' Node imports resolve at bundle time.
+
+### Vercel Functions
+
+```bash
+cd vercel-functions
+npm install
+vercel login && vercel link
+vercel env add ELASTICEMAIL_API_KEY
+vercel env add ELASTICEMAIL_WEBHOOK_TOKEN
+vercel env add EMAIL_FROM
+
+npm run dev      # http://localhost:3000
+npm run deploy
+```
+
+`api/send.ts` runs on Node, `api/send-edge.ts` is the same thing on the Edge runtime. Files starting
+with `_` are not deployed as functions, which is where the shared code lives.
+
+### Supabase Edge Functions
+
+```bash
+cd supabase-edge-functions
+cp .env.example .env
+supabase login && supabase link --project-ref <your-project-ref>
+supabase secrets set --env-file .env
+
+supabase functions serve --env-file .env --no-verify-jwt   # local
+supabase functions deploy send
+```
+
+No `npm install` - the functions import `npm:` specifiers directly and Deno fetches them. Set
+`verify_jwt = false` for the webhook function; Elastic Email posts no JWT. There is also an
+`auth-hook` function that delivers Supabase Auth's sign-up and magic link emails through Elastic
+Email.
+
+### AWS Lambda (SAM)
+
+```bash
+cd aws-lambda
+npm install
+cp env.example.json env.json
+
+sam build
+sam local start-api --env-vars env.json   # http://127.0.0.1:3000
+sam deploy --guided                       # prompts for the API key parameter
+```
+
+The key is a CloudFormation parameter with `NoEcho: true`. For production, move it to Secrets Manager
+or SSM and resolve it with `{{resolve:ssm-secure:...}}` in `template.yaml`.
+
+### Deno Deploy
+
+```bash
+cd deno-deploy
+cp .env.example .env
+deno task check
+
+deno task dev      # http://localhost:8000
+deno task deploy
+```
+
+### Netlify Functions
+
+```bash
+cd netlify-functions
+npm install
+netlify login && netlify init
+netlify env:import .env
+
+npm run dev      # http://localhost:8888
+npm run deploy
+```
+
+### Railway
+
+```bash
+cd railway
+npm install
+railway login && railway init
+railway variables set ELASTICEMAIL_API_KEY=your_api_key
+
+npm run dev      # http://localhost:3000
+railway up
+railway domain   # generate a public URL
+```
+
+A long-running Hono server rather than a function. Railway sets `PORT`; the server binds
+`0.0.0.0:$PORT`.
+
+### Encore.ts
+
+```bash
+cd encore-ts
+npm install
+encore auth login && encore app init
+encore secret set --type dev,local,pr,prod ElasticEmailApiKey
+encore secret set --type dev,local,pr,prod ElasticEmailWebhookToken
+
+encore run                 # http://localhost:4000, dashboard at :9400
+git push encore            # deploy
+```
+
+Secrets are read in code with `secret("ElasticEmailApiKey")()`, not from `process.env`.
+
+## 5. Test it
+
+```bash
+URL=http://localhost:8787     # whatever your platform printed
+
+curl $URL/health
+
+curl -X POST $URL/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Hi from the edge!"}'
+
+# Simulate an event the way Elastic Email sends it: form-encoded
+curl -X POST "$URL/webhook?token=change_me" \
+  -d "status=Sent&to=you@yourdomain.com&transaction=abc&messageid=xyz"
+```
+
+## 6. Register the webhook
+
+Once deployed you have a public HTTPS URL, which is all a webhook needs:
+
+```typescript
+await new WebhookApi(config).webhookPost({
+  Name: "serverless-example",
+  URL: `https://<your-deployment>/webhook?token=${process.env.ELASTICEMAIL_WEBHOOK_TOKEN}`,
+  NotificationForSent: true,
+  NotificationForOpened: true,
+  NotificationForClicked: true,
+  NotificationForError: true,
+});
+```
+
+When you save a webhook, Elastic Email sends one test event to the URL and saves the webhook only
+if it gets a 2xx response, so deploy before registering. The test event carries sample values
+(`to=test@test.com`, `messageid=abc1234`). The handlers accept it like any other event; in your own
+app, skip it before it reaches your data.
+
+## Next steps
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Handle events properly at scale | [Webhooks](../docs/webhooks.md) |
+| Fix a runtime-specific failure | [Troubleshooting](../docs/troubleshooting.md) |
+| Platform notes, quirks and an AI assistant prompt | the README in each folder |

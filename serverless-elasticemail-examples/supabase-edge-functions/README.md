@@ -4,6 +4,8 @@ Three Deno functions built on the [Elastic Email](https://elasticemail.com/email
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Deno (Supabase CLI 1.200+) · Supabase Edge Functions
+
 ## Prerequisites
 
 - [Supabase CLI](https://supabase.com/docs/guides/cli) 1.200+ and Docker (for local serving)
