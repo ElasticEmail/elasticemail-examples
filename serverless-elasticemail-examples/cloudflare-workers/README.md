@@ -9,7 +9,7 @@ Send transactional email and receive webhooks from a Cloudflare Worker using the
 - Node.js 20+ and a Cloudflare account
 - `npm install -g wrangler` (or use `npx wrangler`)
 - An Elastic Email account with a verified sender domain ([How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain))
-- An API key from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+- An API key from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api) ([API settings](https://help.elasticemail.com/en/articles/4799160-api-settings))
 
 ## Setup
 

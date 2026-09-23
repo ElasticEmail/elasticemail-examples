@@ -20,7 +20,7 @@ Out of credits.
 
 **403 Forbidden**
 The API key lacks permission for that operation, or the feature is not on the plan. Email
-verification is the usual one - it is a paid add-on.
+verification is the usual one - it is a paid add-on. Check the key in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
 
 **The call succeeds but no email arrives**
 In order of likelihood: it is in spam; the address is suppressed (`suppressionsByEmailGet` tells you

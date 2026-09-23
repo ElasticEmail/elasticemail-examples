@@ -14,6 +14,8 @@ Email TypeScript SDK.
 Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
 and copy it. You will not be able to read it again.
 
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
 ## 2. Verify your sending domain
 
 In the dashboard, add your domain and publish the SPF and DKIM records it shows you. Every email you

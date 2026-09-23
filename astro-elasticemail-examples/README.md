@@ -9,7 +9,7 @@ Send transactional and bulk email from an Astro site with the [Elastic Email](ht
 
 - Node.js 20+
 - An Elastic Email account with a verified sender domain ([How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain))
-- API key from https://app.elasticemail.com/marketing/settings/new/manage-api
+- API key from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api) ([API settings](https://help.elasticemail.com/en/articles/4799160-api-settings))
 
 ## Installation
 

@@ -13,7 +13,7 @@ REST API v4 directly. JSON keys are the PascalCase names from the API reference.
 
 - Elixir 1.15+ (OTP 25+)
 - An Elastic Email account with a verified sender domain ([How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain))
-- API key from https://app.elasticemail.com/marketing/settings/new/manage-api
+- API key from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api) ([API settings](https://help.elasticemail.com/en/articles/4799160-api-settings))
 
 ## Installation
 

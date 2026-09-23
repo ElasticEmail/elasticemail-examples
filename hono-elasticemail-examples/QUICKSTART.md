@@ -14,6 +14,8 @@ SDK. The same code runs on Node, Bun, Deno, Cloudflare Workers and Vercel - see 
 Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
 and copy it. You will not be able to read it again.
 
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
 ## 2. Verify your sending domain
 
 Add your domain in the dashboard and publish the SPF and DKIM records it shows you. The `From`

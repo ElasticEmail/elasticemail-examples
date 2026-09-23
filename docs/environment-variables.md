@@ -5,7 +5,7 @@ Every stack reads the same set of variables from a `.env` file next to the proje
 
 | Variable | Required | Default | Used by |
 |---|---|---|---|
-| `ELASTICEMAIL_API_KEY` | yes | - | Every example. Without it the SDK is not configured and the scripts exit early with a message. |
+| `ELASTICEMAIL_API_KEY` | yes | - | Every example. Without it the SDK is not configured and the scripts exit early with a message. Create one in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings). |
 | `EMAIL_FROM` | yes | `Acme <hello@yourdomain.com>` | The `From` header on every send. Must belong to a domain verified on the account. |
 | `EMAIL_TO` | yes | `you@yourdomain.com` | Test recipient for the standalone scripts. Elastic Email has no sandbox address, so use one of your own inboxes. |
 | `CONTACT_EMAIL` | no | falls back to `EMAIL_FROM` | Team inbox. The inbound handler forwards parsed mail here; the contact form example sends its notification here. |

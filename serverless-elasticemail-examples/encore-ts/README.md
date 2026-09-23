@@ -9,7 +9,7 @@ An Encore.ts service that sends transactional email through the [Elastic Email](
 - Node.js 20+
 - [Encore CLI](https://encore.dev/docs/ts/install): `curl -L https://encore.dev/install.sh | bash` (or `brew install encoredev/tap/encore`)
 - An Elastic Email account with a verified sender domain ([How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain))
-- An API key from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+- An API key from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api) ([API settings](https://help.elasticemail.com/en/articles/4799160-api-settings))
 
 ## Setup
 

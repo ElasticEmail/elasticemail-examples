@@ -9,7 +9,7 @@ Send transactional and bulk email from Express 5 on Node.js with the [Elastic Em
 
 - Node.js 20+
 - An Elastic Email account with a verified sender domain ([How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain))
-- An API key from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+- An API key from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api) ([API settings](https://help.elasticemail.com/en/articles/4799160-api-settings))
 
 ## Installation
 

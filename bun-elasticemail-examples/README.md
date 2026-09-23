@@ -9,7 +9,7 @@ Send transactional and bulk email from [Bun](https://bun.sh) with the [Elastic E
 
 - Bun 1.1+
 - An Elastic Email account with a verified sender domain ([How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain))
-- An API key from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+- An API key from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api) ([API settings](https://help.elasticemail.com/en/articles/4799160-api-settings))
 
 ## Installation
 
