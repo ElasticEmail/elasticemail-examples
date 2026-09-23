@@ -16,7 +16,7 @@ does:
 | **Contacts, lists and suppressions** | [Contacts](#contacts-and-lists), [double opt-in](#contacts-and-lists), [suppressions](#contacts-and-lists) |
 | **Secure API keys, sub-accounts, analytics** | [Account](#account), [account guide](docs/account.md) |
 
-Every example runs on the free plan - see [plans and pricing](https://elasticemail.com/pricing).
+Every example runs on the free plan - see [plans and pricing](https://elasticemail.com/email-api-pricing).
 
 ## Quick Start
 
