@@ -1,5 +1,3 @@
-# Elastic Email Examples
-
 <p align="center">
   <img
     src="./docs/assets/elastic-email-examples-hero.jpg"
