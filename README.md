@@ -146,8 +146,7 @@ claude mcp add --transport http elasticemail https://mcp.elasticemail.com --head
 { "servers": { "elasticemail": { "type": "http", "url": "https://mcp.elasticemail.com", "headers": { "X-Auth-Token": "<api key>" } } } }
 ```
 
-The full tool list is at [elasticemail.com/mcp](https://elasticemail.com/mcp); setup docs are at
-[elasticemail.com/developers/mcp](https://elasticemail.com/developers/mcp).
+The full tool list and setup docs are at [elasticemail.com/mcp](https://elasticemail.com/mcp).
 
 ## All stacks
 
@@ -297,7 +296,7 @@ Full detail: [Webhooks](docs/webhooks.md) and [Inbound email](docs/inbound-email
 - [REST API Reference](https://elasticemail.com/developers/api-documentation/rest-api)
 - [API Libraries](https://elasticemail.com/developers/api-libraries)
 - [Elastic Email CLI](https://github.com/ElasticEmail/elasticemail-cli)
-- [Elastic Email MCP server](https://elasticemail.com/developers/mcp)
+- [Elastic Email MCP server](https://elasticemail.com/mcp)
 - [Dashboard](https://app.elasticemail.com)
 
 ## Contributing
