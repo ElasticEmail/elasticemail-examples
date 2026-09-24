@@ -20,6 +20,8 @@
   <a href="https://elasticemail.com/developers/api-documentation/rest-api">API Docs</a>
   ·
   <a href="https://app.elasticemail.com/marketing/settings/new/manage-api">Get an API Key</a>
+  ·
+  <a href="https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain">Verify Your Domain</a>
 </p>
 
 <p align="center">
