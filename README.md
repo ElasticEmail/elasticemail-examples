@@ -24,6 +24,16 @@
   <a href="https://app.elasticemail.com/marketing/settings/new/manage-api">Get an API Key</a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/ElasticEmail/elasticemail-examples/releases"><img src="https://img.shields.io/github/v/release/ElasticEmail/elasticemail-examples?display_name=tag&sort=semver" alt="Latest release" /></a>
+  <a href="LICENSE.md"><img src="https://img.shields.io/github/license/ElasticEmail/elasticemail-examples" alt="License" /></a>
+  <a href="https://github.com/ElasticEmail/elasticemail-examples/stargazers"><img src="https://img.shields.io/github/stars/ElasticEmail/elasticemail-examples?style=flat" alt="GitHub stars" /></a>
+  <a href="https://github.com/ElasticEmail/elasticemail-examples/issues"><img src="https://img.shields.io/github/issues/ElasticEmail/elasticemail-examples" alt="Open issues" /></a>
+  <a href="#all-stacks"><img src="https://img.shields.io/badge/stacks-21-4FD1C5" alt="21 stacks" /></a>
+  <a href="https://elasticemail.com/developers/api-documentation/rest-api"><img src="https://img.shields.io/badge/API-v4-2D2F7A" alt="Elastic Email API v4" /></a>
+  <a href="#using-with-ai-agents"><img src="https://img.shields.io/badge/AI_agent-ready-4FD1C5" alt="AI agent ready" /></a>
+</p>
+
 Production-shaped code samples for the [Elastic Email](https://elasticemail.com/email-api) email API
 and SMTP relay, in 21 languages, frameworks and serverless platforms. Every stack implements the same
 use cases through the official SDKs and REST API v4, so what you learn in one maps directly to the
