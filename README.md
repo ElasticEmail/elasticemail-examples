@@ -1,6 +1,6 @@
 <p align="center">
   <img
-    src="./docs/assets/elastic-email-examples-hero.jpg"
+    src="./docs/assets/elastic-email-examples-hero.png"
     alt="Elastic Email examples for developers and AI agents"
     width="100%"
   />
