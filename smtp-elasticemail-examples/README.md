@@ -3,7 +3,7 @@
 Send email through the [Elastic Email](https://elasticemail.com/email-api) SMTP relay from the
 tools and frameworks that already speak SMTP. Point Auth0, Supabase Auth, WordPress, Metabase or
 Customer.io at `smtp.elasticemail.com`, or hand the same settings to Nodemailer, PHPMailer, Django,
-Laravel, Rails or Auth.js. You don't need an SDK or any code beyond each tool's own mail
+Laravel, Rails or Auth.js. There is also a plain Node.js client with no dependencies. You don't need an SDK or any code beyond each tool's own mail
 configuration.
 
 Every other folder in this repository uses the REST API v4 through the official SDKs. Use SMTP
@@ -53,6 +53,7 @@ try 587, then 465.
 
 | Folder | Language | Library or setting |
 |---|---|---|
+| [nodejs](nodejs/) | Node.js | `node:net` and `node:tls` only, no dependencies |
 | [nodemailer](nodemailer/) | Node.js | `nodemailer.createTransport()` |
 | [nextauth](nextauth/) | Next.js | Auth.js Nodemailer provider (magic links) |
 | [phpmailer](phpmailer/) | PHP | `PHPMailer` with `isSMTP()` |
@@ -90,9 +91,10 @@ values in the platform's own settings, not in a file.
 Mail sent over SMTP shows up in the same reports and fires the same [webhooks](../docs/webhooks.md)
 as mail sent through the API. If you already use one of the frameworks above and want the API
 instead, the [Laravel](../laravel-elasticemail-examples/), [Python](../python-elasticemail-examples/)
-(Django), [Ruby](../ruby-elasticemail-examples/) (Rails), [Next.js](../nextjs-elasticemail-examples/)
-and [Supabase Edge Functions](../serverless-elasticemail-examples/supabase-edge-functions/) folders
-have full SDK examples.
+(Django), [Ruby](../ruby-elasticemail-examples/) (Rails), [Next.js](../nextjs-elasticemail-examples/),
+[Node.js](../nodejs-elasticemail-examples/) and
+[Supabase Edge Functions](../serverless-elasticemail-examples/supabase-edge-functions/) folders have
+full SDK examples.
 
 ## Troubleshooting
 

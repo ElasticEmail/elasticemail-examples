@@ -6,7 +6,7 @@ configures it. Anything that already uses Nodemailer (Express apps, NestJS, back
 Auth.js) switches providers by changing the transport options.
 
 > Part of the [Elastic Email SMTP examples](../README.md). New to SMTP with Elastic Email? Start with the [SMTP quickstart](../QUICKSTART.md).
-> Prefer the REST API? The [Express examples](../../express-elasticemail-examples/) use the official TypeScript SDK for templates, scheduling and batch sends.
+> Prefer the REST API? The [Node.js examples](../../nodejs-elasticemail-examples/) use the official TypeScript SDK for templates, scheduling and batch sends.
 
 ## Prerequisites
 
@@ -102,6 +102,7 @@ Email. Always set both text and html. Log err.responseCode and err.response on f
 - [Elastic Email email API](https://elasticemail.com/email-api) - REST API and SMTP relay overview, features and plans
 - [Nodemailer: SMTP transport](https://nodemailer.com/smtp/)
 - [Nodemailer: Message configuration](https://nodemailer.com/message/)
+- [Node.js SMTP client with no dependencies](../nodejs/) - the same send, written against the protocol
 - [All SMTP integrations](../README.md)
 
 ## License

@@ -65,6 +65,8 @@ const STACKS = [
     apps: ["rust-elasticemail-examples/axum_app/src/main.rs"] },
   { id: "elixir", name: "Elixir", dir: "elixir-elasticemail-examples", language: "Elixir", sdk: "none - REST API v4 called directly with Req 0.5", runtime: "Elixir 1.15+ (OTP 25+)", frameworks: ["Phoenix 1.7"],
     apps: ["elixir-elasticemail-examples/phoenix_app"] },
+  { id: "nodejs", name: "Node.js", dir: "nodejs-elasticemail-examples", ...ts("Node.js 20+", ["node:http"]),
+    apps: ["nodejs-elasticemail-examples/typescript/src/index.ts", "nodejs-elasticemail-examples/javascript/src/index.js"] },
   { id: "express", name: "Express", dir: "express-elasticemail-examples", ...ts("Node.js 20+", ["Express 5"]),
     apps: ["express-elasticemail-examples/typescript/src/index.ts", "express-elasticemail-examples/javascript/src/index.js"] },
   { id: "hono", name: "Hono", dir: "hono-elasticemail-examples", ...ts("Node.js 20+", ["Hono 4"]),

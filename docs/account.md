@@ -70,7 +70,7 @@ const { data: key } = await subAccountsApi.subaccountsByEmailApikeyGet(Email);
 **Creating a sub-account affects billing.** The example is read-only unless you opt in:
 
 ```bash
-CREATE_SUBACCOUNT=true npx tsx examples/sub-accounts.ts     # Express / Hono / Bun
+CREATE_SUBACCOUNT=true npx tsx examples/sub-accounts.ts     # Node.js / Express / Hono / Bun
 CREATE_SUBACCOUNT=true python examples/sub_accounts.py      # Python
 CREATE_SUBACCOUNT=true dotnet run -- sub-accounts           # .NET
 ```

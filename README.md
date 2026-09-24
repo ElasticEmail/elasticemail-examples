@@ -2,7 +2,7 @@
 
 Production-shaped examples for the [Elastic Email](https://elasticemail.com/email-api) email API:
 transactional and bulk sending, templates, attachments, webhooks, inbound routing, contacts and
-deliverability - in 20 languages, frameworks and serverless platforms.
+deliverability - in 21 languages, frameworks and serverless platforms.
 
 Elastic Email is an email API and SMTP relay backed by an in-house mail transfer agent. These
 examples use the REST API v4 through the official SDKs. What they cover maps to what the platform
@@ -36,6 +36,7 @@ links to covers every example and route for that language.
 | **.NET (C#)** | [Send email with .NET](dotnet-elasticemail-examples/QUICKSTART.md) | [.NET examples](dotnet-elasticemail-examples/) | ASP.NET Minimal APIs, ASP.NET MVC |
 | **Rust** | [Send email with Rust](rust-elasticemail-examples/QUICKSTART.md) | [Rust examples](rust-elasticemail-examples/) | Axum |
 | **Elixir** | [Send email with Elixir](elixir-elasticemail-examples/QUICKSTART.md) | [Elixir examples](elixir-elasticemail-examples/) | Phoenix |
+| **Node.js** | [Send email with Node.js](nodejs-elasticemail-examples/QUICKSTART.md) | [Node.js examples](nodejs-elasticemail-examples/) | node:http, no framework |
 | **Express** | [Send email with Express](express-elasticemail-examples/QUICKSTART.md) | [Express examples](express-elasticemail-examples/) | Express 5 |
 | **Hono** | [Send email with Hono](hono-elasticemail-examples/QUICKSTART.md) | [Hono examples](hono-elasticemail-examples/) | Hono |
 | **Bun** | [Send email with Bun](bun-elasticemail-examples/QUICKSTART.md) | [Bun examples](bun-elasticemail-examples/) | Bun.serve() |
@@ -46,7 +47,7 @@ links to covers every example and route for that language.
 | **RedwoodJS** | [Send email with RedwoodJS](redwoodjs-elasticemail-examples/QUICKSTART.md) | [RedwoodJS examples](redwoodjs-elasticemail-examples/) | RedwoodJS 8 |
 | **TanStack Start** | [Send email with TanStack Start](tanstack-elasticemail-examples/QUICKSTART.md) | [TanStack Start examples](tanstack-elasticemail-examples/) | TanStack Start |
 | **Serverless** | [Send email from serverless](serverless-elasticemail-examples/QUICKSTART.md) | [All 8 platforms](serverless-elasticemail-examples/) | Cloudflare Workers, Vercel, Supabase Edge, AWS Lambda, Deno Deploy, Netlify, Railway, Encore |
-| **SMTP** | [Send your first email with SMTP](smtp-elasticemail-examples/QUICKSTART.md) | [All 13 integrations](smtp-elasticemail-examples/) | Auth0, Supabase, WordPress, Metabase, Nodemailer, Laravel, Django, Rails and more |
+| **SMTP** | [Send your first email with SMTP](smtp-elasticemail-examples/QUICKSTART.md) | [All 14 integrations](smtp-elasticemail-examples/) | Auth0, Supabase, WordPress, Metabase, Node.js, Nodemailer, Laravel, Django, Rails and more |
 
 JavaScript and TypeScript stacks use [`@elasticemail/elasticemail-client-ts-axios`](https://github.com/ElasticEmail/elasticemail-ts-axios). Other languages use the matching [Elastic Email SDK](https://elasticemail.com/developers/api-libraries). Elixir calls the REST API directly with Req.
 All stacks are pinned to the 4.2 SDK line and target REST API v4.
@@ -60,7 +61,7 @@ shows how to point them at `smtp.elasticemail.com`, with no SDK involved. The
 
 | Platforms | Code |
 |---|---|
-| [Auth0](smtp-elasticemail-examples/auth0/), [Customer.io](smtp-elasticemail-examples/customer-io/), [Liferay](smtp-elasticemail-examples/liferay/), [Metabase](smtp-elasticemail-examples/metabase/), [Retool](smtp-elasticemail-examples/retool/), [Supabase](smtp-elasticemail-examples/supabase/), [WordPress](smtp-elasticemail-examples/wordpress/) | [Nodemailer](smtp-elasticemail-examples/nodemailer/), [NextAuth](smtp-elasticemail-examples/nextauth/), [PHPMailer](smtp-elasticemail-examples/phpmailer/), [Laravel](smtp-elasticemail-examples/laravel/), [Django](smtp-elasticemail-examples/django/), [Rails](smtp-elasticemail-examples/rails/) |
+| [Auth0](smtp-elasticemail-examples/auth0/), [Customer.io](smtp-elasticemail-examples/customer-io/), [Liferay](smtp-elasticemail-examples/liferay/), [Metabase](smtp-elasticemail-examples/metabase/), [Retool](smtp-elasticemail-examples/retool/), [Supabase](smtp-elasticemail-examples/supabase/), [WordPress](smtp-elasticemail-examples/wordpress/) | [Node.js](smtp-elasticemail-examples/nodejs/), [Nodemailer](smtp-elasticemail-examples/nodemailer/), [NextAuth](smtp-elasticemail-examples/nextauth/), [PHPMailer](smtp-elasticemail-examples/phpmailer/), [Laravel](smtp-elasticemail-examples/laravel/), [Django](smtp-elasticemail-examples/django/), [Rails](smtp-elasticemail-examples/rails/) |
 
 SMTP uses its own credentials (Settings > SMTP in the dashboard), not the API key.
 

@@ -138,6 +138,7 @@ curl "http://localhost:3000/webhook?token=change_me&status=Clicked&to=you@yourdo
 |---|---|
 | SvelteKit | The built-in CSRF check rejects form posts without an `Origin` header before the handler runs. Inbound email arrives as exactly that kind of post. `kit.csrf.checkOrigin` is set to `false` in `svelte.config.js` for this reason. |
 | Express | Needs `express.urlencoded()` mounted, or inbound email's form fields never appear in `req.body`. The examples raise its limit to `25mb` for inbound mail. |
+| Node.js (`node:http`) | There is no body parser. The example reads the stream, parses forms with `URLSearchParams`, and caps the body at 25 MB. It also merges the query string into the event, because events arrive as GET. |
 | Supabase Edge Functions | Set `verify_jwt = false` for the webhook function - Elastic Email sends no JWT. |
 | RedwoodJS | Functions receive an API Gateway style event; form bodies are parsed with `URLSearchParams`. |
 | Next.js, Remix, Astro, Nuxt, TanStack | A route that only exports `POST` answers 405 to Elastic Email's GET, and saving the webhook fails. The handlers export both GET and POST. |

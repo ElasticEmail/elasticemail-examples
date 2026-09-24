@@ -53,7 +53,7 @@ contains the SMTP error returned by Elastic Email.
 - Changing the host, port or username through the Management API requires sending the password in
   the same request.
 - If you need per-organization senders or custom logic, Auth0 Actions can call the Elastic Email
-  REST API directly. See the [Node.js examples](../../express-elasticemail-examples/) for the SDK calls.
+  REST API directly. See the [Node.js examples](../../nodejs-elasticemail-examples/) for the SDK calls.
 - Opens, clicks and bounces for these emails appear in your Elastic Email reports and fire your
   [webhooks](../../docs/webhooks.md) like any other send.
 

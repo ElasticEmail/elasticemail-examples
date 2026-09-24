@@ -50,7 +50,7 @@ them. Mirror them anyway if your product shows an email-preferences screen, so t
 again, so a run leaves no trace. Pass an address to target a specific one:
 
 ```bash
-npx tsx examples/suppressions.ts someone@example.com    # Express / Hono / Bun (TypeScript)
+npx tsx examples/suppressions.ts someone@example.com    # Node.js / Express / Hono / Bun (TypeScript)
 python examples/suppressions.py someone@example.com     # Python
 go run ./examples/suppressions/ someone@example.com     # Go
 dotnet run -- suppressions someone@example.com          # .NET

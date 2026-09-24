@@ -65,7 +65,7 @@ credentials rather than the API key. See the [SMTP integrations](../smtp-elastic
 - [Elastic Email email API](https://elasticemail.com/email-api) - REST API and SMTP relay overview, features and plans
 - [Elastic Email API reference](https://elasticemail.com/developers/api-documentation/rest-api) - every endpoint and parameter
 - [Elastic Email SDKs](https://elasticemail.com/developers/api-libraries) - official client libraries
-- [All example stacks](../README.md) - 20 languages, frameworks and serverless platforms
+- [All example stacks](../README.md) - 21 languages, frameworks and serverless platforms
 - [SMTP integrations](../smtp-elasticemail-examples/README.md) - Auth0, Supabase, WordPress, Django, Rails and more over SMTP
 
 ---
@@ -144,7 +144,7 @@ const { data: key } = await subAccountsApi.subaccountsByEmailApikeyGet(Email);
 **Creating a sub-account affects billing.** The example is read-only unless you opt in:
 
 ```bash
-CREATE_SUBACCOUNT=true npx tsx examples/sub-accounts.ts     # Express / Hono / Bun
+CREATE_SUBACCOUNT=true npx tsx examples/sub-accounts.ts     # Node.js / Express / Hono / Bun
 CREATE_SUBACCOUNT=true python examples/sub_accounts.py      # Python
 CREATE_SUBACCOUNT=true dotnet run -- sub-accounts           # .NET
 ```
@@ -740,7 +740,7 @@ The default matches the dev server port, so local links work without editing any
 
 | Stack | Default | Stack | Default |
 |---|---|---|---|
-| Next.js, Express, Hono, Bun, Nuxt, TanStack Start | `http://localhost:3000` | Astro | `http://localhost:4321` |
+| Next.js, Node.js, Express, Hono, Bun, Nuxt, TanStack Start | `http://localhost:3000` | Astro | `http://localhost:4321` |
 | Remix, SvelteKit | `http://localhost:5173` | RedwoodJS | `http://localhost:8910` |
 | Laravel | `http://localhost:8000` | Go, Java, .NET, Rust, Elixir, PHP, Python, Ruby | `http://localhost:3000` |
 
@@ -748,7 +748,7 @@ The default matches the dev server port, so local links work without editing any
 
 | Stack | Location |
 |---|---|
-| Express, Hono, Bun, Astro, Nuxt, SvelteKit, Remix, RedwoodJS, TanStack Start | `.env.example` sits in the stack folder; copy it into the `typescript/` or `javascript/` variant you are running |
+| Node.js, Express, Hono, Bun, Astro, Nuxt, SvelteKit, Remix, RedwoodJS, TanStack Start | `.env.example` sits in the stack folder; copy it into the `typescript/` or `javascript/` variant you are running |
 | Next.js | `.env.example` is inside each variant folder already |
 | Python, Ruby, Go, Java, .NET, Rust, Elixir, PHP, Laravel | stack folder root |
 | Serverless | inside each platform folder; production values are set through the platform CLI, not a file |
@@ -757,7 +757,7 @@ The default matches the dev server port, so local links work without editing any
 
 | Runtime | How `.env` is read |
 |---|---|
-| Node scripts (Express, Hono) | `import "dotenv/config"` at the top of each example |
+| Node scripts (Node.js, Express, Hono) | `import "dotenv/config"` at the top of each example |
 | Bun | loaded automatically, no import needed |
 | Next.js, Astro, Nuxt, Remix, SvelteKit, TanStack, RedwoodJS | the framework dev server loads it; production builds read `process.env` only |
 | Python | `python-dotenv`, via `examples/ee.py` |
@@ -1280,7 +1280,7 @@ them. Mirror them anyway if your product shows an email-preferences screen, so t
 again, so a run leaves no trace. Pass an address to target a specific one:
 
 ```bash
-npx tsx examples/suppressions.ts someone@example.com    # Express / Hono / Bun (TypeScript)
+npx tsx examples/suppressions.ts someone@example.com    # Node.js / Express / Hono / Bun (TypeScript)
 python examples/suppressions.py someone@example.com     # Python
 go run ./examples/suppressions/ someone@example.com     # Go
 dotnet run -- suppressions someone@example.com          # .NET
@@ -1670,6 +1670,7 @@ curl "http://localhost:3000/webhook?token=change_me&status=Clicked&to=you@yourdo
 |---|---|
 | SvelteKit | The built-in CSRF check rejects form posts without an `Origin` header before the handler runs. Inbound email arrives as exactly that kind of post. `kit.csrf.checkOrigin` is set to `false` in `svelte.config.js` for this reason. |
 | Express | Needs `express.urlencoded()` mounted, or inbound email's form fields never appear in `req.body`. The examples raise its limit to `25mb` for inbound mail. |
+| Node.js (`node:http`) | There is no body parser. The example reads the stream, parses forms with `URLSearchParams`, and caps the body at 25 MB. It also merges the query string into the event, because events arrive as GET. |
 | Supabase Edge Functions | Set `verify_jwt = false` for the webhook function - Elastic Email sends no JWT. |
 | RedwoodJS | Functions receive an API Gateway style event; form bodies are parsed with `URLSearchParams`. |
 | Next.js, Remix, Astro, Nuxt, TanStack | A route that only exports `POST` answers 405 to Elastic Email's GET, and saving the webhook fails. The handlers export both GET and POST. |
@@ -3227,6 +3228,168 @@ operation there lists the REST path this module takes.
 
 ---
 
+<!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/nodejs-elasticemail-examples/QUICKSTART.md -->
+
+# Send your first email with Node.js
+
+Five minutes from a clean clone to a delivered email, using plain Node.js and the Elastic Email
+TypeScript SDK. You won't need a framework.
+
+## Prerequisites
+
+- Node.js 20+
+- An [Elastic Email account](https://app.elasticemail.com)
+- A verified sending domain
+
+## 1. Get an API key
+
+Create one at [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api)
+and copy it. You will not be able to read it again.
+
+Creating and managing keys is covered in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+
+## 2. Verify your sending domain
+
+Add your domain in the dashboard and publish the SPF and DKIM records it shows you. Every email has
+to come from an address on a verified domain - there is no shared sandbox sender.
+
+Step by step, with the exact DNS records to publish: [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain).
+
+## 3. Install
+
+```bash
+git clone https://github.com/ElasticEmail/elasticemail-examples.git
+cd elasticemail-examples/nodejs-elasticemail-examples/typescript   # or javascript
+
+npm install
+cp ../.env.example .env
+```
+
+In a project of your own:
+
+```bash
+npm install @elasticemail/elasticemail-client-ts-axios dotenv
+```
+
+On Node.js 20.6+ you can drop `dotenv` and run scripts with `node --env-file=.env` instead.
+
+## 4. Set your environment variables
+
+Edit `.env`:
+
+```env
+ELASTICEMAIL_API_KEY=your_api_key
+EMAIL_FROM=Acme <hello@yourdomain.com>
+EMAIL_TO=you@yourdomain.com
+```
+
+Full list in [docs/environment-variables.md](../docs/environment-variables.md).
+
+## 5. Send an email
+
+The shortest possible version - this is `examples/basic-send.ts`:
+
+```typescript
+import "dotenv/config";
+import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
+
+const emailsApi = new EmailsApi(new Configuration({ apiKey: process.env.ELASTICEMAIL_API_KEY }));
+
+const { data } = await emailsApi.emailsTransactionalPost({
+  Recipients: { To: [process.env.EMAIL_TO!] },
+  Content: {
+    From: process.env.EMAIL_FROM!,
+    Subject: "Hello from Elastic Email!",
+    Body: [
+      { ContentType: "HTML", Content: "<h1>Welcome!</h1><p>Sent from Node.js.</p>" },
+      { ContentType: "PlainText", Content: "Welcome! Sent from Node.js." },
+    ],
+  },
+});
+
+console.log("Transaction ID:", data.TransactionID);
+```
+
+Run it:
+
+```bash
+npx tsx examples/basic-send.ts     # TypeScript
+node examples/basic-send.js        # JavaScript
+```
+
+## 6. Or run the server
+
+```bash
+npm run dev
+```
+
+```bash
+curl -X POST http://localhost:3000/send \
+  -H "Content-Type: application/json" \
+  -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Hi from Node.js!"}'
+```
+
+```json
+{ "success": true, "transactionId": "...", "messageId": "..." }
+```
+
+The server in `src/index.ts` is `node:http` with no framework. The request handler routes on method
+and path, and `/send` looks like this:
+
+```typescript
+const server = createServer(async (req, res) => {
+  const url = new URL(req.url ?? "/", "http://localhost");
+  const body = req.method === "GET" ? {} : await readBody(req); // JSON or form-encoded
+
+  switch (`${req.method} ${url.pathname}`) {
+    case "GET /health":
+      return sendJson(res, 200, { status: "ok" });
+    case "POST /send":
+      return await send(res, body);
+    // ... /webhook, /inbound, /double-optin/*
+  }
+});
+
+const send = async (res, { to, subject, message }) => {
+  if (!to || !subject || !message) {
+    return sendJson(res, 400, { error: "Missing required fields: to, subject, message" });
+  }
+
+  try {
+    const { data } = await emailsApi.emailsTransactionalPost({
+      Recipients: { To: [to] },
+      Content: { From: from, Subject: subject, Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }] },
+    });
+    sendJson(res, 200, { success: true, transactionId: data.TransactionID, messageId: data.MessageID });
+  } catch (err) {
+    const { status, message: error } = apiError(err);
+    sendJson(res, status, { error });
+  }
+};
+```
+
+## Next steps
+
+There are 18 standalone examples in `examples/`. Run any of them the same way:
+
+```bash
+npx tsx examples/batch-send.ts            # one call, personalized per recipient
+npx tsx examples/with-attachments.ts      # base64 file attachment
+npx tsx examples/with-template.ts         # hosted template + merge values
+npx tsx examples/scheduled-send.ts        # delayed delivery
+npx tsx examples/webhooks.ts              # create, list, delete a webhook
+```
+
+| Do this | Read |
+|---|---|
+| Understand transactional vs bulk | [Sending email](../docs/sending-email.md) |
+| Receive delivery events | [Webhooks](../docs/webhooks.md) |
+| Receive email, not just send it | [Inbound email](../docs/inbound-email.md) |
+| Handle API failures properly | [Error handling](../docs/error-handling.md) |
+| Every example and route | [README.md](README.md) |
+
+---
+
 <!-- source: https://github.com/ElasticEmail/elasticemail-examples/blob/main/express-elasticemail-examples/QUICKSTART.md -->
 
 # Send your first email with Express
@@ -4747,7 +4910,7 @@ port 465, use `smtps://smtp.elasticemail.com:465` instead.
 | A WordPress site | [wordpress](wordpress/) |
 | Metabase, Retool or Liferay | [metabase](metabase/), [retool](retool/), [liferay](liferay/) |
 | Customer.io campaigns | [customer-io](customer-io/) |
-| Your own Node.js or PHP code | [nodemailer](nodemailer/), [phpmailer](phpmailer/) |
+| Your own Node.js or PHP code | [nodejs](nodejs/) (no dependencies), [nodemailer](nodemailer/), [phpmailer](phpmailer/) |
 | A Laravel, Django or Rails app | [laravel](laravel/), [django](django/), [rails](rails/) |
 
 ## Next steps

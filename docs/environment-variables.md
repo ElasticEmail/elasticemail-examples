@@ -39,7 +39,7 @@ The default matches the dev server port, so local links work without editing any
 
 | Stack | Default | Stack | Default |
 |---|---|---|---|
-| Next.js, Express, Hono, Bun, Nuxt, TanStack Start | `http://localhost:3000` | Astro | `http://localhost:4321` |
+| Next.js, Node.js, Express, Hono, Bun, Nuxt, TanStack Start | `http://localhost:3000` | Astro | `http://localhost:4321` |
 | Remix, SvelteKit | `http://localhost:5173` | RedwoodJS | `http://localhost:8910` |
 | Laravel | `http://localhost:8000` | Go, Java, .NET, Rust, Elixir, PHP, Python, Ruby | `http://localhost:3000` |
 
@@ -47,7 +47,7 @@ The default matches the dev server port, so local links work without editing any
 
 | Stack | Location |
 |---|---|
-| Express, Hono, Bun, Astro, Nuxt, SvelteKit, Remix, RedwoodJS, TanStack Start | `.env.example` sits in the stack folder; copy it into the `typescript/` or `javascript/` variant you are running |
+| Node.js, Express, Hono, Bun, Astro, Nuxt, SvelteKit, Remix, RedwoodJS, TanStack Start | `.env.example` sits in the stack folder; copy it into the `typescript/` or `javascript/` variant you are running |
 | Next.js | `.env.example` is inside each variant folder already |
 | Python, Ruby, Go, Java, .NET, Rust, Elixir, PHP, Laravel | stack folder root |
 | Serverless | inside each platform folder; production values are set through the platform CLI, not a file |
@@ -56,7 +56,7 @@ The default matches the dev server port, so local links work without editing any
 
 | Runtime | How `.env` is read |
 |---|---|
-| Node scripts (Express, Hono) | `import "dotenv/config"` at the top of each example |
+| Node scripts (Node.js, Express, Hono) | `import "dotenv/config"` at the top of each example |
 | Bun | loaded automatically, no import needed |
 | Next.js, Astro, Nuxt, Remix, SvelteKit, TanStack, RedwoodJS | the framework dev server loads it; production builds read `process.env` only |
 | Python | `python-dotenv`, via `examples/ee.py` |

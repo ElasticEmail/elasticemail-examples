@@ -1,6 +1,6 @@
 # Elastic Email Examples
 
-> Runnable code samples for the Elastic Email email API (REST API v4, official SDKs 4.2.0): transactional and bulk sending, templates, attachments, webhooks, inbound email routing, contacts, double opt-in, suppressions, sending domains and account statistics - in 20 languages, frameworks and serverless platforms.
+> Runnable code samples for the Elastic Email email API (REST API v4, official SDKs 4.2.0): transactional and bulk sending, templates, attachments, webhooks, inbound email routing, contacts, double opt-in, suppressions, sending domains and account statistics - in 21 languages, frameworks and serverless platforms.
 
 Every example reads `ELASTICEMAIL_API_KEY`, `EMAIL_FROM` and `EMAIL_TO` from `.env`. `EMAIL_FROM` must belong to a domain verified in Elastic Email. The API base URL is `https://api.elasticemail.com/v4` and authentication is the `X-ElasticEmail-ApiKey` header. Webhooks are unsigned GET requests with event data in the query string; the examples verify a shared `?token=` secret with a constant-time compare. Inbound email arrives as a form POST.
 
@@ -36,6 +36,7 @@ A machine-readable map from use case to source file for every stack is in [examp
 - [Send email with .NET](https://github.com/ElasticEmail/elasticemail-examples/blob/main/dotnet-elasticemail-examples/QUICKSTART.md): ElasticEmail NuGet package, Minimal APIs and MVC
 - [Send email with Rust](https://github.com/ElasticEmail/elasticemail-examples/blob/main/rust-elasticemail-examples/QUICKSTART.md): elasticemail-rust, Axum
 - [Send email with Elixir](https://github.com/ElasticEmail/elasticemail-examples/blob/main/elixir-elasticemail-examples/QUICKSTART.md): REST API through Req, Phoenix
+- [Send email with Node.js](https://github.com/ElasticEmail/elasticemail-examples/blob/main/nodejs-elasticemail-examples/QUICKSTART.md): plain Node.js with node:http and no framework, TypeScript and JavaScript
 - [Send email with Express](https://github.com/ElasticEmail/elasticemail-examples/blob/main/express-elasticemail-examples/QUICKSTART.md): Express 5, TypeScript and JavaScript
 - [Send email with Hono](https://github.com/ElasticEmail/elasticemail-examples/blob/main/hono-elasticemail-examples/QUICKSTART.md): Hono 4, TypeScript and JavaScript
 - [Send email with Bun](https://github.com/ElasticEmail/elasticemail-examples/blob/main/bun-elasticemail-examples/QUICKSTART.md): Bun.serve(), TypeScript and JavaScript
@@ -46,7 +47,7 @@ A machine-readable map from use case to source file for every stack is in [examp
 - [Send email with RedwoodJS](https://github.com/ElasticEmail/elasticemail-examples/blob/main/redwoodjs-elasticemail-examples/QUICKSTART.md): RedwoodJS 8 functions
 - [Send email with TanStack Start](https://github.com/ElasticEmail/elasticemail-examples/blob/main/tanstack-elasticemail-examples/QUICKSTART.md): TanStack Start server routes
 - [Send email from serverless](https://github.com/ElasticEmail/elasticemail-examples/blob/main/serverless-elasticemail-examples/QUICKSTART.md): Cloudflare Workers, Vercel, Supabase Edge, AWS Lambda, Deno Deploy, Netlify, Railway, Encore
-- [Send your first email with SMTP](https://github.com/ElasticEmail/elasticemail-examples/blob/main/smtp-elasticemail-examples/QUICKSTART.md): the SMTP relay (smtp.elasticemail.com) with curl, then Auth0, Customer.io, Liferay, Metabase, Retool, Supabase, WordPress, Nodemailer, NextAuth, PHPMailer, Laravel, Django, Rails
+- [Send your first email with SMTP](https://github.com/ElasticEmail/elasticemail-examples/blob/main/smtp-elasticemail-examples/QUICKSTART.md): the SMTP relay (smtp.elasticemail.com) with curl, then Auth0, Customer.io, Liferay, Metabase, Retool, Supabase, WordPress, Node.js (no dependencies), Nodemailer, NextAuth, PHPMailer, Laravel, Django, Rails
 
 ## For coding agents
 

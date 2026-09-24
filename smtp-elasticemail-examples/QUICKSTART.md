@@ -71,7 +71,7 @@ port 465, use `smtps://smtp.elasticemail.com:465` instead.
 | A WordPress site | [wordpress](wordpress/) |
 | Metabase, Retool or Liferay | [metabase](metabase/), [retool](retool/), [liferay](liferay/) |
 | Customer.io campaigns | [customer-io](customer-io/) |
-| Your own Node.js or PHP code | [nodemailer](nodemailer/), [phpmailer](phpmailer/) |
+| Your own Node.js or PHP code | [nodejs](nodejs/) (no dependencies), [nodemailer](nodemailer/), [phpmailer](phpmailer/) |
 | A Laravel, Django or Rails app | [laravel](laravel/), [django](django/), [rails](rails/) |
 
 ## Next steps

@@ -847,6 +847,96 @@
       "missing": []
     },
     {
+      "id": "nodejs",
+      "name": "Node.js",
+      "directory": "nodejs-elasticemail-examples",
+      "readme": "nodejs-elasticemail-examples/README.md",
+      "quickstart": "nodejs-elasticemail-examples/QUICKSTART.md",
+      "language": "TypeScript, JavaScript",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "runtime": "Node.js 20+",
+      "frameworks": [
+        "node:http"
+      ],
+      "apps": [
+        "nodejs-elasticemail-examples/typescript/src/index.ts",
+        "nodejs-elasticemail-examples/javascript/src/index.js"
+      ],
+      "useCases": {
+        "basic-send": [
+          "nodejs-elasticemail-examples/javascript/examples/basic-send.js",
+          "nodejs-elasticemail-examples/typescript/examples/basic-send.ts"
+        ],
+        "batch-send": [
+          "nodejs-elasticemail-examples/javascript/examples/batch-send.js",
+          "nodejs-elasticemail-examples/typescript/examples/batch-send.ts"
+        ],
+        "attachments": [
+          "nodejs-elasticemail-examples/javascript/examples/with-attachments.js",
+          "nodejs-elasticemail-examples/typescript/examples/with-attachments.ts"
+        ],
+        "cid-attachments": [
+          "nodejs-elasticemail-examples/javascript/examples/with-cid-attachments.js",
+          "nodejs-elasticemail-examples/typescript/examples/with-cid-attachments.ts"
+        ],
+        "templates": [
+          "nodejs-elasticemail-examples/javascript/examples/with-template.js",
+          "nodejs-elasticemail-examples/typescript/examples/with-template.ts"
+        ],
+        "scheduled-send": [
+          "nodejs-elasticemail-examples/javascript/examples/scheduled-send.js",
+          "nodejs-elasticemail-examples/typescript/examples/scheduled-send.ts"
+        ],
+        "prevent-threading": [
+          "nodejs-elasticemail-examples/javascript/examples/prevent-threading.js",
+          "nodejs-elasticemail-examples/typescript/examples/prevent-threading.ts"
+        ],
+        "email-status": [
+          "nodejs-elasticemail-examples/javascript/examples/email-status.js",
+          "nodejs-elasticemail-examples/typescript/examples/email-status.ts"
+        ],
+        "webhooks": [
+          "nodejs-elasticemail-examples/javascript/examples/webhooks.js",
+          "nodejs-elasticemail-examples/typescript/examples/webhooks.ts"
+        ],
+        "inbound": [
+          "nodejs-elasticemail-examples/javascript/examples/inbound.js",
+          "nodejs-elasticemail-examples/typescript/examples/inbound.ts"
+        ],
+        "contacts": [
+          "nodejs-elasticemail-examples/javascript/examples/contacts.js",
+          "nodejs-elasticemail-examples/typescript/examples/contacts.ts"
+        ],
+        "double-optin": [
+          "nodejs-elasticemail-examples/javascript/examples/double-optin-subscribe.js",
+          "nodejs-elasticemail-examples/javascript/examples/double-optin-webhook.js",
+          "nodejs-elasticemail-examples/typescript/examples/double-optin-subscribe.ts",
+          "nodejs-elasticemail-examples/typescript/examples/double-optin-webhook.ts"
+        ],
+        "suppressions": [
+          "nodejs-elasticemail-examples/javascript/examples/suppressions.js",
+          "nodejs-elasticemail-examples/typescript/examples/suppressions.ts"
+        ],
+        "domains": [
+          "nodejs-elasticemail-examples/javascript/examples/domains.js",
+          "nodejs-elasticemail-examples/typescript/examples/domains.ts"
+        ],
+        "statistics": [
+          "nodejs-elasticemail-examples/javascript/examples/statistics.js",
+          "nodejs-elasticemail-examples/typescript/examples/statistics.ts"
+        ],
+        "email-verification": [
+          "nodejs-elasticemail-examples/javascript/examples/email-verification.js",
+          "nodejs-elasticemail-examples/typescript/examples/email-verification.ts"
+        ],
+        "sub-accounts": [
+          "nodejs-elasticemail-examples/javascript/examples/sub-accounts.js",
+          "nodejs-elasticemail-examples/typescript/examples/sub-accounts.ts"
+        ]
+      },
+      "missing": []
+    },
+    {
       "id": "express",
       "name": "Express",
       "directory": "express-elasticemail-examples",

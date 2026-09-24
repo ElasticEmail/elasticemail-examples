@@ -6,7 +6,7 @@ project. Humans: start with [README.md](README.md).
 ## What this repository is
 
 Runnable examples for the Elastic Email REST API v4 (`https://api.elasticemail.com/v4`), one folder
-per stack, 20 stacks in total. Every stack implements the same use cases with the same route shapes, so
+per stack, 21 stacks in total. Every stack implements the same use cases with the same route shapes, so
 code you learn in one stack maps directly to the others.
 
 - Use case to source file, for every stack: [examples.json](examples.json)
@@ -22,10 +22,10 @@ code you learn in one stack maps directly to the others.
   QUICKSTART.md      tutorial: five minutes to a delivered email
   .env.example
   typescript/  javascript/     JS-family stacks ship both variants with identical behavior
-  examples/                    standalone scripts, one per use case (non-JS stacks and Express/Hono/Bun)
+  examples/                    standalone scripts, one per use case (non-JS stacks and Node.js/Express/Hono/Bun)
   <framework>_app/             a server app exposing the use cases as HTTP routes
 serverless-elasticemail-examples/<platform>/   one small deployable per platform
-smtp-elasticemail-examples/<service>/          SMTP relay setup for a platform or framework (docs only)
+smtp-elasticemail-examples/<service>/          SMTP relay setup for a platform or framework (docs; nodejs/ has one script)
 docs/                          language-neutral guides
 scripts/build-agent-files.mjs  regenerates examples.json and llms-full.txt
 ```
@@ -79,6 +79,7 @@ the stack's own checks pass:
 | Stack | Check |
 |---|---|
 | JS/TS stacks (in `typescript/` or `javascript/`) | `npm install && npm run typecheck` (Astro and SvelteKit: `npm run check`) |
+| SMTP `nodejs/` | `node --check send.mjs` |
 | Serverless platforms | `npm install && npm run typecheck` in the platform folder; Deno/Supabase: `deno check` |
 | Python | `pip install -r requirements.txt && python -m py_compile examples/*.py` |
 | Ruby | `bundle install && ruby -c examples/*.rb` |

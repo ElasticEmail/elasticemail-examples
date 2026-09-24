@@ -16,7 +16,7 @@ instead of writing API calls from memory. The examples target REST API v4 with t
    `mix.exs`) and whether it is TypeScript or JavaScript.
 2. Fetch the use-case map:
    `https://raw.githubusercontent.com/ElasticEmail/elasticemail-examples/main/examples.json`.
-   Pick the stack by `id` (`nextjs`, `laravel`, `python`, `go`, `serverless-cloudflare-workers`, ...)
+   Pick the stack by `id` (`nextjs`, `nodejs` for Node.js with no framework, `laravel`, `python`, `go`, `serverless-cloudflare-workers`, ...)
    and the use case by `id` (`basic-send`, `batch-send`, `attachments`, `cid-attachments`,
    `templates`, `scheduled-send`, `prevent-threading`, `email-status`, `webhooks`, `inbound`,
    `contacts`, `double-optin`, `suppressions`, `domains`, `statistics`, `email-verification`,
