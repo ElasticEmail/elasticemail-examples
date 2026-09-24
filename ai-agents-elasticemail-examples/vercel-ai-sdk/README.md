@@ -109,7 +109,7 @@ body escape HTML and turn braces into &#123; and &#125;. Never hardcode keys.
 - [Elastic Email email API](https://elasticemail.com/email-api) - REST API and SMTP relay overview, features and plans
 - [AI SDK: tool calling](https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling)
 - [AI SDK: Anthropic provider](https://ai-sdk.dev/providers/ai-sdk-providers/anthropic)
-- [Elastic Email MCP server](https://github.com/ElasticEmail/elasticemail-mcp-server)
+- [Elastic Email MCP server](https://elasticemail.com/mcp)
 - [Elastic Email TypeScript SDK](https://github.com/ElasticEmail/elasticemail-ts-axios)
 - [Elastic Email API Reference](https://elasticemail.com/developers/api-documentation/rest-api)
 

@@ -60,7 +60,7 @@ A machine-readable map from use case to source file for every stack is in [examp
 
 - [AGENTS.md](https://github.com/ElasticEmail/elasticemail-examples/blob/main/AGENTS.md): repository layout, conventions and the rules that are easy to get wrong
 - [Agent skill](https://github.com/ElasticEmail/elasticemail-examples/blob/main/skills/elasticemail/SKILL.md): step-by-step instructions for adding Elastic Email to an existing project
-- [Elastic Email MCP server](https://github.com/ElasticEmail/elasticemail-mcp-server): lets an agent send email, manage contacts, campaigns and templates through MCP
+- [Elastic Email MCP server](https://elasticemail.com/mcp): lets an agent send email, manage contacts, campaigns and templates through MCP
 
 ## Optional
 

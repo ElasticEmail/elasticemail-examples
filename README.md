@@ -128,22 +128,26 @@ into your project instead of guessing at the API.
 For other agents that support skills, copy `skills/elasticemail/` into the agent's skills folder
 (for example `.cursor/skills/` or `~/.codex/skills/`), or use the `npx skills add` command above.
 
-**Give the agent API access with the [Elastic Email MCP server](https://github.com/ElasticEmail/elasticemail-mcp-server).**
-It sends email and manages contacts, lists, segments, templates and campaigns. The server runs on your
-machine (.NET 10, listening on port 5001) and takes your API key in the `X-Auth-Token` header:
+**Give the agent API access with the [Elastic Email MCP server](https://elasticemail.com/mcp).**
+It sends email and manages contacts, lists, segments, templates, domains, suppressions and campaigns.
+It is hosted at `https://mcp.elasticemail.com`, nothing to install; it takes your API key in the
+`X-Auth-Token` header:
 
 ```bash
 # Claude Code
-claude mcp add --transport http elasticemail http://localhost:5001/ --header "X-Auth-Token: $ELASTICEMAIL_API_KEY"
+claude mcp add --transport http elasticemail https://mcp.elasticemail.com --header "X-Auth-Token: $ELASTICEMAIL_API_KEY"
 ```
 
 ```jsonc
 // Cursor: ~/.cursor/mcp.json
-{ "mcpServers": { "elasticemail": { "url": "http://localhost:5001/", "headers": { "X-Auth-Token": "<api key>" } } } }
+{ "mcpServers": { "elasticemail": { "url": "https://mcp.elasticemail.com", "headers": { "X-Auth-Token": "<api key>" } } } }
 
 // VS Code: .vscode/mcp.json
-{ "servers": { "elasticemail": { "type": "http", "url": "http://localhost:5001/", "headers": { "X-Auth-Token": "<api key>" } } } }
+{ "servers": { "elasticemail": { "type": "http", "url": "https://mcp.elasticemail.com", "headers": { "X-Auth-Token": "<api key>" } } } }
 ```
+
+The full tool list is at [elasticemail.com/mcp](https://elasticemail.com/mcp); setup docs are at
+[elasticemail.com/developers/mcp](https://elasticemail.com/developers/mcp).
 
 ## All stacks
 

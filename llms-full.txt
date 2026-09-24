@@ -5678,7 +5678,7 @@ export const sendEmailTool = tool({
     text: z.string().min(1),
     html: z.string().optional(),
   }),
-  execute: sendEmail, // allowlist check, then emailsApi.emailsTransactionalPost(...)
+  execute: sendEmail, // allowlist check, strip braces, then emailsApi.emailsTransactionalPost(...)
 });
 ```
 

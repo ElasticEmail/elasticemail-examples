@@ -111,7 +111,7 @@ hardcode keys.
 - [OpenAI Agents SDK for TypeScript](https://openai.github.io/openai-agents-js/)
 - [Agents SDK: tools](https://openai.github.io/openai-agents-js/guides/tools/)
 - [Agents SDK: human in the loop](https://openai.github.io/openai-agents-js/guides/human-in-the-loop/)
-- [Elastic Email MCP server](https://github.com/ElasticEmail/elasticemail-mcp-server)
+- [Elastic Email MCP server](https://elasticemail.com/mcp)
 - [Elastic Email TypeScript SDK](https://github.com/ElasticEmail/elasticemail-ts-axios)
 - [Elastic Email API Reference](https://elasticemail.com/developers/api-documentation/rest-api)
 

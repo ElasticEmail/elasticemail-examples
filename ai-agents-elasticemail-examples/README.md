@@ -65,7 +65,7 @@ This repository offers three ways to combine Elastic Email with AI agents. They 
 | | What it is | Use it when |
 |---|---|---|
 | **These examples** | One narrow tool embedded in your own agent code | You are building an agent or AI feature and want it to send email, with limits you control in code |
-| [Elastic Email MCP server](https://github.com/ElasticEmail/elasticemail-mcp-server) | A server that exposes many ready-made tools (send, contacts, lists, segments, templates, campaigns) to any MCP client over HTTP | You want Claude Code, Cursor, VS Code or another MCP client to work with your Elastic Email account directly |
+| [Elastic Email MCP server](https://elasticemail.com/mcp) | A hosted server at `https://mcp.elasticemail.com` that exposes many ready-made tools (send, contacts, lists, segments, templates, campaigns) to any MCP client over HTTP | You want Claude Code, Cursor, VS Code or another MCP client to work with your Elastic Email account directly |
 | [Agent skill](../skills/elasticemail/SKILL.md) | Instructions that help a coding agent write Elastic Email integration code | You want a coding agent to add Elastic Email to an existing project |
 
 The MCP server gives an agent broad access to the account. The tool here gives it exactly one action, with the recipient check and error format defined by you. Frameworks that support MCP clients (the AI SDK, LangChain and the OpenAI Agents SDK all do) can use the MCP server instead, but then the server's tool set, not your code, decides what the agent can do.
@@ -73,7 +73,7 @@ The MCP server gives an agent broad access to the account. The tool here gives i
 ## Resources
 
 - [Elastic Email email API](https://elasticemail.com/email-api) - REST API and SMTP relay overview, features and plans
-- [Elastic Email MCP server](https://github.com/ElasticEmail/elasticemail-mcp-server)
+- [Elastic Email MCP server](https://elasticemail.com/mcp)
 - [Elastic Email TypeScript SDK](https://github.com/ElasticEmail/elasticemail-ts-axios)
 - [Elastic Email API Reference](https://elasticemail.com/developers/api-documentation/rest-api)
 - [Error handling](../docs/error-handling.md)
