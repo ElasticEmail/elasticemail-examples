@@ -81,4 +81,4 @@ port 465, use `smtps://smtp.elasticemail.com:465` instead.
 | Get told about opens, clicks and bounces | [Webhooks](../docs/webhooks.md) |
 | Understand SPF, DKIM and DMARC | [Domains and deliverability](../docs/domains-and-deliverability.md) |
 | Fix a failing connection | [Troubleshooting](../docs/troubleshooting.md#smtp) |
-| Use templates, merge fields or scheduling | [Send with the REST API](../README.md#quick-start) |
+| Use templates, merge fields or scheduling | [Send with the REST API](../README.md#all-stacks) |

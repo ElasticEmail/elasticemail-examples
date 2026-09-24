@@ -1,28 +1,141 @@
-# Elastic Email Examples - Email API Code Samples
+# Elastic Email Examples
 
-Production-shaped examples for the [Elastic Email](https://elasticemail.com/email-api) email API:
-transactional and bulk sending, templates, attachments, webhooks, inbound routing, contacts and
-deliverability - in 21 languages, frameworks and serverless platforms.
+<p align="center">
+  <img
+    src="./docs/assets/elastic-email-examples-hero.jpg"
+    alt="Elastic Email examples for developers and AI agents"
+    width="100%"
+  />
+</p>
 
-Elastic Email is an email API and SMTP relay backed by an in-house mail transfer agent. These
-examples use the REST API v4 through the official SDKs. What they cover maps to what the platform
-does:
+<p align="center">
+  <strong>Real-world examples for building with the Elastic Email API, SMTP, webhooks and AI coding agents.</strong>
+</p>
 
-| Elastic Email feature | Examples here |
+<p align="center">
+  <a href="#start-building">Quick Start</a>
+  ·
+  <a href="#send-with-smtp">SMTP</a>
+  ·
+  <a href="#using-with-ai-agents">AI Agents</a>
+  ·
+  <a href="https://elasticemail.com/developers/api-documentation/rest-api">API Docs</a>
+  ·
+  <a href="https://app.elasticemail.com/marketing/settings/new/manage-api">Get an API Key</a>
+</p>
+
+Production-shaped code samples for the [Elastic Email](https://elasticemail.com/email-api) email API
+and SMTP relay, in 21 languages, frameworks and serverless platforms. Every stack implements the same
+use cases through the official SDKs and REST API v4, so what you learn in one maps directly to the
+others.
+
+```typescript
+import {
+  Configuration,
+  EmailsApi,
+} from "@elasticemail/elasticemail-client-ts-axios";
+
+const emailsApi = new EmailsApi(
+  new Configuration({
+    apiKey: process.env.ELASTICEMAIL_API_KEY,
+  })
+);
+
+await emailsApi.emailsTransactionalPost({
+  Recipients: { To: ["you@yourdomain.com"] },
+  Content: {
+    From: process.env.EMAIL_FROM!, // must be on a domain verified in Elastic Email
+    Subject: "Hello from Elastic Email",
+    Body: [
+      { ContentType: "HTML", Content: "<p>Hello!</p>" },
+      { ContentType: "PlainText", Content: "Hello!" },
+    ],
+  },
+});
+```
+
+## Start building
+
+Pick your stack and send your first email in about five minutes.
+
+| Stack | Quick start |
 |---|---|
-| **Email API** - transactional, bulk and scheduled sending | [Basic send](#sending), [batch send](#sending), [scheduled send](#sending), [templates](#sending) |
-| **Webhook notifications** - sends, opens, clicks, bounces, unsubscribes | [Webhooks](#receiving), [webhooks guide](docs/webhooks.md) |
-| **Inbound email routing** - parse incoming mail and act on it | [Inbound](#receiving), [inbound guide](docs/inbound-email.md) |
-| **Contacts, lists and suppressions** | [Contacts](#contacts-and-lists), [double opt-in](#contacts-and-lists), [suppressions](#contacts-and-lists) |
-| **Secure API keys, sub-accounts, analytics** | [Account](#account), [account guide](docs/account.md) |
-| **SMTP relay** - for tools and frameworks that only speak SMTP | [SMTP integrations](#send-with-smtp) |
+| Next.js | [Quick start](nextjs-elasticemail-examples/QUICKSTART.md) |
+| Express | [Quick start](express-elasticemail-examples/QUICKSTART.md) |
+| Python | [Quick start](python-elasticemail-examples/QUICKSTART.md) |
+| PHP | [Quick start](php-elasticemail-examples/QUICKSTART.md) |
+| Laravel | [Quick start](laravel-elasticemail-examples/QUICKSTART.md) |
+| .NET | [Quick start](dotnet-elasticemail-examples/QUICKSTART.md) |
+| Go | [Quick start](go-elasticemail-examples/QUICKSTART.md) |
+| Java | [Quick start](java-elasticemail-examples/QUICKSTART.md) |
+
+Something else? Ruby, Rust, Elixir, plain Node.js, Hono, Bun, the full-stack JavaScript frameworks,
+serverless platforms and SMTP are all in [All stacks](#all-stacks).
+
+## What is included
+
+- [Transactional and bulk email](#sending)
+- [Templates and merge variables](docs/templates.md)
+- [Attachments and inline images](docs/attachments.md)
+- [Contacts and lists](#contacts-and-lists)
+- [Webhooks](docs/webhooks.md)
+- [Inbound email](docs/inbound-email.md)
+- [SMTP examples](#send-with-smtp)
+- [Serverless examples](serverless-elasticemail-examples/)
+- [Claude Code and AI agent support](#using-with-ai-agents)
+- [MCP integration](#using-with-ai-agents)
 
 Every example runs on the free plan - see [plans and pricing](https://elasticemail.com/email-api-pricing).
 
-## Quick Start
+## Using with AI agents
 
-Pick your stack. Each quickstart is five minutes from nothing to a delivered email; the folder it
-links to covers every example and route for that language.
+The repository includes support for Claude Code, agent skills, MCP and LLM-readable documentation.
+
+```bash
+npx skills add ElasticEmail/elasticemail-examples
+```
+
+These examples are laid out so a coding agent can find the right file and copy working code
+into your project instead of guessing at the API.
+
+| File | For |
+|---|---|
+| [`AGENTS.md`](AGENTS.md) | Agents working in this repo: layout, conventions, the webhook and sender-domain rules that are easy to get wrong. Claude Code reads it through [`CLAUDE.md`](CLAUDE.md). |
+| [`skills/elasticemail/SKILL.md`](skills/elasticemail/SKILL.md) | An [Agent Skill](https://agentskills.io) that adds Elastic Email to an existing project: detect the stack, copy the matching example, set env vars. |
+| [`examples.json`](examples.json) | Machine-readable map from each use case to its source files, for every stack. |
+| [`llms.txt`](llms.txt) / [`llms-full.txt`](llms-full.txt) | Index of every guide and quickstart, and the same content in one file. |
+
+**Install the skill in Claude Code:**
+
+```bash
+/plugin marketplace add ElasticEmail/elasticemail-examples
+/plugin install elasticemail@elasticemail
+```
+
+For other agents that support skills, copy `skills/elasticemail/` into the agent's skills folder
+(for example `.cursor/skills/` or `~/.codex/skills/`), or use the `npx skills add` command above.
+
+**Give the agent API access with the [Elastic Email MCP server](https://github.com/ElasticEmail/elasticemail-mcp-server).**
+It sends email and manages contacts, lists, segments, templates and campaigns. The server runs on your
+machine (.NET 10, listening on port 5001) and takes your API key in the `X-Auth-Token` header:
+
+```bash
+# Claude Code
+claude mcp add --transport http elasticemail http://localhost:5001/ --header "X-Auth-Token: $ELASTICEMAIL_API_KEY"
+```
+
+```jsonc
+// Cursor: ~/.cursor/mcp.json
+{ "mcpServers": { "elasticemail": { "url": "http://localhost:5001/", "headers": { "X-Auth-Token": "<api key>" } } } }
+
+// VS Code: .vscode/mcp.json
+{ "servers": { "elasticemail": { "type": "http", "url": "http://localhost:5001/", "headers": { "X-Auth-Token": "<api key>" } } } }
+```
+
+## All stacks
+
+Each quickstart is five minutes from nothing to a delivered email; the folder it links to covers
+every example and route for that language.
 
 | Language | Five-minute quickstart | All examples | Frameworks |
 |----------|-----------|---------|-----------|
@@ -64,45 +177,6 @@ shows how to point them at `smtp.elasticemail.com`, with no SDK involved. The
 | [Auth0](smtp-elasticemail-examples/auth0/), [Customer.io](smtp-elasticemail-examples/customer-io/), [Liferay](smtp-elasticemail-examples/liferay/), [Metabase](smtp-elasticemail-examples/metabase/), [Retool](smtp-elasticemail-examples/retool/), [Supabase](smtp-elasticemail-examples/supabase/), [WordPress](smtp-elasticemail-examples/wordpress/) | [Node.js](smtp-elasticemail-examples/nodejs/), [Nodemailer](smtp-elasticemail-examples/nodemailer/), [NextAuth](smtp-elasticemail-examples/nextauth/), [PHPMailer](smtp-elasticemail-examples/phpmailer/), [Laravel](smtp-elasticemail-examples/laravel/), [Django](smtp-elasticemail-examples/django/), [Rails](smtp-elasticemail-examples/rails/) |
 
 SMTP uses its own credentials (Settings > SMTP in the dashboard), not the API key.
-
-## Using with AI Agents
-
-These examples are laid out so a coding agent can find the right file and copy working code
-into your project instead of guessing at the API.
-
-| File | For |
-|---|---|
-| [`AGENTS.md`](AGENTS.md) | Agents working in this repo: layout, conventions, the webhook and sender-domain rules that are easy to get wrong. Claude Code reads it through [`CLAUDE.md`](CLAUDE.md). |
-| [`skills/elasticemail/SKILL.md`](skills/elasticemail/SKILL.md) | An [Agent Skill](https://agentskills.io) that adds Elastic Email to an existing project: detect the stack, copy the matching example, set env vars. |
-| [`examples.json`](examples.json) | Machine-readable map from each use case to its source files, for every stack. |
-| [`llms.txt`](llms.txt) / [`llms-full.txt`](llms-full.txt) | Index of every guide and quickstart, and the same content in one file. |
-
-**Install the skill in Claude Code:**
-
-```bash
-/plugin marketplace add ElasticEmail/elasticemail-examples
-/plugin install elasticemail@elasticemail
-```
-
-For other agents that support skills, copy `skills/elasticemail/` into the agent's skills folder
-(for example `.cursor/skills/` or `~/.codex/skills/`), or run `npx skills add ElasticEmail/elasticemail-examples`.
-
-**Give the agent API access with the [Elastic Email MCP server](https://github.com/ElasticEmail/elasticemail-mcp-server).**
-It sends email and manages contacts, lists, segments, templates and campaigns. The server runs on your
-machine (.NET 10, listening on port 5001) and takes your API key in the `X-Auth-Token` header:
-
-```bash
-# Claude Code
-claude mcp add --transport http elasticemail http://localhost:5001/ --header "X-Auth-Token: $ELASTICEMAIL_API_KEY"
-```
-
-```jsonc
-// Cursor: ~/.cursor/mcp.json
-{ "mcpServers": { "elasticemail": { "url": "http://localhost:5001/", "headers": { "X-Auth-Token": "<api key>" } } } }
-
-// VS Code: .vscode/mcp.json
-{ "servers": { "elasticemail": { "type": "http", "url": "http://localhost:5001/", "headers": { "X-Auth-Token": "<api key>" } } } }
-```
 
 ## Examples Included
 

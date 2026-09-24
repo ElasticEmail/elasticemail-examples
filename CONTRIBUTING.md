@@ -39,7 +39,7 @@ support, not here. Reach them through the chat widget on [elasticemail.com](http
    - https://elasticemail.com/email-api as the first Resources link
    - The domain verification and API settings help articles linked once each, where the reader needs them
    - No prices or sending-volume figures; link to https://elasticemail.com/email-api-pricing
-5. Add the stack to the Quick Start table in the root README, to [llms.txt](llms.txt), and to `STACKS`
+5. Add the stack to the All stacks table in the root README, to [llms.txt](llms.txt), and to `STACKS`
    in [scripts/build-agent-files.mjs](scripts/build-agent-files.mjs). Then run the script.
 
 ## Pull requests
