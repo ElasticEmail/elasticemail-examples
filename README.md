@@ -1,9 +1,11 @@
 <p align="center">
-  <img
-    src="./docs/assets/elastic-email-examples-hero.png"
-    alt="Elastic Email examples for developers and AI agents"
-    width="100%"
-  />
+  <a href="https://elasticemail.com/email-api">
+    <img
+      src="./docs/assets/elastic-email-examples-hero.png"
+      alt="Elastic Email examples for developers and AI agents"
+      width="100%"
+    />
+  </a>
 </p>
 
 <p align="center">
