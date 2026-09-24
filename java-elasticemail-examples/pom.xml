@@ -13,6 +13,8 @@
     <description>Examples for sending and managing email with Elastic Email using Java</description>
 
     <properties>
+        <!-- Default for `mvn exec:java`; a property so -Dexec.mainClass=... can override it -->
+        <exec.mainClass>com.elasticemail.examples.BasicSend</exec.mainClass>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -86,9 +88,6 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.5.0</version>
-                <configuration>
-                    <mainClass>com.elasticemail.examples.BasicSend</mainClass>
-                </configuration>
             </plugin>
         </plugins>
     </build>

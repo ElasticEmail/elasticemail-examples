@@ -702,6 +702,78 @@
       "missing": []
     },
     {
+      "id": "kotlin",
+      "name": "Kotlin",
+      "directory": "kotlin-elasticemail-examples",
+      "readme": "kotlin-elasticemail-examples/README.md",
+      "quickstart": "kotlin-elasticemail-examples/QUICKSTART.md",
+      "language": "Kotlin",
+      "sdk": "com.github.ElasticEmail:elasticemail-java:4.2.0 (JitPack)",
+      "runtime": "Java 17+, Maven 3.8+",
+      "frameworks": [
+        "Kotlin 2.4",
+        "Ktor 3.6"
+      ],
+      "apps": [
+        "kotlin-elasticemail-examples/ktor_app/App.kt"
+      ],
+      "useCases": {
+        "basic-send": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/BasicSend.kt"
+        ],
+        "batch-send": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/BatchSend.kt"
+        ],
+        "attachments": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/WithAttachments.kt"
+        ],
+        "cid-attachments": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/WithCidAttachments.kt"
+        ],
+        "templates": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/WithTemplate.kt"
+        ],
+        "scheduled-send": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/ScheduledSend.kt"
+        ],
+        "prevent-threading": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/PreventThreading.kt"
+        ],
+        "email-status": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/EmailStatus.kt"
+        ],
+        "webhooks": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/Webhooks.kt"
+        ],
+        "inbound": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/Inbound.kt"
+        ],
+        "contacts": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/Contacts.kt"
+        ],
+        "double-optin": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/DoubleOptinSubscribe.kt",
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/DoubleOptinWebhook.kt"
+        ],
+        "suppressions": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/Suppressions.kt"
+        ],
+        "domains": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/Domains.kt"
+        ],
+        "statistics": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/Statistics.kt"
+        ],
+        "email-verification": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/EmailVerification.kt"
+        ],
+        "sub-accounts": [
+          "kotlin-elasticemail-examples/src/main/kotlin/com/elasticemail/examples/SubAccounts.kt"
+        ]
+      },
+      "missing": []
+    },
+    {
       "id": "rust",
       "name": "Rust",
       "directory": "rust-elasticemail-examples",
@@ -932,6 +1004,169 @@
         "sub-accounts": [
           "nodejs-elasticemail-examples/javascript/examples/sub-accounts.js",
           "nodejs-elasticemail-examples/typescript/examples/sub-accounts.ts"
+        ]
+      },
+      "missing": []
+    },
+    {
+      "id": "nestjs",
+      "name": "NestJS",
+      "directory": "nestjs-elasticemail-examples",
+      "readme": "nestjs-elasticemail-examples/README.md",
+      "quickstart": "nestjs-elasticemail-examples/QUICKSTART.md",
+      "language": "TypeScript",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "runtime": "Node.js 20+",
+      "frameworks": [
+        "NestJS 11"
+      ],
+      "apps": [
+        "nestjs-elasticemail-examples/typescript/src/main.ts"
+      ],
+      "useCases": {
+        "basic-send": [
+          "nestjs-elasticemail-examples/typescript/examples/basic-send.ts"
+        ],
+        "batch-send": [
+          "nestjs-elasticemail-examples/typescript/examples/batch-send.ts"
+        ],
+        "attachments": [
+          "nestjs-elasticemail-examples/typescript/examples/with-attachments.ts"
+        ],
+        "cid-attachments": [
+          "nestjs-elasticemail-examples/typescript/examples/with-cid-attachments.ts"
+        ],
+        "templates": [
+          "nestjs-elasticemail-examples/typescript/examples/with-template.ts"
+        ],
+        "scheduled-send": [
+          "nestjs-elasticemail-examples/typescript/examples/scheduled-send.ts"
+        ],
+        "prevent-threading": [
+          "nestjs-elasticemail-examples/typescript/examples/prevent-threading.ts"
+        ],
+        "email-status": [
+          "nestjs-elasticemail-examples/typescript/examples/email-status.ts"
+        ],
+        "webhooks": [
+          "nestjs-elasticemail-examples/typescript/examples/webhooks.ts",
+          "nestjs-elasticemail-examples/typescript/src/webhooks/webhooks.controller.ts"
+        ],
+        "inbound": [
+          "nestjs-elasticemail-examples/typescript/examples/inbound.ts"
+        ],
+        "contacts": [
+          "nestjs-elasticemail-examples/typescript/examples/contacts.ts"
+        ],
+        "double-optin": [
+          "nestjs-elasticemail-examples/typescript/examples/double-optin-subscribe.ts",
+          "nestjs-elasticemail-examples/typescript/examples/double-optin-webhook.ts",
+          "nestjs-elasticemail-examples/typescript/src/double-optin/double-optin.controller.ts"
+        ],
+        "suppressions": [
+          "nestjs-elasticemail-examples/typescript/examples/suppressions.ts"
+        ],
+        "domains": [
+          "nestjs-elasticemail-examples/typescript/examples/domains.ts"
+        ],
+        "statistics": [
+          "nestjs-elasticemail-examples/typescript/examples/statistics.ts"
+        ],
+        "email-verification": [
+          "nestjs-elasticemail-examples/typescript/examples/email-verification.ts"
+        ],
+        "sub-accounts": [
+          "nestjs-elasticemail-examples/typescript/examples/sub-accounts.ts"
+        ]
+      },
+      "missing": []
+    },
+    {
+      "id": "fastify",
+      "name": "Fastify",
+      "directory": "fastify-elasticemail-examples",
+      "readme": "fastify-elasticemail-examples/README.md",
+      "quickstart": "fastify-elasticemail-examples/QUICKSTART.md",
+      "language": "TypeScript, JavaScript",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "runtime": "Node.js 20+",
+      "frameworks": [
+        "Fastify 5"
+      ],
+      "apps": [
+        "fastify-elasticemail-examples/typescript/src/index.ts",
+        "fastify-elasticemail-examples/javascript/src/index.js"
+      ],
+      "useCases": {
+        "basic-send": [
+          "fastify-elasticemail-examples/javascript/examples/basic-send.js",
+          "fastify-elasticemail-examples/typescript/examples/basic-send.ts"
+        ],
+        "batch-send": [
+          "fastify-elasticemail-examples/javascript/examples/batch-send.js",
+          "fastify-elasticemail-examples/typescript/examples/batch-send.ts"
+        ],
+        "attachments": [
+          "fastify-elasticemail-examples/javascript/examples/with-attachments.js",
+          "fastify-elasticemail-examples/typescript/examples/with-attachments.ts"
+        ],
+        "cid-attachments": [
+          "fastify-elasticemail-examples/javascript/examples/with-cid-attachments.js",
+          "fastify-elasticemail-examples/typescript/examples/with-cid-attachments.ts"
+        ],
+        "templates": [
+          "fastify-elasticemail-examples/javascript/examples/with-template.js",
+          "fastify-elasticemail-examples/typescript/examples/with-template.ts"
+        ],
+        "scheduled-send": [
+          "fastify-elasticemail-examples/javascript/examples/scheduled-send.js",
+          "fastify-elasticemail-examples/typescript/examples/scheduled-send.ts"
+        ],
+        "prevent-threading": [
+          "fastify-elasticemail-examples/javascript/examples/prevent-threading.js",
+          "fastify-elasticemail-examples/typescript/examples/prevent-threading.ts"
+        ],
+        "email-status": [
+          "fastify-elasticemail-examples/javascript/examples/email-status.js",
+          "fastify-elasticemail-examples/typescript/examples/email-status.ts"
+        ],
+        "webhooks": [
+          "fastify-elasticemail-examples/javascript/examples/webhooks.js",
+          "fastify-elasticemail-examples/typescript/examples/webhooks.ts"
+        ],
+        "inbound": [
+          "fastify-elasticemail-examples/javascript/examples/inbound.js",
+          "fastify-elasticemail-examples/typescript/examples/inbound.ts"
+        ],
+        "contacts": [
+          "fastify-elasticemail-examples/javascript/examples/contacts.js",
+          "fastify-elasticemail-examples/typescript/examples/contacts.ts"
+        ],
+        "double-optin": [
+          "fastify-elasticemail-examples/javascript/examples/double-optin-subscribe.js",
+          "fastify-elasticemail-examples/javascript/examples/double-optin-webhook.js",
+          "fastify-elasticemail-examples/typescript/examples/double-optin-subscribe.ts",
+          "fastify-elasticemail-examples/typescript/examples/double-optin-webhook.ts"
+        ],
+        "suppressions": [
+          "fastify-elasticemail-examples/javascript/examples/suppressions.js",
+          "fastify-elasticemail-examples/typescript/examples/suppressions.ts"
+        ],
+        "domains": [
+          "fastify-elasticemail-examples/javascript/examples/domains.js",
+          "fastify-elasticemail-examples/typescript/examples/domains.ts"
+        ],
+        "statistics": [
+          "fastify-elasticemail-examples/javascript/examples/statistics.js",
+          "fastify-elasticemail-examples/typescript/examples/statistics.ts"
+        ],
+        "email-verification": [
+          "fastify-elasticemail-examples/javascript/examples/email-verification.js",
+          "fastify-elasticemail-examples/typescript/examples/email-verification.ts"
+        ],
+        "sub-accounts": [
+          "fastify-elasticemail-examples/javascript/examples/sub-accounts.js",
+          "fastify-elasticemail-examples/typescript/examples/sub-accounts.ts"
         ]
       },
       "missing": []
@@ -1991,6 +2226,162 @@
         ],
         "webhooks": [
           "serverless-elasticemail-examples/encore-ts/email/send.ts"
+        ]
+      },
+      "missing": [
+        "batch-send",
+        "attachments",
+        "cid-attachments",
+        "templates",
+        "scheduled-send",
+        "prevent-threading",
+        "email-status",
+        "inbound",
+        "contacts",
+        "double-optin",
+        "suppressions",
+        "domains",
+        "statistics",
+        "email-verification",
+        "sub-accounts"
+      ]
+    },
+    {
+      "id": "serverless-firebase-functions",
+      "name": "Firebase Cloud Functions",
+      "parent": "serverless",
+      "directory": "serverless-elasticemail-examples/firebase-functions",
+      "readme": "serverless-elasticemail-examples/firebase-functions/README.md",
+      "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
+      "language": "TypeScript",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "runtime": "Node.js 20 (firebase-functions 6)",
+      "frameworks": [
+        "Firebase Cloud Functions"
+      ],
+      "useCases": {
+        "basic-send": [
+          "serverless-elasticemail-examples/firebase-functions/src/index.ts"
+        ],
+        "webhooks": [
+          "serverless-elasticemail-examples/firebase-functions/src/index.ts"
+        ]
+      },
+      "missing": [
+        "batch-send",
+        "attachments",
+        "cid-attachments",
+        "templates",
+        "scheduled-send",
+        "prevent-threading",
+        "email-status",
+        "inbound",
+        "contacts",
+        "double-optin",
+        "suppressions",
+        "domains",
+        "statistics",
+        "email-verification",
+        "sub-accounts"
+      ]
+    },
+    {
+      "id": "serverless-azure-functions",
+      "name": "Azure Functions",
+      "parent": "serverless",
+      "directory": "serverless-elasticemail-examples/azure-functions",
+      "readme": "serverless-elasticemail-examples/azure-functions/README.md",
+      "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
+      "language": "TypeScript",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "runtime": "Node.js 20 (Azure Functions v4)",
+      "frameworks": [
+        "Azure Functions"
+      ],
+      "useCases": {
+        "basic-send": [
+          "serverless-elasticemail-examples/azure-functions/src/functions/send.ts"
+        ],
+        "webhooks": [
+          "serverless-elasticemail-examples/azure-functions/src/functions/webhook.ts"
+        ]
+      },
+      "missing": [
+        "batch-send",
+        "attachments",
+        "cid-attachments",
+        "templates",
+        "scheduled-send",
+        "prevent-threading",
+        "email-status",
+        "inbound",
+        "contacts",
+        "double-optin",
+        "suppressions",
+        "domains",
+        "statistics",
+        "email-verification",
+        "sub-accounts"
+      ]
+    },
+    {
+      "id": "serverless-google-cloud-run",
+      "name": "Google Cloud Run",
+      "parent": "serverless",
+      "directory": "serverless-elasticemail-examples/google-cloud-run",
+      "readme": "serverless-elasticemail-examples/google-cloud-run/README.md",
+      "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
+      "language": "TypeScript",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "runtime": "Node.js 20 (container)",
+      "frameworks": [
+        "Google Cloud Run"
+      ],
+      "useCases": {
+        "basic-send": [
+          "serverless-elasticemail-examples/google-cloud-run/src/index.ts"
+        ],
+        "webhooks": [
+          "serverless-elasticemail-examples/google-cloud-run/src/index.ts"
+        ]
+      },
+      "missing": [
+        "batch-send",
+        "attachments",
+        "cid-attachments",
+        "templates",
+        "scheduled-send",
+        "prevent-threading",
+        "email-status",
+        "inbound",
+        "contacts",
+        "double-optin",
+        "suppressions",
+        "domains",
+        "statistics",
+        "email-verification",
+        "sub-accounts"
+      ]
+    },
+    {
+      "id": "serverless-convex",
+      "name": "Convex",
+      "parent": "serverless",
+      "directory": "serverless-elasticemail-examples/convex",
+      "readme": "serverless-elasticemail-examples/convex/README.md",
+      "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
+      "language": "TypeScript",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "runtime": "Convex (Node.js actions)",
+      "frameworks": [
+        "Convex"
+      ],
+      "useCases": {
+        "basic-send": [
+          "serverless-elasticemail-examples/convex/convex/http.ts"
+        ],
+        "webhooks": [
+          "serverless-elasticemail-examples/convex/convex/http.ts"
         ]
       },
       "missing": [

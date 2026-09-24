@@ -1,0 +1,27 @@
+{
+  "name": "trigger-dev-elasticemail-example",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "trigger dev",
+    "deploy": "trigger deploy",
+    "enqueue": "tsx src/enqueue.ts",
+    "fanout": "tsx src/enqueue.ts --fanout",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@elasticemail/elasticemail-client-ts-axios": "^4.2.0",
+    "@trigger.dev/sdk": "^4.6.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "trigger.dev": "^4.6.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0"
+  }
+}

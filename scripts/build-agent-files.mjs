@@ -61,12 +61,20 @@ const STACKS = [
     apps: ["java-elasticemail-examples/javalin_app/App.java", "java-elasticemail-examples/spring_boot_app"] },
   { id: "dotnet", name: ".NET (C#)", dir: "dotnet-elasticemail-examples", language: "C#", sdk: `ElasticEmail ${SDK_VERSION} (NuGet)`, runtime: ".NET 8", frameworks: ["ASP.NET Minimal APIs", "ASP.NET MVC"],
     apps: ["dotnet-elasticemail-examples/MinimalApiApp/Program.cs", "dotnet-elasticemail-examples/MvcApp"] },
+  { id: "kotlin", name: "Kotlin", dir: "kotlin-elasticemail-examples", language: "Kotlin", sdk: `com.github.ElasticEmail:elasticemail-java:${SDK_VERSION} (JitPack)`, runtime: "Java 17+, Maven 3.8+", frameworks: ["Kotlin 2.4", "Ktor 3.6"],
+    apps: ["kotlin-elasticemail-examples/ktor_app/App.kt"] },
   { id: "rust", name: "Rust", dir: "rust-elasticemail-examples", language: "Rust", sdk: `ElasticEmail (git ElasticEmail/elasticemail-rust, tag ${SDK_VERSION})`, runtime: "Rust 1.75+", frameworks: ["Axum 0.8"],
     apps: ["rust-elasticemail-examples/axum_app/src/main.rs"] },
   { id: "elixir", name: "Elixir", dir: "elixir-elasticemail-examples", language: "Elixir", sdk: "none - REST API v4 called directly with Req 0.5", runtime: "Elixir 1.15+ (OTP 25+)", frameworks: ["Phoenix 1.7"],
     apps: ["elixir-elasticemail-examples/phoenix_app"] },
   { id: "nodejs", name: "Node.js", dir: "nodejs-elasticemail-examples", ...ts("Node.js 20+", ["node:http"]),
     apps: ["nodejs-elasticemail-examples/typescript/src/index.ts", "nodejs-elasticemail-examples/javascript/src/index.js"] },
+  // TypeScript only: NestJS relies on decorators.
+  { id: "nestjs", name: "NestJS", dir: "nestjs-elasticemail-examples", ...ts("Node.js 20+", ["NestJS 11"]), language: "TypeScript",
+    readme: "nestjs-elasticemail-examples/README.md",
+    apps: ["nestjs-elasticemail-examples/typescript/src/main.ts"] },
+  { id: "fastify", name: "Fastify", dir: "fastify-elasticemail-examples", ...ts("Node.js 20+", ["Fastify 5"]),
+    apps: ["fastify-elasticemail-examples/typescript/src/index.ts", "fastify-elasticemail-examples/javascript/src/index.js"] },
   { id: "express", name: "Express", dir: "express-elasticemail-examples", ...ts("Node.js 20+", ["Express 5"]),
     apps: ["express-elasticemail-examples/typescript/src/index.ts", "express-elasticemail-examples/javascript/src/index.js"] },
   { id: "hono", name: "Hono", dir: "hono-elasticemail-examples", ...ts("Node.js 20+", ["Hono 4"]),
@@ -103,6 +111,10 @@ STACKS.push(
   serverless("netlify-functions", "Netlify Functions", "Node.js 20+ and Edge Functions"),
   serverless("railway", "Railway", "Node.js 20+ (Hono)", "src/index.ts"),
   serverless("encore-ts", "Encore.ts", "Node.js 20+ (Encore 1.45)", "email/send.ts"),
+  serverless("firebase-functions", "Firebase Cloud Functions", "Node.js 20 (firebase-functions 6)", "src/index.ts"),
+  serverless("azure-functions", "Azure Functions", "Node.js 20 (Azure Functions v4)"),
+  serverless("google-cloud-run", "Google Cloud Run", "Node.js 20 (container)", "src/index.ts"),
+  serverless("convex", "Convex", "Convex (Node.js actions)", "convex/http.ts"),
 );
 
 const tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" }).trim().split("\n");
@@ -161,8 +173,14 @@ writeFileSync("examples.json", JSON.stringify(manifest, null, 2) + "\n");
 const read = (f) => readFileSync(f, "utf8").trim();
 const section = (f) => `\n\n---\n\n<!-- source: ${REPO}/blob/main/${f} -->\n\n${read(f)}`;
 const guides = ["docs/README.md", ...tracked.filter((f) => /^docs\/.+\.md$/.test(f) && f !== "docs/README.md").sort()];
-// The SMTP section has no source files for examples.json, only docs.
-const quickstarts = [...new Set([...stacks.map((s) => s.quickstart), "smtp-elasticemail-examples/QUICKSTART.md"])];
+// Sections outside the use-case matrix: SMTP (docs), templates, AI agents, background jobs.
+const SECTION_QUICKSTARTS = [
+  "smtp-elasticemail-examples/QUICKSTART.md",
+  "email-templates-elasticemail-examples/QUICKSTART.md",
+  "ai-agents-elasticemail-examples/QUICKSTART.md",
+  "queues-elasticemail-examples/QUICKSTART.md",
+];
+const quickstarts = [...new Set([...stacks.map((s) => s.quickstart), ...SECTION_QUICKSTARTS])];
 const full = [
   "# Elastic Email Examples - full text for LLMs",
   "",

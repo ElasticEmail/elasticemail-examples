@@ -33,30 +33,49 @@ map them onto the framework's own names (`MAIL_*` in Laravel, `EMAIL_*` settings
 
 `EMAIL_FROM` and `EMAIL_TO` mean the same over SMTP as over the API.
 
+## AI agent and background job variables
+
+Only the [AI agent](../ai-agents-elasticemail-examples/README.md) and
+[background job](../queues-elasticemail-examples/README.md) examples read these.
+
+| Variable | Required | Default | Used by |
+|---|---|---|---|
+| `EMAIL_ALLOWED_DOMAINS` | no | the domain of `EMAIL_TO` | AI agent tools. Comma-separated recipient domains the `send_email` tool may send to; anything else is refused, so a prompt-injected agent cannot mail arbitrary addresses. With neither set, every send is refused. |
+| `ANTHROPIC_API_KEY` | yes, for those examples | - | Vercel AI SDK and LangChain agents. |
+| `ANTHROPIC_MODEL` | no | `claude-opus-5-5` | Claude model for those agents. |
+| `OPENAI_API_KEY` | yes, for that example | - | OpenAI Agents SDK agent. |
+| `OPENAI_MODEL` | no | the SDK's default | Model for the OpenAI agent. |
+| `REDIS_URL` | no | `redis://localhost:6379` | BullMQ queue and worker. |
+| `WORKER_CONCURRENCY` | no | `5` | BullMQ worker: jobs processed in parallel. |
+
+Inngest (`INNGEST_DEV`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`) and Trigger.dev
+(`TRIGGER_PROJECT_REF`, `TRIGGER_SECRET_KEY`) read their own variables; each README explains them.
+
 ## Default `PUBLIC_URL` per stack
 
 The default matches the dev server port, so local links work without editing anything.
 
 | Stack | Default | Stack | Default |
 |---|---|---|---|
-| Next.js, Node.js, Express, Hono, Bun, Nuxt, TanStack Start | `http://localhost:3000` | Astro | `http://localhost:4321` |
+| Next.js, Node.js, Express, NestJS, Fastify, Hono, Bun, Nuxt, TanStack Start | `http://localhost:3000` | Astro | `http://localhost:4321` |
 | Remix, SvelteKit | `http://localhost:5173` | RedwoodJS | `http://localhost:8910` |
-| Laravel | `http://localhost:8000` | Go, Java, .NET, Rust, Elixir, PHP, Python, Ruby | `http://localhost:3000` |
+| Laravel | `http://localhost:8000` | Go, Java, Kotlin, .NET, Rust, Elixir, PHP, Python, Ruby | `http://localhost:3000` |
 
 ## Where the file lives
 
 | Stack | Location |
 |---|---|
-| Node.js, Express, Hono, Bun, Astro, Nuxt, SvelteKit, Remix, RedwoodJS, TanStack Start | `.env.example` sits in the stack folder; copy it into the `typescript/` or `javascript/` variant you are running |
+| Node.js, Express, NestJS, Fastify, Hono, Bun, Astro, Nuxt, SvelteKit, Remix, RedwoodJS, TanStack Start | `.env.example` sits in the stack folder; copy it into the `typescript/` or `javascript/` variant you are running |
 | Next.js | `.env.example` is inside each variant folder already |
-| Python, Ruby, Go, Java, .NET, Rust, Elixir, PHP, Laravel | stack folder root |
+| Python, Ruby, Go, Java, Kotlin, .NET, Rust, Elixir, PHP, Laravel | stack folder root |
+| Template, AI agent and queue sections | inside each subproject |
 | Serverless | inside each platform folder; production values are set through the platform CLI, not a file |
 
 ## Loading behaviour per runtime
 
 | Runtime | How `.env` is read |
 |---|---|
-| Node scripts (Node.js, Express, Hono) | `import "dotenv/config"` at the top of each example |
+| Node scripts (Node.js, Express, NestJS, Fastify, Hono) | `import "dotenv/config"` at the top of each example |
 | Bun | loaded automatically, no import needed |
 | Next.js, Astro, Nuxt, Remix, SvelteKit, TanStack, RedwoodJS | the framework dev server loads it; production builds read `process.env` only |
 | Python | `python-dotenv`, via `examples/ee.py` |
@@ -64,7 +83,7 @@ The default matches the dev server port, so local links work without editing any
 | PHP | `vlucas/phpdotenv`, via `src/bootstrap.php` |
 | Laravel | Laravel's own `.env` handling, surfaced through `config/elasticemail.php` |
 | Go | `godotenv.Load()` in `internal/ee`; the file must be in the working directory |
-| Java | `dotenv-java` with `ignoreIfMissing()`, in `Ee.java` |
+| Java, Kotlin | `dotenv-java` with `ignoreIfMissing()`, in `Ee.java` / `Ee.kt` |
 | .NET | `DotNetEnv` with `TraversePath()`, so subprojects find the root `.env` |
 | Rust | `dotenvy::dotenv()` in `src/lib.rs` |
 | Elixir | `config/runtime.exs` loads it and stops with a clear message when the key is missing |

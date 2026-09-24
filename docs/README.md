@@ -55,5 +55,5 @@ credentials rather than the API key. See the [SMTP integrations](../smtp-elastic
 - [Elastic Email email API](https://elasticemail.com/email-api) - REST API and SMTP relay overview, features and plans
 - [Elastic Email API reference](https://elasticemail.com/developers/api-documentation/rest-api) - every endpoint and parameter
 - [Elastic Email SDKs](https://elasticemail.com/developers/api-libraries) - official client libraries
-- [All example stacks](../README.md) - 21 languages, frameworks and serverless platforms
+- [All example stacks](../README.md) - 24 languages, frameworks and serverless platforms
 - [SMTP integrations](../smtp-elasticemail-examples/README.md) - Auth0, Supabase, WordPress, Django, Rails and more over SMTP

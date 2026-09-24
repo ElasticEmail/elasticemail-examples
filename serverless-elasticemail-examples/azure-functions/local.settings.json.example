@@ -1,0 +1,11 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AzureWebJobsStorage": "",
+    "ELASTICEMAIL_API_KEY": "your_api_key",
+    "EMAIL_FROM": "Acme <hello@yourdomain.com>",
+    "EMAIL_TO": "you@yourdomain.com",
+    "ELASTICEMAIL_WEBHOOK_TOKEN": "change_me"
+  }
+}

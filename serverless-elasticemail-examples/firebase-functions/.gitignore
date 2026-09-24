@@ -1,0 +1,4 @@
+lib/
+.secret.local
+.firebaserc
+firebase-debug.log

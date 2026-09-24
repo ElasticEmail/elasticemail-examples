@@ -6,7 +6,7 @@ project. Humans: start with [README.md](README.md).
 ## What this repository is
 
 Runnable examples for the Elastic Email REST API v4 (`https://api.elasticemail.com/v4`), one folder
-per stack, 21 stacks in total. Every stack implements the same use cases with the same route shapes, so
+per stack, 24 stacks in total. Every stack implements the same use cases with the same route shapes, so
 code you learn in one stack maps directly to the others.
 
 - Use case to source file, for every stack: [examples.json](examples.json)
@@ -26,6 +26,9 @@ code you learn in one stack maps directly to the others.
   <framework>_app/             a server app exposing the use cases as HTTP routes
 serverless-elasticemail-examples/<platform>/   one small deployable per platform
 smtp-elasticemail-examples/<service>/          SMTP relay setup for a platform or framework (docs; nodejs/ has one script)
+email-templates-elasticemail-examples/<lib>/   render HTML + text with React Email or MJML, then send
+ai-agents-elasticemail-examples/<framework>/   a send_email tool for LLM agents, with a recipient allowlist
+queues-elasticemail-examples/<queue>/          send from background jobs: retries, permanent vs retryable errors
 docs/                          language-neutral guides
 scripts/build-agent-files.mjs  regenerates examples.json and llms-full.txt
 ```
@@ -65,6 +68,8 @@ Each stack is self-contained. There is no root package, workspace or shared buil
   `{ success, transactionId, messageId }`. Most server apps also expose `GET /health`, which answers
   `{ status: "ok" }`.
 - Sends set both an HTML and a plain-text body.
+- JS-family stacks ship `typescript/` and `javascript/`, except NestJS, which is TypeScript only
+  (it depends on decorators).
 - SDK versions are pinned to the 4.2 line across all stacks. JS/TS stacks use
   `@elasticemail/elasticemail-client-ts-axios`; Elixir has no SDK and calls the REST API with Req.
 - SDK method names follow the OpenAPI spec, spelled per language (`emailsTransactionalPost`,
@@ -80,11 +85,12 @@ the stack's own checks pass:
 |---|---|
 | JS/TS stacks (in `typescript/` or `javascript/`) | `npm install && npm run typecheck` (Astro and SvelteKit: `npm run check`) |
 | SMTP `nodejs/` | `node --check send.mjs` |
+| Template, AI agent and queue sections | `npm install && npm run typecheck` in each subproject |
 | Serverless platforms | `npm install && npm run typecheck` in the platform folder; Deno/Supabase: `deno check` |
 | Python | `pip install -r requirements.txt && python -m py_compile examples/*.py` |
 | Ruby | `bundle install && ruby -c examples/*.rb` |
 | Go | `go vet ./...` |
-| Java | `mvn -q compile` |
+| Java, Kotlin | `mvn -q compile` |
 | .NET | `dotnet build` |
 | Rust | `cargo check --examples` |
 | Elixir | `mix compile` |
@@ -98,7 +104,8 @@ To actually send, put real values in `.env` and follow the stack's README. Never
   `Send your first email with <Stack>`. Serverless platform README H1:
   `Send Email from <Platform> - Elastic Email API`. Nested framework app README H1:
   `<Framework> Email Example - Elastic Email API`. SMTP integration README H1:
-  `Send Email from <Service> with SMTP - Elastic Email`.
+  `Send Email from <Service> with SMTP - Elastic Email`. Subprojects of the template, AI agent and
+  queue sections: `Send Email from <Library> - Elastic Email API` (templates: `Send <Library> Email Templates - Elastic Email API`).
 - Write a lede that is specific to the stack (name the SDK and runtime). Do not copy it from another stack.
 - The first Resources bullet links to https://elasticemail.com/email-api.
 - SMTP pages link [SMTP settings](https://help.elasticemail.com/en/articles/4803409-smtp-settings)

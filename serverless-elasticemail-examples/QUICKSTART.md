@@ -55,8 +55,8 @@ Netlify Edge, Deno and Supabase have no `node:http`, which axios reaches for by 
 fetch-based axios instance as the third constructor argument is what makes the SDK work there. Keep
 your top-level `axios` dependency on the same range the SDK uses (`~1.18.0`) so npm dedupes it.
 
-On plain Node runtimes (AWS Lambda, Railway, Encore, Vercel's Node functions) the third argument is
-unnecessary.
+On plain Node runtimes (AWS Lambda, Railway, Encore, Vercel's Node functions, Firebase, Azure Functions,
+Cloud Run and Convex Node actions) the third argument is unnecessary.
 
 ## 4. Pick a platform
 
@@ -180,6 +180,75 @@ git push encore            # deploy
 ```
 
 Secrets are read in code with `secret("ElasticEmailApiKey")()`, not from `process.env`.
+
+### Firebase Cloud Functions
+
+```bash
+cd firebase-functions
+npm install
+cp .env.example .env
+cp .secret.local.example .secret.local
+firebase login && firebase use --add
+firebase functions:secrets:set ELASTICEMAIL_API_KEY
+firebase functions:secrets:set ELASTICEMAIL_WEBHOOK_TOKEN
+
+npm run serve    # http://127.0.0.1:5001/demo-elasticemail/us-central1/api
+npm run deploy
+```
+
+Secrets are declared with `defineSecret` and read with `.value()` at request time. The folder also has a
+callable function, `sendEmailToMe`, for Flutter and other mobile apps, which must never embed the API key.
+
+### Azure Functions
+
+```bash
+cd azure-functions
+npm install
+cp local.settings.json.example local.settings.json
+az login   # then create the Function App, see the README
+
+npm start                                        # http://localhost:7071
+az functionapp config appsettings set --name <app-name> --resource-group <rg> \
+  --settings ELASTICEMAIL_API_KEY=your_api_key ELASTICEMAIL_WEBHOOK_TOKEN=change_me
+npm run build && func azure functionapp publish <app-name>
+```
+
+Node.js v4 programming model: functions register with `app.http(...)`, no `function.json`. `host.json`
+clears the default `/api` route prefix so the paths match the other platforms. Once deployed, `/send`
+requires the function key (`x-functions-key` header); the webhook stays anonymous behind its `?token=`.
+
+### Google Cloud Run
+
+```bash
+cd google-cloud-run
+npm install
+cp .env.example .env
+printf '%s' 'your_api_key' | gcloud secrets create elasticemail-api-key --data-file=-
+printf '%s' 'change_me'    | gcloud secrets create elasticemail-webhook-token --data-file=-
+
+npm run dev      # http://localhost:8080
+gcloud run deploy elasticemail-example --source . --region europe-west1 --allow-unauthenticated \
+  --set-secrets ELASTICEMAIL_API_KEY=elasticemail-api-key:latest,ELASTICEMAIL_WEBHOOK_TOKEN=elasticemail-webhook-token:latest
+```
+
+A Hono server in a container, built from the `Dockerfile` by Cloud Build. The runtime service account
+needs `roles/secretmanager.secretAccessor` on both secrets (see the README).
+
+### Convex
+
+```bash
+cd convex
+npm install
+npx convex dev   # log in (or run locally), pushes convex/ on save
+npx convex env set ELASTICEMAIL_API_KEY your_api_key
+npx convex env set ELASTICEMAIL_WEBHOOK_TOKEN change_me
+npx convex env set EMAIL_FROM "Acme <hello@yourdomain.com>"
+
+npx convex deploy   # HTTP actions at https://<deployment>.convex.site
+```
+
+HTTP actions run in Convex's own runtime, so the SDK call lives in a `"use node"` internal action that
+`convex/http.ts` invokes with `ctx.runAction`.
 
 ## 5. Test it
 

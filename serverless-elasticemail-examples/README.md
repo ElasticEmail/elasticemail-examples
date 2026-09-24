@@ -1,6 +1,6 @@
 # Serverless Email API Examples - Elastic Email
 
-Send email with the [Elastic Email](https://elasticemail.com/email-api) email API from serverless and edge platforms - Cloudflare Workers, Vercel, Netlify, AWS Lambda, Supabase Edge Functions, Deno Deploy, Encore.ts and Railway. Each folder is a standalone deployable project with three endpoints:
+Send email with the [Elastic Email](https://elasticemail.com/email-api) email API from serverless and edge platforms - Cloudflare Workers, Vercel, Netlify, AWS Lambda, Supabase Edge Functions, Deno Deploy, Encore.ts, Railway, Firebase Cloud Functions, Azure Functions, Google Cloud Run and Convex. Each folder is a standalone deployable project with three endpoints:
 
 - `GET /health` -> `{ status: "ok" }`
 - `POST /send` body `{ to, subject, message }` -> transactional send -> `{ success, transactionId, messageId }`
@@ -30,6 +30,10 @@ All of them use the npm package `@elasticemail/elasticemail-client-ts-axios`. On
 | [netlify-functions](netlify-functions/) | Node.js and Edge | `netlify/functions/*.mts` | `netlify deploy --prod` |
 | [railway](railway/) | Node.js (Hono) | `src/index.ts` | `railway up` |
 | [encore-ts](encore-ts/) | Node.js (Encore.ts) | `email/send.ts` | `encore run`, `git push encore` |
+| [firebase-functions](firebase-functions/) | Node.js 20 (firebase-functions 6) | `src/index.ts` | `firebase deploy --only functions` |
+| [azure-functions](azure-functions/) | Node.js 20 (Azure Functions v4) | `src/functions/*.ts` | `func azure functionapp publish <app>` |
+| [google-cloud-run](google-cloud-run/) | Node.js 20 (container, Hono) | `src/index.ts` | `gcloud run deploy --source .` |
+| [convex](convex/) | Convex (Node.js actions) | `convex/http.ts` | `npx convex deploy` |
 
 ## Environment variables
 

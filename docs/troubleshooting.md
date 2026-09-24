@@ -4,8 +4,9 @@ Symptom first, cause second.
 
 ## Sending
 
-**401 Unauthorized**
-The key is missing, wrong, or not reaching the process. Check for a stale shell that still has the
+**401 Unauthorized, or 400 `APIKey Expired`**
+The key is missing, wrong, or not reaching the process. A key the API does not recognize (a typo,
+a placeholder, a deleted key) comes back as 400 with `APIKey Expired`, not 401. Check for a stale shell that still has the
 old value exported, and remember that `.env` is read from the working directory - running
 `go run ./examples/basic_send/` from the wrong folder finds no file and loads nothing.
 

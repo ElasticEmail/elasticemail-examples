@@ -67,10 +67,10 @@ port 465, use `smtps://smtp.elasticemail.com:465` instead.
 
 | You want to send from | Read |
 |---|---|
-| Auth0, Supabase Auth or Auth.js login emails | [auth0](auth0/), [supabase](supabase/), [nextauth](nextauth/) |
-| A WordPress site | [wordpress](wordpress/) |
-| Metabase, Retool or Liferay | [metabase](metabase/), [retool](retool/), [liferay](liferay/) |
-| Customer.io campaigns | [customer-io](customer-io/) |
+| Login and account emails from an auth service | [auth0](auth0/), [supabase](supabase/), [nextauth](nextauth/), [keycloak](keycloak/), [firebase-auth](firebase-auth/), [appwrite](appwrite/), [pocketbase](pocketbase/) |
+| A CMS | [wordpress](wordpress/), [ghost](ghost/), [strapi](strapi/), [directus](directus/), [payload](payload/), [liferay](liferay/) |
+| A self-hosted tool | [gitlab](gitlab/), [grafana](grafana/), [nextcloud](nextcloud/), [discourse](discourse/), [metabase](metabase/), [retool](retool/) |
+| An automation or marketing tool | [n8n](n8n/), [zapier](zapier/), [customer-io](customer-io/) |
 | Your own Node.js or PHP code | [nodejs](nodejs/) (no dependencies), [nodemailer](nodemailer/), [phpmailer](phpmailer/) |
 | A Laravel, Django or Rails app | [laravel](laravel/), [django](django/), [rails](rails/) |
 

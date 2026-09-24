@@ -1,0 +1,7 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    # BullMQ keeps jobs in Redis; never evict them.
+    command: ["redis-server", "--maxmemory-policy", "noeviction"]

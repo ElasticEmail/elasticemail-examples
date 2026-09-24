@@ -29,13 +29,13 @@
   <a href="LICENSE.md"><img src="https://img.shields.io/github/license/ElasticEmail/elasticemail-examples" alt="License" /></a>
   <a href="https://github.com/ElasticEmail/elasticemail-examples/stargazers"><img src="https://img.shields.io/github/stars/ElasticEmail/elasticemail-examples?style=flat" alt="GitHub stars" /></a>
   <a href="https://github.com/ElasticEmail/elasticemail-examples/issues"><img src="https://img.shields.io/github/issues/ElasticEmail/elasticemail-examples" alt="Open issues" /></a>
-  <a href="#all-stacks"><img src="https://img.shields.io/badge/stacks-21-4FD1C5" alt="21 stacks" /></a>
+  <a href="#all-stacks"><img src="https://img.shields.io/badge/stacks-24-4FD1C5" alt="24 stacks" /></a>
   <a href="https://elasticemail.com/developers/api-documentation/rest-api"><img src="https://img.shields.io/badge/API-v4-2D2F7A" alt="Elastic Email API v4" /></a>
   <a href="#using-with-ai-agents"><img src="https://img.shields.io/badge/AI_agent-ready-4FD1C5" alt="AI agent ready" /></a>
 </p>
 
 Production-shaped code samples for the [Elastic Email](https://elasticemail.com/email-api) email API
-and SMTP relay, in 21 languages, frameworks and serverless platforms. Every stack implements the same
+and SMTP relay, in 24 languages, frameworks and serverless platforms. Every stack implements the same
 use cases through the official SDKs and REST API v4, so what you learn in one maps directly to the
 others.
 
@@ -79,19 +79,22 @@ Pick your stack and send your first email in about five minutes.
 | Go | [Quick start](go-elasticemail-examples/QUICKSTART.md) |
 | Java | [Quick start](java-elasticemail-examples/QUICKSTART.md) |
 
-Something else? Ruby, Rust, Elixir, plain Node.js, Hono, Bun, the full-stack JavaScript frameworks,
-serverless platforms and SMTP are all in [All stacks](#all-stacks).
+Something else? Ruby, Rust, Elixir, Kotlin, plain Node.js, NestJS, Fastify, Hono, Bun, the full-stack
+JavaScript frameworks, serverless platforms, SMTP, email templates, AI agents and background jobs are
+all in [All stacks](#all-stacks).
 
 ## What is included
 
 - [Transactional and bulk email](#sending)
-- [Templates and merge variables](docs/templates.md)
+- [Templates and merge variables](docs/templates.md), plus [React Email and MJML](email-templates-elasticemail-examples/)
 - [Attachments and inline images](docs/attachments.md)
 - [Contacts and lists](#contacts-and-lists)
 - [Webhooks](docs/webhooks.md)
 - [Inbound email](docs/inbound-email.md)
 - [SMTP examples](#send-with-smtp)
 - [Serverless examples](serverless-elasticemail-examples/)
+- [Background jobs with retries](queues-elasticemail-examples/): BullMQ, Inngest, Trigger.dev
+- [Email tools for AI agents](ai-agents-elasticemail-examples/): Vercel AI SDK, LangChain, OpenAI Agents SDK
 - [Claude Code and AI agent support](#using-with-ai-agents)
 - [MCP integration](#using-with-ai-agents)
 
@@ -156,11 +159,14 @@ every example and route for that language.
 | **Ruby** | [Send email with Ruby](ruby-elasticemail-examples/QUICKSTART.md) | [Ruby examples](ruby-elasticemail-examples/) | Sinatra, Rails |
 | **Go** | [Send email with Go](go-elasticemail-examples/QUICKSTART.md) | [Go examples](go-elasticemail-examples/) | Chi, Gin |
 | **Java** | [Send email with Java](java-elasticemail-examples/QUICKSTART.md) | [Java examples](java-elasticemail-examples/) | Javalin, Spring Boot |
+| **Kotlin** | [Send email with Kotlin](kotlin-elasticemail-examples/QUICKSTART.md) | [Kotlin examples](kotlin-elasticemail-examples/) | Ktor 3 |
 | **.NET (C#)** | [Send email with .NET](dotnet-elasticemail-examples/QUICKSTART.md) | [.NET examples](dotnet-elasticemail-examples/) | ASP.NET Minimal APIs, ASP.NET MVC |
 | **Rust** | [Send email with Rust](rust-elasticemail-examples/QUICKSTART.md) | [Rust examples](rust-elasticemail-examples/) | Axum |
 | **Elixir** | [Send email with Elixir](elixir-elasticemail-examples/QUICKSTART.md) | [Elixir examples](elixir-elasticemail-examples/) | Phoenix |
 | **Node.js** | [Send email with Node.js](nodejs-elasticemail-examples/QUICKSTART.md) | [Node.js examples](nodejs-elasticemail-examples/) | node:http, no framework |
 | **Express** | [Send email with Express](express-elasticemail-examples/QUICKSTART.md) | [Express examples](express-elasticemail-examples/) | Express 5 |
+| **NestJS** | [Send email with NestJS](nestjs-elasticemail-examples/QUICKSTART.md) | [NestJS examples](nestjs-elasticemail-examples/) (TypeScript) | NestJS 11 |
+| **Fastify** | [Send email with Fastify](fastify-elasticemail-examples/QUICKSTART.md) | [Fastify examples](fastify-elasticemail-examples/) | Fastify 5 |
 | **Hono** | [Send email with Hono](hono-elasticemail-examples/QUICKSTART.md) | [Hono examples](hono-elasticemail-examples/) | Hono |
 | **Bun** | [Send email with Bun](bun-elasticemail-examples/QUICKSTART.md) | [Bun examples](bun-elasticemail-examples/) | Bun.serve() |
 | **Remix** | [Send email with Remix](remix-elasticemail-examples/QUICKSTART.md) | [Remix examples](remix-elasticemail-examples/) | Remix 2 |
@@ -169,22 +175,25 @@ every example and route for that language.
 | **Astro** | [Send email with Astro](astro-elasticemail-examples/QUICKSTART.md) | [Astro examples](astro-elasticemail-examples/) | Astro 5 |
 | **RedwoodJS** | [Send email with RedwoodJS](redwoodjs-elasticemail-examples/QUICKSTART.md) | [RedwoodJS examples](redwoodjs-elasticemail-examples/) | RedwoodJS 8 |
 | **TanStack Start** | [Send email with TanStack Start](tanstack-elasticemail-examples/QUICKSTART.md) | [TanStack Start examples](tanstack-elasticemail-examples/) | TanStack Start |
-| **Serverless** | [Send email from serverless](serverless-elasticemail-examples/QUICKSTART.md) | [All 8 platforms](serverless-elasticemail-examples/) | Cloudflare Workers, Vercel, Supabase Edge, AWS Lambda, Deno Deploy, Netlify, Railway, Encore |
-| **SMTP** | [Send your first email with SMTP](smtp-elasticemail-examples/QUICKSTART.md) | [All 14 integrations](smtp-elasticemail-examples/) | Auth0, Supabase, WordPress, Metabase, Node.js, Nodemailer, Laravel, Django, Rails and more |
+| **Serverless** | [Send email from serverless](serverless-elasticemail-examples/QUICKSTART.md) | [All 12 platforms](serverless-elasticemail-examples/) | Cloudflare Workers, Vercel, Supabase Edge, AWS Lambda, Deno Deploy, Netlify, Railway, Encore, Firebase, Azure Functions, Cloud Run, Convex |
+| **SMTP** | [Send your first email with SMTP](smtp-elasticemail-examples/QUICKSTART.md) | [All 28 integrations](smtp-elasticemail-examples/) | Auth0, Supabase, Keycloak, WordPress, Ghost, Strapi, GitLab, Grafana, n8n, Nodemailer, Laravel, Django, Rails and more |
+| **Email templates** | [Send your first templated email](email-templates-elasticemail-examples/QUICKSTART.md) | [Template examples](email-templates-elasticemail-examples/) | React Email, MJML |
+| **AI agents** | [Send your first email from an AI agent](ai-agents-elasticemail-examples/QUICKSTART.md) | [AI agent examples](ai-agents-elasticemail-examples/) | Vercel AI SDK, LangChain, OpenAI Agents SDK |
+| **Background jobs** | [Send your first email from a background job](queues-elasticemail-examples/QUICKSTART.md) | [Queue examples](queues-elasticemail-examples/) | BullMQ, Inngest, Trigger.dev |
 
 JavaScript and TypeScript stacks use [`@elasticemail/elasticemail-client-ts-axios`](https://github.com/ElasticEmail/elasticemail-ts-axios). Other languages use the matching [Elastic Email SDK](https://elasticemail.com/developers/api-libraries). Elixir calls the REST API directly with Req.
 All stacks are pinned to the 4.2 SDK line and target REST API v4.
 
 ## Send with SMTP
 
-Some tools only let you enter an SMTP server: Auth0, Supabase Auth, WordPress, Metabase. Some apps
+Some tools only let you enter an SMTP server: Auth0, Supabase Auth, Keycloak, WordPress, Ghost, Grafana. Some apps
 already send through their framework's mailer. For both, [`smtp-elasticemail-examples/`](smtp-elasticemail-examples/)
 shows how to point them at `smtp.elasticemail.com`, with no SDK involved. The
 [SMTP quickstart](smtp-elasticemail-examples/QUICKSTART.md) sends a first message with `curl`.
 
 | Platforms | Code |
 |---|---|
-| [Auth0](smtp-elasticemail-examples/auth0/), [Customer.io](smtp-elasticemail-examples/customer-io/), [Liferay](smtp-elasticemail-examples/liferay/), [Metabase](smtp-elasticemail-examples/metabase/), [Retool](smtp-elasticemail-examples/retool/), [Supabase](smtp-elasticemail-examples/supabase/), [WordPress](smtp-elasticemail-examples/wordpress/) | [Node.js](smtp-elasticemail-examples/nodejs/), [Nodemailer](smtp-elasticemail-examples/nodemailer/), [NextAuth](smtp-elasticemail-examples/nextauth/), [PHPMailer](smtp-elasticemail-examples/phpmailer/), [Laravel](smtp-elasticemail-examples/laravel/), [Django](smtp-elasticemail-examples/django/), [Rails](smtp-elasticemail-examples/rails/) |
+| **Auth:** [Auth0](smtp-elasticemail-examples/auth0/), [Supabase](smtp-elasticemail-examples/supabase/), [Keycloak](smtp-elasticemail-examples/keycloak/), [Firebase Auth](smtp-elasticemail-examples/firebase-auth/), [Appwrite](smtp-elasticemail-examples/appwrite/), [PocketBase](smtp-elasticemail-examples/pocketbase/)<br>**CMS:** [WordPress](smtp-elasticemail-examples/wordpress/), [Ghost](smtp-elasticemail-examples/ghost/), [Strapi](smtp-elasticemail-examples/strapi/), [Directus](smtp-elasticemail-examples/directus/), [Payload](smtp-elasticemail-examples/payload/), [Liferay](smtp-elasticemail-examples/liferay/)<br>**Self-hosted:** [GitLab](smtp-elasticemail-examples/gitlab/), [Grafana](smtp-elasticemail-examples/grafana/), [Nextcloud](smtp-elasticemail-examples/nextcloud/), [Discourse](smtp-elasticemail-examples/discourse/), [Metabase](smtp-elasticemail-examples/metabase/), [Retool](smtp-elasticemail-examples/retool/)<br>**Automation:** [n8n](smtp-elasticemail-examples/n8n/), [Zapier](smtp-elasticemail-examples/zapier/), [Customer.io](smtp-elasticemail-examples/customer-io/) | [Node.js](smtp-elasticemail-examples/nodejs/), [Nodemailer](smtp-elasticemail-examples/nodemailer/), [NextAuth](smtp-elasticemail-examples/nextauth/), [PHPMailer](smtp-elasticemail-examples/phpmailer/), [Laravel](smtp-elasticemail-examples/laravel/), [Django](smtp-elasticemail-examples/django/), [Rails](smtp-elasticemail-examples/rails/) |
 
 SMTP uses its own credentials (Settings > SMTP in the dashboard), not the API key.
 

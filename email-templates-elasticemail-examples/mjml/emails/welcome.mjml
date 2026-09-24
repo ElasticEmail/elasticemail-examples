@@ -1,0 +1,28 @@
+<mjml>
+  <mj-head>
+    <mj-title>Welcome to Acme</mj-title>
+    <mj-preview>Welcome to Acme, {{name}}</mj-preview>
+    <mj-attributes>
+      <mj-all font-family="Helvetica, Arial, sans-serif" />
+      <mj-text font-size="16px" line-height="24px" color="#374151" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#f4f4f5">
+    <mj-section background-color="#ffffff" border-radius="8px" padding="32px">
+      <mj-column>
+        <mj-text font-size="24px" font-weight="bold" color="#111827">Welcome, {{name}}!</mj-text>
+        <mj-text>
+          Thanks for signing up. Your account is ready - confirm your email address to finish setting it up.
+        </mj-text>
+        <mj-button href="{{actionUrl}}" background-color="#2563eb" border-radius="6px" font-size="16px" font-weight="bold">
+          Get started
+        </mj-button>
+        <mj-text>If the button does not work, paste this link into your browser: {{actionUrl}}</mj-text>
+        <mj-divider border-color="#e5e7eb" border-width="1px" />
+        <mj-text font-size="12px" line-height="18px" color="#6b7280">
+          You are receiving this email because you created an Acme account.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

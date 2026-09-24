@@ -4,13 +4,21 @@ package ee
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	ElasticEmail "github.com/elasticemail/elasticemail-go/v4"
 	"github.com/joho/godotenv"
@@ -117,4 +125,156 @@ func APIError(resp *http.Response, err error) (int, string) {
 		body = "Unknown error"
 	}
 	return status, body
+}
+
+// Elastic Email treats {...} and {{...}} in message content as template syntax,
+// so strip braces from user input.
+var htmlEscaper = strings.NewReplacer(
+	"&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;", "'", "&#39;", "{", "&#123;", "}", "&#125;",
+)
+
+// EscapeHTML escapes a user-supplied value for an HTML body, braces included.
+func EscapeHTML(s string) string {
+	return htmlEscaper.Replace(s)
+}
+
+// PlainText removes braces from a user-supplied value for PlainText bodies and contact fields.
+func PlainText(s string) string {
+	return strings.NewReplacer("{", "", "}", "").Replace(s)
+}
+
+// HeaderText is PlainText without CR and LF, for Subject and other header-like fields.
+func HeaderText(s string) string {
+	return strings.NewReplacer("\r", "", "\n", "").Replace(PlainText(s))
+}
+
+// EscapeBraces turns braces into HTML entities and leaves the rest of the HTML untouched.
+func EscapeBraces(s string) string {
+	return strings.NewReplacer("{", "&#123;", "}", "&#125;").Replace(s)
+}
+
+// ValidAddress checks the shape of a bare address: exactly one @ and no whitespace.
+func ValidAddress(email string) bool {
+	return strings.Count(email, "@") == 1 && strings.IndexFunc(email, unicode.IsSpace) < 0
+}
+
+func domainOf(email string) string {
+	at := strings.LastIndex(email, "@")
+	if at < 0 {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(strings.TrimRight(email[at+1:], "> ")))
+}
+
+// AllowedDomains is EMAIL_ALLOWED_DOMAINS, or the domain of EMAIL_TO when that is empty.
+func AllowedDomains() []string {
+	var domains []string
+	for _, d := range strings.Split(os.Getenv("EMAIL_ALLOWED_DOMAINS"), ",") {
+		if d = strings.ToLower(strings.TrimSpace(d)); d != "" {
+			domains = append(domains, d)
+		}
+	}
+	if len(domains) == 0 {
+		if d := domainOf(os.Getenv("EMAIL_TO")); d != "" {
+			domains = append(domains, d)
+		}
+	}
+	return domains
+}
+
+// RecipientAllowed reports whether POST /send may deliver to this address.
+func RecipientAllowed(email string) bool {
+	if !ValidAddress(email) {
+		return false
+	}
+	domain := domainOf(email)
+	for _, d := range AllowedDomains() {
+		if d == domain {
+			return true
+		}
+	}
+	return false
+}
+
+// BearerOk checks "Authorization: Bearer <token>" with a constant-time compare.
+func BearerOk(header, token string) bool {
+	const prefix = "Bearer "
+	if token == "" || !strings.HasPrefix(header, prefix) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(header[len(prefix):]), []byte(token)) == 1
+}
+
+// ConfirmToken signs a double opt-in link: HMAC-SHA256(secret, email + "\n" + expires) as hex.
+func ConfirmToken(secret, email string, expires int64) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(fmt.Sprintf("%s\n%d", email, expires)))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// ConfirmURL builds a confirm link that expires after 48 hours.
+func ConfirmURL(publicURL, secret, email string) string {
+	expires := time.Now().Add(48 * time.Hour).Unix()
+	return fmt.Sprintf("%s/double-optin/confirm?email=%s&expires=%d&token=%s",
+		publicURL, url.QueryEscape(email), expires, ConfirmToken(secret, email, expires))
+}
+
+// RateLimiter counts hits per key in fixed windows.
+// In-memory limits are per process; use a shared store (Redis, the platform's rate limiter) in production.
+type RateLimiter struct {
+	Max    int
+	Window time.Duration
+
+	mu      sync.Mutex
+	windows map[string]rateWindow
+}
+
+type rateWindow struct {
+	count   int
+	resetAt time.Time
+}
+
+// Allow records a hit and returns false plus the seconds until the window resets when over the limit.
+func (l *RateLimiter) Allow(key string) (bool, int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.windows == nil {
+		l.windows = map[string]rateWindow{}
+	}
+	now := time.Now()
+	w, ok := l.windows[key]
+	if !ok || !now.Before(w.resetAt) {
+		w = rateWindow{resetAt: now.Add(l.Window)}
+	}
+	w.count++
+	l.windows[key] = w
+	if w.count > l.Max {
+		return false, int(math.Ceil(w.resetAt.Sub(now).Seconds()))
+	}
+	return true, 0
+}
+
+// CheckStartup logs the /send state and refuses to expose the placeholder webhook token publicly.
+func CheckStartup(webhookToken string) {
+	if os.Getenv("ELASTICEMAIL_SEND_TOKEN") == "" {
+		log.Println("POST /send is disabled until ELASTICEMAIL_SEND_TOKEN is set")
+	}
+	CheckWebhookToken(webhookToken)
+}
+
+// CheckWebhookToken warns about the placeholder token locally and exits when PUBLIC_URL is public.
+func CheckWebhookToken(webhookToken string) {
+	if webhookToken != "" && webhookToken != "change_me" {
+		return
+	}
+	publicURL := os.Getenv("PUBLIC_URL")
+	host := ""
+	if u, err := url.Parse(publicURL); err == nil {
+		host = u.Hostname()
+	}
+	if publicURL == "" || host == "localhost" || host == "127.0.0.1" || host == "::1" {
+		log.Println("ELASTICEMAIL_WEBHOOK_TOKEN is the placeholder; fine for local testing only")
+		return
+	}
+	log.Fatalf("Refusing to start: set ELASTICEMAIL_WEBHOOK_TOKEN before exposing webhooks at %s", publicURL)
 }
