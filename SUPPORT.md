@@ -27,6 +27,11 @@ the stack, the file, the SDK version and the error output. Check
 [docs/error-handling.md](docs/error-handling.md) first; many failures come down to
 `EMAIL_FROM` not being on a verified domain or a missing environment variable.
 
+A quick way to tell the two apart: send the same message with the
+[Elastic Email CLI](https://github.com/ElasticEmail/elasticemail-cli) using the same API key and
+sender. If that fails too, the problem is with the account, key or domain and belongs with Elastic
+Email support. If the CLI succeeds and the example does not, open an issue here.
+
 Requests for a new stack or a new use case also go through the issue tracker. Use the "New
 example or stack" template.
 
