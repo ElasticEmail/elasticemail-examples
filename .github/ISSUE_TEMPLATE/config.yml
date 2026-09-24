@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Not sure where to ask?
+    url: https://github.com/ElasticEmail/elasticemail-examples/blob/main/SUPPORT.md
+    about: SUPPORT.md explains what belongs here and what belongs with Elastic Email support.
   - name: Elastic Email account, billing or deliverability
     url: https://elasticemail.com
     about: Ask Elastic Email support through the chat widget on elasticemail.com.

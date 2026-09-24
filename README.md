@@ -305,7 +305,8 @@ Full detail: [Webhooks](docs/webhooks.md) and [Inbound email](docs/inbound-email
 
 Found a problem or want to add a stack? [Open an issue](https://github.com/ElasticEmail/elasticemail-examples/issues) or send a pull request.
 [CONTRIBUTING.md](CONTRIBUTING.md) covers the conventions and how to add a stack. To report a security
-issue, see [SECURITY.md](SECURITY.md). Participation is governed by the
+issue, see [SECURITY.md](SECURITY.md). Not sure where a question belongs? See [SUPPORT.md](SUPPORT.md).
+Participation is governed by the
 [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
