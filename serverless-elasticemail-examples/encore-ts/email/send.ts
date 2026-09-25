@@ -67,9 +67,10 @@ export const send = api(
     } catch (err: any) {
       const status: number = err.response?.status ?? 500;
       const detail: string = err.response?.data?.Error ?? err.message ?? "Unknown error";
-      // Map the Elastic Email HTTP status onto Encore's error codes
-      if (status === 400) throw APIError.invalidArgument(detail);
-      if (status === 401 || status === 403) throw APIError.permissionDenied(detail);
+      // Map the Elastic Email error onto Encore's error codes. The v4 API reports a bad key
+      // ("APIKey Expired") and a missing access level ("Access Denied.") as 400, not 401/403.
+      if (status === 400 && /APIKey Expired|Access Denied/i.test(detail)) throw APIError.permissionDenied(detail);
+      if (status === 400 || status === 412 || status === 413) throw APIError.invalidArgument(detail);
       if (status === 404) throw APIError.notFound(detail);
       throw APIError.internal(detail);
     }

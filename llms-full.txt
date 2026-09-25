@@ -455,12 +455,13 @@ dropped silently - no error, no value. Create the field in the dashboard first, 
 
 ## "Already exists" is not an error
 
-Both `listsPost` and `domainsPost` answer 400 with a message containing "exist" when the thing is
-already there. Every example treats that specific case as success:
+Both `listsPost` and `domainsPost` answer 400 when the thing is already there:
+`A list with the given name already exists.` for a list, `This domain is already associated with
+this Account...` for a domain. Every example treats that specific case as success:
 
 ```typescript
 catch (err: any) {
-  if (err.response?.status === 400 && /exist/i.test(JSON.stringify(err.response?.data))) {
+  if (err.response?.status === 400 && /exist|already/i.test(JSON.stringify(err.response?.data))) {
     // fine, it is already there
   } else {
     throw err;
@@ -809,7 +810,7 @@ The default matches the dev server port, so local links work without editing any
 Every failure from the API has the same body:
 
 ```json
-{"Error": "Invalid API key"}
+{"Error": "APIKey Expired"}
 ```
 
 with a 4xx or 5xx status. The work in each language is getting from the SDK's exception type to that
@@ -912,30 +913,38 @@ No SDK, so the shape is explicit. Results are `{:ok, body}` or `{:error, status,
 `{:error, 0, reason}` for a transport failure:
 
 ```elixir
-ElasticEmail.format_error({:error, 400, %{"Error" => "Invalid API key"}})  # "400: Invalid API key"
+ElasticEmail.format_error({:error, 400, %{"Error" => "APIKey Expired"}})  # "400: APIKey Expired"
 ElasticEmail.error_message(...)   # message only, for JSON responses
 ```
 
 ## Status codes you will meet
 
-| Status | Usual cause |
-|---|---|
-| 400 | Malformed payload, or "already exists" from `listsPost` / `domainsPost` - see below |
-| 401 | Missing or wrong API key |
-| 402 | Out of credits |
-| 403 | The key lacks permission for this operation, or the feature is not on the plan |
-| 404 | No such template, contact, domain or transaction |
-| 429 | Rate limited - back off and retry |
-| 5xx | Server side; retry with backoff |
+The v4 API reports most client errors as **400**, including authentication and permission
+problems: there is no 401, 402 or 403. Read the `Error` message to tell them apart.
+
+| Status | Usual cause | Example `Error` |
+|---|---|---|
+| 400 | Missing, wrong or deleted API key | `APIKey Expired` |
+| 400 | The key lacks the access level the call needs, or the account is disabled | `Access Denied.` |
+| 400 | Invalid or missing parameter, unverified sender, or "already exists" from `listsPost` / `domainsPost` (see below) | `A list with the given name already exists.` |
+| 404 | No such template, contact, domain, transaction, endpoint or method | `List not found.` |
+| 409 | A file upload that conflicts with an existing file | |
+| 412 | An account or plan limit, an invalid address in a contact upload, or a list that doesn't exist when adding contacts | `Too many contacts for current billing plan.` |
+| 413 | Too many items in one request: more than 50 transactional recipients, or more than 1000 contacts or suppressions | `You cannot provide more than 50 transactional recipients` |
+| 5xx | Server side; retry with backoff | |
+
+Besides `Error`, an error body can carry `ErrorData`: an error reference ID for unexpected
+failures. Include it when you contact support.
 
 ## "Already exists" is a 400
 
-`listsPost` and `domainsPost` answer 400 with a message containing "exist" when the resource is
-already there. Every example treats that one case as success, which is what makes the scripts safe
-to re-run:
+`listsPost` and `domainsPost` answer 400 when the resource is already there:
+`A list with the given name already exists.` for a list, and `This domain is already associated
+with this Account...` for a domain (no "exist" in that one). Every example treats that one case as
+success, which is what makes the scripts safe to re-run:
 
 ```typescript
-if (err.response?.status === 400 && /exist/i.test(JSON.stringify(err.response?.data))) {
+if (err.response?.status === 400 && /exist|already/i.test(JSON.stringify(err.response?.data))) {
   // already there
 }
 ```
@@ -945,7 +954,8 @@ Python, Ruby, Go, Java and C# examples.
 
 ## Retrying
 
-Retry 429 and 5xx with exponential backoff. Do not retry 4xx - the payload will not become valid on
+Retry 5xx with exponential backoff, and 429 if you ever get one (the v4 API does not rate limit
+today, but a proxy in between might). Do not retry other 4xx - the payload will not become valid on
 its own. Sends are not idempotent: a retry after a timeout can deliver twice. If that matters, record
 the `TransactionID` and check the status before retrying.
 
@@ -1402,9 +1412,9 @@ Symptom first, cause second.
 
 ## Sending
 
-**401 Unauthorized, or 400 `APIKey Expired`**
+**400 `APIKey Expired`**
 The key is missing, wrong, or not reaching the process. A key the API does not recognize (a typo,
-a placeholder, a deleted key) comes back as 400 with `APIKey Expired`, not 401. Check for a stale shell that still has the
+a placeholder, a deleted key) comes back as 400 with `APIKey Expired` - the v4 API has no 401. Check for a stale shell that still has the
 old value exported, and remember that `.env` is read from the working directory - running
 `go run ./examples/basic_send/` from the wrong folder finds no file and loads nothing.
 
@@ -1414,12 +1424,16 @@ old value exported, and remember that `.env` is read from the working directory 
 [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain)
 has the dashboard steps. The `Name <address>` form is fine; the address inside it is what gets checked.
 
-**402 Payment Required**
-Out of credits.
+**400 `Access Denied.`**
+The API key doesn't have the access level the call needs (the v4 API has no 403), or the account is
+disabled. Check the key's access levels in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
 
-**403 Forbidden**
-The API key lacks permission for that operation, or the feature is not on the plan. Email
-verification is the usual one - it is a paid add-on. Check the key in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+**412 Precondition Failed**
+An account or plan limit, for example `Too many contacts for current billing plan.` or a list limit.
+
+**413 Request Entity Too Large**
+Too many items in one call: more than 50 transactional recipients (use `POST /emails` for bulk),
+or more than 1000 contacts or suppressions per upload.
 
 **The call succeeds but no email arrives**
 In order of likelihood: it is in spam; the address is suppressed (`suppressionsByEmailGet` tells you
@@ -5585,7 +5599,7 @@ Check the inbox of `EMAIL_TO`.
 
 | Output | Fix |
 |---|---|
-| `Error sending email: 401`, or `400 APIKey Expired` | The key in `.env` is wrong, expired or missing the send permission. |
+| `400 APIKey Expired`, or `400 Access Denied.` | The key in `.env` is wrong, expired or missing the send permission. |
 | A 4xx that mentions the sender or domain | `EMAIL_FROM` is not on a verified domain. Finish step 2. |
 | `Transaction ID` printed, but nothing arrived | Check spam, then the activity log in the dashboard. See [Troubleshooting](../docs/troubleshooting.md). |
 | `npm run dev` asks to install `@react-email/ui` | Run `npm install` in this folder first; it is a dev dependency. |

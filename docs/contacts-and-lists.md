@@ -49,12 +49,13 @@ dropped silently - no error, no value. Create the field in the dashboard first, 
 
 ## "Already exists" is not an error
 
-Both `listsPost` and `domainsPost` answer 400 with a message containing "exist" when the thing is
-already there. Every example treats that specific case as success:
+Both `listsPost` and `domainsPost` answer 400 when the thing is already there:
+`A list with the given name already exists.` for a list, `This domain is already associated with
+this Account...` for a domain. Every example treats that specific case as success:
 
 ```typescript
 catch (err: any) {
-  if (err.response?.status === 400 && /exist/i.test(JSON.stringify(err.response?.data))) {
+  if (err.response?.status === 400 && /exist|already/i.test(JSON.stringify(err.response?.data))) {
     // fine, it is already there
   } else {
     throw err;

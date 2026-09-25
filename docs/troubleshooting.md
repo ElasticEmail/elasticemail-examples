@@ -4,9 +4,9 @@ Symptom first, cause second.
 
 ## Sending
 
-**401 Unauthorized, or 400 `APIKey Expired`**
+**400 `APIKey Expired`**
 The key is missing, wrong, or not reaching the process. A key the API does not recognize (a typo,
-a placeholder, a deleted key) comes back as 400 with `APIKey Expired`, not 401. Check for a stale shell that still has the
+a placeholder, a deleted key) comes back as 400 with `APIKey Expired` - the v4 API has no 401. Check for a stale shell that still has the
 old value exported, and remember that `.env` is read from the working directory - running
 `go run ./examples/basic_send/` from the wrong folder finds no file and loads nothing.
 
@@ -16,12 +16,16 @@ old value exported, and remember that `.env` is read from the working directory 
 [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain)
 has the dashboard steps. The `Name <address>` form is fine; the address inside it is what gets checked.
 
-**402 Payment Required**
-Out of credits.
+**400 `Access Denied.`**
+The API key doesn't have the access level the call needs (the v4 API has no 403), or the account is
+disabled. Check the key's access levels in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
 
-**403 Forbidden**
-The API key lacks permission for that operation, or the feature is not on the plan. Email
-verification is the usual one - it is a paid add-on. Check the key in [API settings](https://help.elasticemail.com/en/articles/4799160-api-settings).
+**412 Precondition Failed**
+An account or plan limit, for example `Too many contacts for current billing plan.` or a list limit.
+
+**413 Request Entity Too Large**
+Too many items in one call: more than 50 transactional recipients (use `POST /emails` for bulk),
+or more than 1000 contacts or suppressions per upload.
 
 **The call succeeds but no email arrives**
 In order of likelihood: it is in spam; the address is suppressed (`suppressionsByEmailGet` tells you

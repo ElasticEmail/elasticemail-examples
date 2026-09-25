@@ -3,7 +3,7 @@
 Every failure from the API has the same body:
 
 ```json
-{"Error": "Invalid API key"}
+{"Error": "APIKey Expired"}
 ```
 
 with a 4xx or 5xx status. The work in each language is getting from the SDK's exception type to that
@@ -106,30 +106,38 @@ No SDK, so the shape is explicit. Results are `{:ok, body}` or `{:error, status,
 `{:error, 0, reason}` for a transport failure:
 
 ```elixir
-ElasticEmail.format_error({:error, 400, %{"Error" => "Invalid API key"}})  # "400: Invalid API key"
+ElasticEmail.format_error({:error, 400, %{"Error" => "APIKey Expired"}})  # "400: APIKey Expired"
 ElasticEmail.error_message(...)   # message only, for JSON responses
 ```
 
 ## Status codes you will meet
 
-| Status | Usual cause |
-|---|---|
-| 400 | Malformed payload, or "already exists" from `listsPost` / `domainsPost` - see below |
-| 401 | Missing or wrong API key |
-| 402 | Out of credits |
-| 403 | The key lacks permission for this operation, or the feature is not on the plan |
-| 404 | No such template, contact, domain or transaction |
-| 429 | Rate limited - back off and retry |
-| 5xx | Server side; retry with backoff |
+The v4 API reports most client errors as **400**, including authentication and permission
+problems: there is no 401, 402 or 403. Read the `Error` message to tell them apart.
+
+| Status | Usual cause | Example `Error` |
+|---|---|---|
+| 400 | Missing, wrong or deleted API key | `APIKey Expired` |
+| 400 | The key lacks the access level the call needs, or the account is disabled | `Access Denied.` |
+| 400 | Invalid or missing parameter, unverified sender, or "already exists" from `listsPost` / `domainsPost` (see below) | `A list with the given name already exists.` |
+| 404 | No such template, contact, domain, transaction, endpoint or method | `List not found.` |
+| 409 | A file upload that conflicts with an existing file | |
+| 412 | An account or plan limit, an invalid address in a contact upload, or a list that doesn't exist when adding contacts | `Too many contacts for current billing plan.` |
+| 413 | Too many items in one request: more than 50 transactional recipients, or more than 1000 contacts or suppressions | `You cannot provide more than 50 transactional recipients` |
+| 5xx | Server side; retry with backoff | |
+
+Besides `Error`, an error body can carry `ErrorData`: an error reference ID for unexpected
+failures. Include it when you contact support.
 
 ## "Already exists" is a 400
 
-`listsPost` and `domainsPost` answer 400 with a message containing "exist" when the resource is
-already there. Every example treats that one case as success, which is what makes the scripts safe
-to re-run:
+`listsPost` and `domainsPost` answer 400 when the resource is already there:
+`A list with the given name already exists.` for a list, and `This domain is already associated
+with this Account...` for a domain (no "exist" in that one). Every example treats that one case as
+success, which is what makes the scripts safe to re-run:
 
 ```typescript
-if (err.response?.status === 400 && /exist/i.test(JSON.stringify(err.response?.data))) {
+if (err.response?.status === 400 && /exist|already/i.test(JSON.stringify(err.response?.data))) {
   // already there
 }
 ```
@@ -139,7 +147,8 @@ Python, Ruby, Go, Java and C# examples.
 
 ## Retrying
 
-Retry 429 and 5xx with exponential backoff. Do not retry 4xx - the payload will not become valid on
+Retry 5xx with exponential backoff, and 429 if you ever get one (the v4 API does not rate limit
+today, but a proxy in between might). Do not retry other 4xx - the payload will not become valid on
 its own. Sends are not idempotent: a retry after a timeout can deliver twice. If that matters, record
 the `TransactionID` and check the status before retrying.
 

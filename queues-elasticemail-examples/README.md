@@ -1,6 +1,6 @@
 # Background Email Job Examples - Elastic Email
 
-Send email from a background job instead of inside the web request, with the [Elastic Email](https://elasticemail.com/email-api) email API and the TypeScript SDK `@elasticemail/elasticemail-client-ts-axios`. Your request handler enqueues a job and answers right away; a worker makes the API call, retries it with backoff when the API answers 429 or 5xx, and gives up at once on errors that retrying cannot fix. Three Node.js projects cover the same pattern on three job runners: BullMQ on your own Redis, and the managed services Inngest and Trigger.dev.
+Send email from a background job instead of inside the web request, with the [Elastic Email](https://elasticemail.com/email-api) email API and the TypeScript SDK `@elasticemail/elasticemail-client-ts-axios`. Your request handler enqueues a job and answers right away; a worker makes the API call, retries it with backoff when a call fails with a 5xx (or a 429), and gives up at once on errors that retrying cannot fix. Three Node.js projects cover the same pattern on three job runners: BullMQ on your own Redis, and the managed services Inngest and Trigger.dev.
 
 > **First time here?** The [background job quickstart](QUICKSTART.md) runs BullMQ and Redis locally with Docker Compose and gets a job through the worker in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
@@ -28,10 +28,10 @@ Every project uses the same classifier in `src/email.ts`. It reads the status fr
 
 | What happened | Example | Retry? | Why |
 |---|---|---|---|
-| 429 | The API asks you to slow down | Yes, with backoff | It will succeed once you send less often. |
+| 429 | Too many requests (the v4 API doesn't rate limit today; a proxy might) | Yes, with backoff | It will succeed once you send less often. |
 | 5xx | Temporary server-side problem | Yes, with backoff | Usually gone on the next attempt. |
 | No response | Timeout, DNS failure, connection reset | Yes, with backoff | The request may never have arrived. |
-| Any other 4xx | 400 invalid payload or unverified sender, 401 bad key, 402 no credits, 403 no permission | No, fail now | The same request will fail the same way. |
+| Any other 4xx | 400 invalid payload, unverified sender, bad key (`APIKey Expired`) or missing access level (`Access Denied.`); 412 account limit; 413 too many recipients | No, fail now | The same request will fail the same way. |
 | Not an HTTP error | A missing env var, a bug in your code | No, fail now | Needs a fix and a redeploy, not another attempt. |
 
 Why not retry everything? A 4xx describes the request, not the moment. A sender on a domain you have not verified, a suppressed recipient or a revoked API key will not fix itself in the next few minutes. Retrying it only burns attempts, delays the failure alert and keeps the job sitting in the queue. Fail it once, log `err.response.data.Error`, and fix the cause. Status codes and their usual causes are in [Error handling](../docs/error-handling.md).

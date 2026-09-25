@@ -92,7 +92,7 @@ Then set `ELASTICEMAIL_API_KEY` and `EMAIL_FROM` as environment variables for th
 ## Notes
 
 - **The task runs on Trigger.dev's compute, not in your server.** Your app only needs `@trigger.dev/sdk` and the secret key to trigger it.
-- **`queue.concurrencyLimit`** caps concurrent sends across all runs. If the API answers 429 often, lower it rather than raising `maxAttempts`.
+- **`queue.concurrencyLimit`** caps concurrent sends across all runs. If sends start failing with 429s or 5xx under load, lower it rather than raising `maxAttempts`.
 - **`maxDuration`** in `trigger.config.ts` stops a run that hangs; a single send finishes well inside it.
 - **Do not log the raw axios error.** Its `config.headers` carries the API key. The task logs only the status and the API's message.
 

@@ -111,7 +111,7 @@ Check the inbox of `EMAIL_TO`.
 
 | Output | Fix |
 |---|---|
-| `Error sending email: 401`, or `400 APIKey Expired` | The key in `.env` is wrong, expired or missing the send permission. |
+| `400 APIKey Expired`, or `400 Access Denied.` | The key in `.env` is wrong, expired or missing the send permission. |
 | A 4xx that mentions the sender or domain | `EMAIL_FROM` is not on a verified domain. Finish step 2. |
 | `Transaction ID` printed, but nothing arrived | Check spam, then the activity log in the dashboard. See [Troubleshooting](../docs/troubleshooting.md). |
 | `npm run dev` asks to install `@react-email/ui` | Run `npm install` in this folder first; it is a dev dependency. |

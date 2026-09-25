@@ -67,7 +67,7 @@ inngest.createFunction(
 
 A bad key, an unverified sender or a suppressed recipient will not start working on the next attempt, so retrying it only delays the failure. The API's `err.response.data.Error` is in the error message, visible on the failed run. See [Which failures to retry](../README.md#which-failures-to-retry).
 
-`concurrency: { limit: 5 }` caps concurrent sends across every server running this function. If the API answers 429 often, lower it, or add a `throttle` to the function.
+`concurrency: { limit: 5 }` caps concurrent sends across every server running this function. If sends start failing with 429s or 5xx under load, lower it, or add a `throttle` to the function.
 
 ## Fan-out and idempotency
 
