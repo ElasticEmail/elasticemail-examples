@@ -780,7 +780,7 @@
       "readme": "rust-elasticemail-examples/README.md",
       "quickstart": "rust-elasticemail-examples/QUICKSTART.md",
       "language": "Rust",
-      "sdk": "ElasticEmail (git ElasticEmail/elasticemail-rust, tag 4.2.0)",
+      "sdk": "ElasticEmail 4.2.0 (crates.io)",
       "runtime": "Rust 1.75+",
       "frameworks": [
         "Axum 0.8"

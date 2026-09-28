@@ -63,7 +63,7 @@ const STACKS = [
     apps: ["dotnet-elasticemail-examples/MinimalApiApp/Program.cs", "dotnet-elasticemail-examples/MvcApp"] },
   { id: "kotlin", name: "Kotlin", dir: "kotlin-elasticemail-examples", language: "Kotlin", sdk: `com.github.ElasticEmail:elasticemail-java:${SDK_VERSION} (JitPack)`, runtime: "Java 17+, Maven 3.8+", frameworks: ["Kotlin 2.4", "Ktor 3.6"],
     apps: ["kotlin-elasticemail-examples/ktor_app/App.kt"] },
-  { id: "rust", name: "Rust", dir: "rust-elasticemail-examples", language: "Rust", sdk: `ElasticEmail (git ElasticEmail/elasticemail-rust, tag ${SDK_VERSION})`, runtime: "Rust 1.75+", frameworks: ["Axum 0.8"],
+  { id: "rust", name: "Rust", dir: "rust-elasticemail-examples", language: "Rust", sdk: `ElasticEmail ${SDK_VERSION} (crates.io)`, runtime: "Rust 1.75+", frameworks: ["Axum 0.8"],
     apps: ["rust-elasticemail-examples/axum_app/src/main.rs"] },
   { id: "elixir", name: "Elixir", dir: "elixir-elasticemail-examples", language: "Elixir", sdk: "none - REST API v4 called directly with Req 0.5", runtime: "Elixir 1.15+ (OTP 25+)", frameworks: ["Phoenix 1.7"],
     apps: ["elixir-elasticemail-examples/phoenix_app"] },

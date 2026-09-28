@@ -5,7 +5,7 @@ Send transactional and bulk email from Rust with the [Elastic Email](https://ela
 > **First time here?** The [Rust quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `ElasticEmail (git ElasticEmail/elasticemail-rust, tag 4.2.0)` · Rust 1.75+ · Axum 0.8
+**Versions:** Elastic Email REST API v4 · SDK `ElasticEmail 4.2.0 (crates.io)` · Rust 1.75+ · Axum 0.8
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ Send transactional and bulk email from Rust with the [Elastic Email](https://ela
 
 ## Installation
 
-The SDK is not published on crates.io. Cargo pulls it from GitHub by tag (see `Cargo.toml`).
+Cargo installs the [`ElasticEmail`](https://crates.io/crates/ElasticEmail) crate from crates.io (see `Cargo.toml`).
 
 ```bash
 # Build the project (downloads dependencies)

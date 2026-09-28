@@ -3124,11 +3124,11 @@ Step by step, with the exact DNS records to publish: [How to verify your domain]
 
 ## 3. Install
 
-The SDK is not published on crates.io. Cargo pulls it from GitHub by tag:
+Add the [`ElasticEmail`](https://crates.io/crates/ElasticEmail) crate from crates.io:
 
 ```toml
 [dependencies]
-ElasticEmail = { git = "https://github.com/ElasticEmail/elasticemail-rust", tag = "4.2.0" }
+ElasticEmail = "4.2"
 tokio = { version = "1", features = ["full"] }
 dotenvy = "0.15"
 ```

@@ -8,8 +8,8 @@ name = "rust_elasticemail_examples"
 path = "src/lib.rs"
 
 [dependencies]
-# The SDK is not published on crates.io; it is pulled from GitHub by tag.
-ElasticEmail = { git = "https://github.com/ElasticEmail/elasticemail-rust", tag = "4.2.0" }
+# Elastic Email Rust SDK: https://crates.io/crates/ElasticEmail
+ElasticEmail = "4.2"
 tokio = { version = "1", features = ["full"] }
 dotenvy = "0.15"
 serde = { version = "1", features = ["derive"] }
