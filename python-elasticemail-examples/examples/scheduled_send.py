@@ -21,8 +21,8 @@ DELAY_MINUTES = 60
 
 def main():
     configuration = get_configuration()
-    scheduled_for = datetime.datetime.utcnow() + datetime.timedelta(minutes=DELAY_MINUTES)
-    scheduled_iso = scheduled_for.replace(microsecond=0).isoformat() + "Z"
+    scheduled_for = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=DELAY_MINUTES)
+    scheduled_iso = scheduled_for.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     with ElasticEmail.ApiClient(configuration) as api_client:
         emails_api = ElasticEmail.EmailsApi(api_client)

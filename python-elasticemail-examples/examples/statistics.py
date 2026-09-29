@@ -19,7 +19,7 @@ from ee import get_configuration, print_api_error
 
 def main():
     configuration = get_configuration()
-    to_date = datetime.datetime.utcnow().replace(microsecond=0)
+    to_date = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
     from_date = to_date - datetime.timedelta(days=30)
 
     with ElasticEmail.ApiClient(configuration) as api_client:

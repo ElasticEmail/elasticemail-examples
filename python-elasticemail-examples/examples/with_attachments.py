@@ -22,7 +22,7 @@ def main():
         "Sample Attachment\n"
         "==================\n\n"
         "This file was attached to your email.\n"
-        "Sent at: {}\n".format(datetime.datetime.utcnow().isoformat())
+        "Sent at: {}\n".format(datetime.datetime.now(datetime.timezone.utc).isoformat())
     )
     encoded = base64.b64encode(file_content.encode()).decode()
 
