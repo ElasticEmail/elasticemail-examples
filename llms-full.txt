@@ -3137,7 +3137,7 @@ dotenvy = "0.15"
 git clone https://github.com/ElasticEmail/elasticemail-examples.git
 cd elasticemail-examples/rust-elasticemail-examples
 
-cargo build          # first build fetches the SDK from GitHub
+cargo build          # first build fetches the SDK from crates.io
 cp .env.example .env
 ```
 

@@ -51,7 +51,7 @@ const STACKS = [
     // One controller holds every send variant; see routes/api.php.
     extra: Object.fromEntries(["basic-send", "batch-send", "attachments", "cid-attachments", "templates", "scheduled-send", "prevent-threading"]
       .map((id) => [id, ["laravel-elasticemail-examples/app/Http/Controllers/EmailController.php"]])) },
-  { id: "python", name: "Python", dir: "python-elasticemail-examples", language: "Python", sdk: `ElasticEmail==${SDK_VERSION} (PyPI)`, runtime: "Python 3.9+", frameworks: ["Flask", "FastAPI", "Django"],
+  { id: "python", name: "Python", dir: "python-elasticemail-examples", language: "Python", sdk: "ElasticEmail==4.2.1 (PyPI)", runtime: "Python 3.9+", frameworks: ["Flask", "FastAPI", "Django"],
     apps: ["python-elasticemail-examples/examples/flask_app.py", "python-elasticemail-examples/examples/fastapi_app.py", "python-elasticemail-examples/django_app"] },
   { id: "ruby", name: "Ruby", dir: "ruby-elasticemail-examples", language: "Ruby", sdk: `ElasticEmail ~> 4.2 (RubyGems)`, runtime: "Ruby 3.1+", frameworks: ["Sinatra 4", "Rails 7.2"],
     apps: ["ruby-elasticemail-examples/sinatra_app/app.rb", "ruby-elasticemail-examples/rails_app"] },

@@ -335,7 +335,7 @@
       "readme": "python-elasticemail-examples/README.md",
       "quickstart": "python-elasticemail-examples/QUICKSTART.md",
       "language": "Python",
-      "sdk": "ElasticEmail==4.2.0 (PyPI)",
+      "sdk": "ElasticEmail==4.2.1 (PyPI)",
       "runtime": "Python 3.9+",
       "frameworks": [
         "Flask",
