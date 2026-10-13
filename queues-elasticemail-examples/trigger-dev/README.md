@@ -4,7 +4,7 @@ A Trigger.dev task that sends transactional email through the [Elastic Email](ht
 
 > Part of the [Elastic Email background job examples](../README.md). New here? The [background job quickstart](../QUICKSTART.md) shows the same pattern with BullMQ.
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ · Trigger.dev 4 (`@trigger.dev/sdk`)
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · Trigger.dev 4 (`@trigger.dev/sdk`)
 
 ## Prerequisites
 

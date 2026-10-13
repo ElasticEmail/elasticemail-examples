@@ -886,6 +886,7 @@
         ],
         "webhooks": [
           "elixir-elasticemail-examples/examples/webhooks.exs",
+          "elixir-elasticemail-examples/lib/elastic_email/webhook.ex",
           "elixir-elasticemail-examples/phoenix_app/lib/phoenix_app_web/controllers/webhook_controller.ex"
         ],
         "inbound": [

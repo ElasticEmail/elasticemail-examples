@@ -4,7 +4,7 @@ A BullMQ worker on Node.js that sends transactional email through the [Elastic E
 
 > Part of the [Elastic Email background job examples](../README.md). New here? Start with the [background job quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ · BullMQ 6 (ioredis 6, Redis 7)
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · BullMQ 6 (ioredis 6, Redis 7)
 
 ## Prerequisites
 

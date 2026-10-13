@@ -4,7 +4,7 @@ A function tool for the OpenAI Agents SDK for TypeScript (`@openai/agents`) that
 
 > Part of the [Elastic Email AI agent examples](../README.md). New to the API? Start with the [AI agent quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ · OpenAI Agents SDK 0.18 (`@openai/agents@0.18`)
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · OpenAI Agents SDK 0.18 (`@openai/agents@0.18`)
 
 ## Prerequisites
 

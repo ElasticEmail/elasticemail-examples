@@ -17,7 +17,7 @@ Send transactional and bulk email from Kotlin with the [Elastic Email](https://e
 ## Installation
 
 There is no Kotlin-specific SDK. Kotlin calls the Elastic Email Java SDK, which is not on Maven
-Central: the `pom.xml` pulls it from JitPack (`com.github.ElasticEmail:elasticemail-java:4.2.0`), so
+Central: the `pom.xml` pulls it from JitPack (`com.github.ElasticEmail:elasticemail-java:4.3.0`), so
 the first build downloads it from there.
 
 ```bash

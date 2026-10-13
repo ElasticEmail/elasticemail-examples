@@ -17,7 +17,7 @@ Send transactional and bulk email from Java with the [Elastic Email](https://ela
 ## Installation
 
 The Elastic Email Java SDK is not on Maven Central. The `pom.xml` pulls it from JitPack
-(`com.github.ElasticEmail:elasticemail-java:4.2.0`), so the first build downloads it from there.
+(`com.github.ElasticEmail:elasticemail-java:4.3.0`), so the first build downloads it from there.
 
 ```bash
 # Install dependencies and compile

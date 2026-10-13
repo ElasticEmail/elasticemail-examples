@@ -4,7 +4,7 @@ A LangChain.js tool that lets an agent send transactional email through the [Ela
 
 > Part of the [Elastic Email AI agent examples](../README.md). New to the API? Start with the [AI agent quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ · LangChain.js 1 (`langchain@1`, `@langchain/core@1`, `@langchain/anthropic@1`)
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · LangChain.js 1 (`langchain@1`, `@langchain/core@1`, `@langchain/anthropic@1`)
 
 ## Prerequisites
 

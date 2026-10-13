@@ -36,7 +36,7 @@ The SDK is not on Maven Central. It comes from JitPack, which the `pom.xml` alre
 <dependency>
   <groupId>com.github.ElasticEmail</groupId>
   <artifactId>elasticemail-java</artifactId>
-  <version>4.2.0</version>
+  <version>4.3.0</version>
 </dependency>
 ```
 

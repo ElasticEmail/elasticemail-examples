@@ -9,7 +9,7 @@ a ten-line placeholder function.
 > Part of the [Elastic Email email template examples](../README.md). New to the API? Start with the
 > [email templates quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ · MJML 5
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · MJML 5
 
 ## Prerequisites
 

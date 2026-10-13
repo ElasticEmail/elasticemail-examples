@@ -4,7 +4,7 @@ Inngest functions that send transactional email through the [Elastic Email](http
 
 > Part of the [Elastic Email background job examples](../README.md). New here? The [background job quickstart](../QUICKSTART.md) shows the same pattern with BullMQ.
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ · Inngest TypeScript SDK 4 (`inngest/node` handler)
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · Inngest TypeScript SDK 4 (`inngest/node` handler)
 
 ## Prerequisites
 

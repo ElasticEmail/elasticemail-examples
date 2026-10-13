@@ -4,7 +4,7 @@ A `send_email` tool for the Vercel AI SDK that sends transactional email through
 
 > Part of the [Elastic Email AI agent examples](../README.md). New here? The [AI agent quickstart](../QUICKSTART.md) walks through this project step by step.
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ · Vercel AI SDK 7 (`ai@7`, `@ai-sdk/anthropic@4`)
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · Vercel AI SDK 7 (`ai@7`, `@ai-sdk/anthropic@4`)
 
 ## Prerequisites
 
