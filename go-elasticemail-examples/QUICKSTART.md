@@ -155,7 +155,7 @@ go run ./examples/batch_send/             # one call, personalized per recipient
 go run ./examples/with_attachments/       # base64 file attachment
 go run ./examples/with_cid_attachments/   # inline image via cid:
 go run ./examples/with_template/          # hosted template + merge values
-go run ./examples/webhooks/               # create, list, delete a webhook
+go run ./examples/webhooks/               # create a signed webhook, list, rotate secret, delete
 ```
 
 | Do this | Read |

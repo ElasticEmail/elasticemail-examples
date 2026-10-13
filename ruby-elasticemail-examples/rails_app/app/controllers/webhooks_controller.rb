@@ -1,37 +1,39 @@
 # frozen_string_literal: true
 
 ##
-# GET|POST /webhook?token=...  Elastic Email event notifications
+# GET|POST /webhook            Elastic Email event notifications
 # POST     /inbound?token=...  Inbound email pushed by an inbound route
 #
-# Elastic Email does not sign these requests. The shared secret in ?token=
-# is compared in constant time instead.
+# Webhooks created with EnableSigning are verified with HMAC-SHA256 against
+# ELASTICEMAIL_WEBHOOK_SECRET. Unsigned webhooks and inbound routes carry a shared
+# secret in ?token=, compared in constant time.
 class WebhooksController < ApplicationController
-  before_action :require_token!
+  before_action :require_webhook_event!, only: :event
+  before_action :require_token!, only: :inbound
 
   CONTACT_EMAIL = ENV.fetch("CONTACT_EMAIL", FROM)
 
-  # Parameters arrive in the query string (GET) or as form fields (POST):
-  # transaction, messageid, to, from, subject, date, status, category, channel,
-  # target (clicked URL), IP, Useragent, Country, City.
-  # Elastic Email sends a GET to validate the URL when the webhook is saved.
+  # Fields: transaction, messageid, to, from, subject, date, status, category, channel,
+  # target (clicked URL), ip, useragent, country, city. Signed webhooks (recommended)
+  # usually arrive as POST with a JSON body; unsigned ones in the query string (GET)
+  # or as form fields (POST). Elastic Email sends a test event when the webhook is saved.
   def event
-    status_value = sanitize(params[:status])
+    status_value = sanitize(@event["status"])
 
     # Validation ping or empty request
     return render json: { ok: true } if status_value.empty?
 
-    Rails.logger.info "Webhook event: #{status_value} to: #{sanitize(params[:to])} transaction: #{sanitize(params[:transaction])}"
+    Rails.logger.info "Webhook event: #{status_value} to: #{sanitize(@event["to"])} transaction: #{sanitize(@event["transaction"])}"
 
     case status_value
     when "Sent"
-      Rails.logger.info "Email sent, message id: #{sanitize(params[:messageid])}"
+      Rails.logger.info "Email sent, message id: #{sanitize(@event["messageid"])}"
     when "Opened"
-      Rails.logger.info "Email opened from #{sanitize(params[:Country])} #{sanitize(params[:City])}"
+      Rails.logger.info "Email opened from #{sanitize(@event["country"])} #{sanitize(@event["city"])}"
     when "Clicked"
-      Rails.logger.info "Link clicked: #{sanitize(params[:target])}"
+      Rails.logger.info "Link clicked: #{sanitize(@event["target"])}"
     when "Error"
-      Rails.logger.info "Bounce/error, category: #{sanitize(params[:category])}"
+      Rails.logger.info "Bounce/error, category: #{sanitize(@event["category"])}"
     when "AbuseReport"
       Rails.logger.info "Complaint received"
     when "Unsubscribed"

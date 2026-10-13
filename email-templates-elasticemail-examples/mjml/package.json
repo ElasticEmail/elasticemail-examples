@@ -12,7 +12,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@elasticemail/elasticemail-client-ts-axios": "^4.2.0",
+    "@elasticemail/elasticemail-client-ts-axios": "^4.3.0",
     "dotenv": "^16.4.0",
     "html-to-text": "^9.0.5",
     "mjml": "^5.4.1"

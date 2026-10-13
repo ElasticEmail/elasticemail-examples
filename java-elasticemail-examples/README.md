@@ -5,7 +5,7 @@ Send transactional and bulk email from Java with the [Elastic Email](https://ela
 > **First time here?** The [Java quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `com.github.ElasticEmail:elasticemail-java:4.2.0 (JitPack)` · Java 17+, Maven 3.8+ · Javalin, Spring Boot 3.4
+**Versions:** Elastic Email REST API v4 · SDK `com.github.ElasticEmail:elasticemail-java:4.3.0 (JitPack)` · Java 17+, Maven 3.8+ · Javalin, Spring Boot 3.4
 
 ## Prerequisites
 
@@ -88,6 +88,8 @@ mvn -q exec:java -Dexec.mainClass=com.elasticemail.examples.EmailStatus -Dexec.a
 mvn -q exec:java -Dexec.mainClass=com.elasticemail.examples.Webhooks
 ```
 
+Creates a signed webhook (`EnableSigning` + `DeliveryMethod: PostJson`), prints its signing secret (returned only once - store it as `ELASTICEMAIL_WEBHOOK_SECRET`), lists webhooks, rotates the secret and deletes the webhook.
+
 ### Inbound Routes
 ```bash
 mvn -q exec:java -Dexec.mainClass=com.elasticemail.examples.Inbound
@@ -158,11 +160,11 @@ Both server apps expose the same routes and JSON shapes.
 
 - `GET /health` -> `{"status": "ok"}`
 - `POST /send` body `{"to", "subject", "message"}` -> `{"success": true, "transactionId", "messageId"}`
-- `GET|POST /webhook?token=...` - Elastic Email event notifications. Elastic Email sends each event as a GET request with the details in the query string (`status`, `to`, `transaction`, `messageid`, `target`, ...). The `token` must match `ELASTICEMAIL_WEBHOOK_TOKEN`; the comparison is constant-time.
+- `GET|POST /webhook` - Elastic Email event notifications (`status`, `to`, `transaction`, `messageid`, `target`, ...). Recommended: a signed webhook (`EnableSigning: true`, `DeliveryMethod: PostJson`) that POSTs each event as JSON; with `ELASTICEMAIL_WEBHOOK_SECRET` set, the handler verifies the `X-ElasticEmail-Signature` HMAC over the raw body and request target and answers 401 when it doesn't match (Elastic Email then retries). Fallback for unsigned webhooks (GET with the details in the query string): leave the secret empty and append `?token=` matching `ELASTICEMAIL_WEBHOOK_TOKEN` to the URL.
 - `POST /inbound?token=...` - inbound email pushed by an inbound route (`from_email`, `subject`, `body_html`, `att1_name`, `att1_content`, ...). Forwards a copy to `CONTACT_EMAIL`.
 - `POST /double-optin/subscribe` body `{"email", "name"}` - stores the contact as Transactional and sends a confirmation link signed with HMAC-SHA256
 - `GET /double-optin/confirm?email=&token=` - verifies the HMAC token and adds the contact to `ELASTICEMAIL_LIST_NAME`
-- `POST /double-optin/webhook?token=...` - confirms on a `Clicked` event whose `target` is the confirm link
+- `GET|POST /double-optin/webhook` - confirms on a `Clicked` event whose `target` is the confirm link (signed like `/webhook`, or `?token=...` for unsigned webhooks)
 
 Failures return `{"error": "<message from the API>"}` with the API status code.
 

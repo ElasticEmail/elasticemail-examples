@@ -132,7 +132,7 @@ npx tsx examples/batch-send.ts            # one call, personalized per recipient
 npx tsx examples/with-attachments.ts      # base64 file attachment
 npx tsx examples/with-template.ts         # hosted template + merge values
 npx tsx examples/scheduled-send.ts        # delayed delivery
-npx tsx examples/webhooks.ts              # create, list, delete a webhook
+npx tsx examples/webhooks.ts              # create a signed webhook, list, rotate secret, delete
 ```
 
 | Do this | Read |

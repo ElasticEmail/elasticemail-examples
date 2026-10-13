@@ -14,6 +14,7 @@ import com.elasticemail.model.EmailSend;
 import com.elasticemail.model.EmailTransactionalMessageData;
 import com.elasticemail.model.EmailsPayload;
 import com.elasticemail.model.TransactionalRecipient;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -50,6 +52,9 @@ public class DoubleOptinController {
 
     @Value("${ELASTICEMAIL_WEBHOOK_TOKEN:change_me}")
     private String secret;
+
+    @Value("${ELASTICEMAIL_WEBHOOK_SECRET:}")
+    private String webhookSecret;
 
     @Value("${CONFIRM_REDIRECT_URL:}")
     private String confirmRedirectUrl;
@@ -128,11 +133,15 @@ public class DoubleOptinController {
     }
 
     // Click-tracking based confirmation: create a webhook for Clicked events pointing here.
-    @PostMapping("/webhook")
-    public ResponseEntity<Map<String, Object>> webhook(@RequestParam Map<String, String> event) {
-        if (!Support.tokenOk(event.get("token"), secret)) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
+    // Signed (ELASTICEMAIL_WEBHOOK_SECRET) or ?token= checked, like /webhook.
+    @RequestMapping(value = "/webhook", method = {RequestMethod.GET, RequestMethod.POST})
+    public ResponseEntity<Map<String, Object>> webhook(HttpServletRequest request,
+                                                       @RequestBody(required = false) byte[] body) {
+        Support.WebhookRequest webhook = Support.readWebhook(webhookSecret, secret, request, body);
+        if (!webhook.ok()) {
+            return ResponseEntity.status(webhook.status()).body(Map.of("error", webhook.error()));
         }
+        Map<String, String> event = webhook.event();
 
         String status = Support.sanitize(event.get("status"));
         String target = event.get("target") == null ? "" : event.get("target");

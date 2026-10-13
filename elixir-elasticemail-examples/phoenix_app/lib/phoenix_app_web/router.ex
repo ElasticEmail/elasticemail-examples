@@ -5,7 +5,7 @@ defmodule PhoenixAppWeb.Router do
     get "/health", HealthController, :show
     post "/send", EmailController, :send_email
 
-    # Elastic Email validates the webhook URL with a GET on save and posts events as form fields
+    # Signed webhooks POST JSON; unsigned ones use GET (query string) or POST (form fields)
     get "/webhook", WebhookController, :handle
     post "/webhook", WebhookController, :handle
 
@@ -13,6 +13,7 @@ defmodule PhoenixAppWeb.Router do
 
     post "/double-optin/subscribe", DoubleOptinController, :subscribe
     get "/double-optin/confirm", DoubleOptinController, :confirm
+    get "/double-optin/webhook", DoubleOptinController, :webhook
     post "/double-optin/webhook", DoubleOptinController, :webhook
   end
 end

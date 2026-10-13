@@ -8,11 +8,11 @@
  * Endpoints:
  *   GET      /health
  *   POST     /send                      { to, subject, message }
- *   GET|POST /webhook?token=            Elastic Email event notifications
+ *   GET|POST /webhook                   Elastic Email event notifications (signed, or ?token=)
  *   POST     /inbound?token=            inbound email pushed by an inbound route
  *   POST     /double-optin/subscribe    { email, name }
  *   GET      /double-optin/confirm?email=&token=
- *   POST     /double-optin/webhook?token=
+ *   GET|POST /double-optin/webhook      (signed, or ?token=)
  */
 
 require_once __DIR__ . '/bootstrap.php';
@@ -60,6 +60,26 @@ $tokenOk = fn(Request $request): bool => hash_equals($secret, (string) ($request
 
 $hmac = fn(string $value): string => hash_hmac('sha256', $value, $secret);
 
+/**
+ * Authenticate an Elastic Email notification (signature with ELASTICEMAIL_WEBHOOK_SECRET, or
+ * ?token= for unsigned webhooks). Returns [event, null] or [null, error]; see bootstrap.php.
+ */
+$webhookEvent = function (Request $request): array {
+    $uri = $request->getUri();
+    // REQUEST_URI is the path + query as received; the PSR-7 Uri is the fallback
+    $target = $request->getServerParams()['REQUEST_URI'] ?? ($uri->getPath() . ($uri->getQuery() !== '' ? '?' . $uri->getQuery() : ''));
+
+    return ee_webhook_event(
+        $request->getMethod(),
+        $target,
+        $request->getHeaderLine('X-ElasticEmail-Timestamp'),
+        $request->getHeaderLine('X-ElasticEmail-Signature'),
+        (string) $request->getBody(), // raw body as received (__toString rewinds the stream)
+        $request->getQueryParams(),
+        (array) ($request->getParsedBody() ?? [])
+    );
+};
+
 $app->get('/health', fn(Request $request, Response $response) => $json($response, ['status' => 'ok']));
 
 $app->post('/send', function (Request $request, Response $response) use ($emailsApi, $from, $json, $apiError) {
@@ -92,16 +112,16 @@ $app->post('/send', function (Request $request, Response $response) use ($emails
     }
 });
 
-// Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-// form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-// channel, target (clicked URL), IP, Useragent, Country, City.
-// Elastic Email sends a GET to validate the URL when the webhook is saved.
-$app->map(['GET', 'POST'], '/webhook', function (Request $request, Response $response) use ($json, $tokenOk, $sanitize) {
-    if (!$tokenOk($request)) {
-        return $json($response, ['error' => 'Invalid token'], 401);
+// Elastic Email event notifications. Fields: transaction, messageid, to, from, subject, date,
+// status, category, channel, target (clicked URL), ip, useragent, country, city.
+// Signed PostJson webhooks send them as a JSON body, Get webhooks in the query string.
+// Elastic Email sends a test request when the webhook is saved.
+$app->map(['GET', 'POST'], '/webhook', function (Request $request, Response $response) use ($json, $webhookEvent, $sanitize) {
+    [$event, $error] = $webhookEvent($request);
+    if ($error !== null) {
+        return $json($response, ['error' => $error['error']], $error['status']);
     }
 
-    $event = array_merge($request->getQueryParams(), (array) ($request->getParsedBody() ?? []));
     $status = $sanitize($event['status'] ?? '');
 
     if ($status === '') {
@@ -115,7 +135,7 @@ $app->map(['GET', 'POST'], '/webhook', function (Request $request, Response $res
             error_log('Email sent, message id: ' . $sanitize($event['messageid'] ?? ''));
             break;
         case 'Opened':
-            error_log('Email opened from ' . $sanitize($event['Country'] ?? '') . ' ' . $sanitize($event['City'] ?? ''));
+            error_log('Email opened from ' . $sanitize($event['country'] ?? '') . ' ' . $sanitize($event['city'] ?? ''));
             break;
         case 'Clicked':
             error_log('Link clicked: ' . $sanitize($event['target'] ?? ''));
@@ -245,13 +265,16 @@ $app->get('/double-optin/confirm', function (Request $request, Response $respons
 });
 
 // Click-tracking based confirmation: create a webhook for Clicked events pointing here.
-$app->post('/double-optin/webhook', function (Request $request, Response $response) use ($listsApi, $listName, $json, $apiError, $tokenOk, $sanitize) {
-    if (!$tokenOk($request)) {
-        return $json($response, ['error' => 'Invalid token'], 401);
+$app->map(['GET', 'POST'], '/double-optin/webhook', function (Request $request, Response $response) use ($listsApi, $listName, $json, $apiError, $webhookEvent, $sanitize) {
+    [$event, $error] = $webhookEvent($request);
+    if ($error !== null) {
+        return $json($response, ['error' => $error['error']], $error['status']);
     }
 
-    $event = array_merge($request->getQueryParams(), (array) ($request->getParsedBody() ?? []));
     $status = $sanitize($event['status'] ?? '');
+    if ($status === '') {
+        return $json($response, ['ok' => true]);
+    }
     $target = (string) ($event['target'] ?? '');
     $recipient = $sanitize($event['to'] ?? '');
 

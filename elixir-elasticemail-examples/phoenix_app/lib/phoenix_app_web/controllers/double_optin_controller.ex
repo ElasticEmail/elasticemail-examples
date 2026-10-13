@@ -71,11 +71,11 @@ defmodule PhoenixAppWeb.DoubleOptinController do
   end
 
   # Click-tracking based confirmation: create a webhook for Clicked events pointing here.
-  def webhook(conn, params) do
-    if token_ok?(params["token"]) do
-      confirm_from_click(conn, params)
-    else
-      unauthorized(conn)
+  # Verified like /webhook: signature when ELASTICEMAIL_WEBHOOK_SECRET is set, else ?token=.
+  def webhook(conn, _params) do
+    case ElasticEmail.Webhook.read_event(conn) do
+      {:ok, event} -> confirm_from_click(conn, event)
+      :error -> unauthorized(conn, "Invalid signature or token")
     end
   end
 

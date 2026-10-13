@@ -88,8 +88,10 @@ export const handler = async (event: APIGatewayEvent) => {
 };
 ```
 
-Webhook and inbound notifications arrive form-encoded, not as JSON; `api/src/lib/elasticemail.ts`
-parses those with `URLSearchParams`.
+Signed webhooks (created with `EnableSigning` and `DeliveryMethod: PostJson`) arrive as JSON with an
+`X-ElasticEmail-Signature` header that `readWebhook` in `api/src/lib/elasticemail.ts` verifies against
+`ELASTICEMAIL_WEBHOOK_SECRET`. Inbound notifications and unsigned webhooks arrive form-encoded or in the
+query string and are parsed with `URLSearchParams`.
 
 ## 6. Run it
 
@@ -114,8 +116,8 @@ curl -X POST http://localhost:8910/.redwood/functions/send \
 
 http://localhost:8910 has a page per feature, each posting to one of the functions.
 
-When you register a webhook or inbound route, the URL is
-`PUBLIC_URL/.redwood/functions/webhook?token=...` - note the `.redwood/functions` prefix.
+When you register a webhook or inbound route, the URL is `PUBLIC_URL/.redwood/functions/webhook`
+(signed webhooks) or `PUBLIC_URL/.redwood/functions/inbound?token=...` - note the `.redwood/functions` prefix.
 
 ## Next steps
 

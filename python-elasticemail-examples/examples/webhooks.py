@@ -1,20 +1,22 @@
 """
 Webhook Management Example
 
-Elastic Email does not sign webhook requests. The examples append a shared secret
-as a query parameter and the receiving handler checks it (see flask_app.py).
+The webhook is created with signing (EnableSigning) and POST + JSON delivery (PostJson).
+Every request then carries an HMAC-SHA256 X-ElasticEmail-Signature that the handlers verify
+with ELASTICEMAIL_WEBHOOK_SECRET (see flask_app.py). The signing secret is returned only when
+the webhook is created or its secret is rotated. Webhooks created without signing are
+protected with a ?token= in the URL instead (ELASTICEMAIL_WEBHOOK_TOKEN).
 
 Usage: python examples/webhooks.py
 """
 
 import os
 import sys
-from urllib.parse import quote
 
 import ElasticEmail
 
 sys.path.insert(0, os.path.dirname(__file__))
-from ee import PUBLIC_URL, WEBHOOK_TOKEN, get_configuration, print_api_error
+from ee import PUBLIC_URL, get_configuration, print_api_error
 
 
 def fail(step, e):
@@ -24,13 +26,15 @@ def fail(step, e):
 
 def main():
     configuration = get_configuration()
-    webhook_url = "{}/webhook?token={}".format(PUBLIC_URL, quote(WEBHOOK_TOKEN, safe=""))
+    webhook_url = "{}/webhook".format(PUBLIC_URL)
 
     with ElasticEmail.ApiClient(configuration) as api_client:
         webhook_api = ElasticEmail.WebhookApi(api_client)
 
-        # 1. Create. Elastic Email sends a GET to the URL on save, so the handler must be reachable
-        #    and answer 2xx (use a tunnel such as ngrok for local development).
+        # 1. Create a signed webhook that POSTs JSON. Elastic Email sends a test request on save,
+        #    so the URL must be reachable (use a tunnel such as ngrok for local development).
+        #    The test arrives before your endpoint knows the secret; a 401/403 answer to it is
+        #    accepted, so the create call still succeeds. Signed webhooks don't follow redirects.
         webhook_id = None
         try:
             webhook = webhook_api.webhook_post(
@@ -44,10 +48,14 @@ def main():
                     NotificationForUnsubscribed=True,
                     NotificationForAbuseReport=True,
                     NotificationForError=True,
+                    EnableSigning=True,
+                    DeliveryMethod=ElasticEmail.WebhookDeliveryMethod.POSTJSON,
                 )
             )
             webhook_id = webhook.webhook_id
             print("Webhook created:", webhook_id, webhook.url)
+            print("Signing secret:", webhook.signing_secret)
+            print("Store it as ELASTICEMAIL_WEBHOOK_SECRET - it is shown only once.")
         except ElasticEmail.ApiException as e:
             fail("create webhook", e)
 
@@ -60,7 +68,16 @@ def main():
         except ElasticEmail.ApiException as e:
             fail("list webhooks", e)
 
-        # 3. Delete the one we created (comment out to keep it)
+        # 3. Rotate the signing secret. The old secret stops working at once (no grace period).
+        if webhook_id:
+            try:
+                rotated = webhook_api.webhook_by_publicid_secret_rotate_post(webhook_id)
+                print("\nNew signing secret:", rotated.signing_secret)
+                print("Update ELASTICEMAIL_WEBHOOK_SECRET - it is shown only once.")
+            except ElasticEmail.ApiException as e:
+                fail("rotate webhook secret", e)
+
+        # 4. Delete the one we created (comment out to keep it)
         if webhook_id:
             try:
                 webhook_api.webhook_by_publicid_delete(webhook_id)

@@ -7,5 +7,5 @@ Rails.application.routes.draw do
   post "/inbound", to: "webhooks#inbound"
   post "/double-optin/subscribe", to: "double_optin#subscribe"
   get "/double-optin/confirm", to: "double_optin#confirm"
-  post "/double-optin/webhook", to: "double_optin#webhook"
+  match "/double-optin/webhook", to: "double_optin#webhook", via: %i[get post]
 end

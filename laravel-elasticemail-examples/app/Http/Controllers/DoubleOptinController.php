@@ -85,17 +85,16 @@ class DoubleOptinController extends Controller
      */
     public function webhook(Request $request)
     {
-        if (!$this->ee->tokenOk($request->query('token'))) {
-            return response()->json(['error' => 'Invalid token'], 401);
+        [$event, $error] = $this->webhookEvent($request);
+        if ($error !== null) {
+            return $error;
         }
 
-        // Elastic Email validates the URL with a GET when the webhook is saved
-        if ($request->isMethod('GET') && !$request->has('status')) {
+        $status = $this->sanitize($event['status'] ?? '');
+        // Elastic Email sends a test request when the webhook is saved
+        if ($status === '') {
             return response()->json(['ok' => true]);
         }
-
-        $event = array_merge($request->query(), $request->post());
-        $status = $this->sanitize($event['status'] ?? '');
         $target = (string) ($event['target'] ?? '');
         $recipient = $this->sanitize($event['to'] ?? '');
         $listName = config('elasticemail.list_name');

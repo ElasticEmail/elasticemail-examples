@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
@@ -7,6 +7,9 @@ import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-a
 // and resolved lazily by calling the function.
 const elasticEmailApiKey = secret("ElasticEmailApiKey");
 const webhookToken = secret("ElasticEmailWebhookToken");
+// Optional: the signing secret (whsec_...) returned once when the webhook is created with EnableSigning.
+// When it is set, /webhook requires a valid signature; when it is not, the ?token= check is used.
+const webhookSecret = secret("ElasticEmailWebhookSecret");
 
 const from = process.env.EMAIL_FROM || "Acme <hello@yourdomain.com>";
 
@@ -28,6 +31,42 @@ const tokenOk = (token: unknown): boolean => {
   const a = Buffer.from(String(token ?? ""));
   const b = Buffer.from(webhookToken() || "change_me");
   return a.length === b.length && timingSafeEqual(a, b);
+};
+
+/**
+ * Verify an Elastic Email webhook signature:
+ * X-ElasticEmail-Signature: v1=hex(HMAC-SHA256(secret, `${timestamp}\n${METHOD}\n${target}\n${rawBody}`)),
+ * where target is the path + query exactly as requested (still URL-encoded).
+ */
+function verifySignature(
+  key: string,
+  timestamp: string | undefined,
+  signatureHeader: string | undefined,
+  method: string,
+  target: string,
+  body: Buffer | string,
+): boolean {
+  if (!timestamp || !/^\d+$/.test(timestamp) || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
+  const expected = Buffer.from(
+    createHmac("sha256", key).update(`${timestamp}\n${method}\n${target}\n`).update(body).digest("hex"),
+  );
+  return (signatureHeader ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith("v1="))
+    .some((part) => {
+      const candidate = Buffer.from(part.slice(3));
+      return candidate.length === expected.length && timingSafeEqual(candidate, expected);
+    });
+}
+
+/** Encore throws when an unset secret is read; treat that as "not configured". */
+const optionalSecret = (read: () => string): string => {
+  try {
+    return read();
+  } catch {
+    return "";
+  }
 };
 
 interface SendRequest {
@@ -77,11 +116,11 @@ export const send = api(
   },
 );
 
-// Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-// form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-// channel, target (clicked URL), IP, Useragent, Country, City.
-// Elastic Email sends a GET to validate the URL when the webhook is saved.
-// A raw endpoint is used because the payload is form-encoded, not JSON.
+// Elastic Email event notifications. A signed webhook created with DeliveryMethod PostJson
+// POSTs a flat JSON object; an unsigned one sends a GET with the same fields in the query string:
+// transaction, messageid, to, from, subject, date, status, category, channel, target (clicked URL),
+// ip, useragent, country, state, city. to/from/channel/subject/messageid may be null.
+// A raw endpoint is used because the signature covers the raw body and the raw request target.
 export const webhook = api.raw(
   { method: ["GET", "POST"], path: "/webhook", expose: true },
   async (req, resp) => {
@@ -91,21 +130,53 @@ export const webhook = api.raw(
       resp.end(JSON.stringify(body));
     };
 
-    if (!tokenOk(url.searchParams.get("token"))) {
-      return reply(401, { error: "Invalid token" });
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(chunk as Buffer);
+    const raw = Buffer.concat(chunks);
+    const header = (name: string) => [req.headers[name]].flat()[0];
+
+    const signingSecret = optionalSecret(webhookSecret);
+    let event: Record<string, unknown>;
+
+    if (signingSecret) {
+      // req.url is the path + query exactly as it appeared on the request line (still URL-encoded).
+      const ok = verifySignature(
+        signingSecret,
+        header("x-elasticemail-timestamp"),
+        header("x-elasticemail-signature"),
+        req.method ?? "",
+        req.url ?? "",
+        raw,
+      );
+      if (!ok) {
+        // 401 makes Elastic Email retry. The test event sent when the webhook is created
+        // arrives before you know the secret; Elastic Email accepts a 401 for that one.
+        return reply(401, { error: "Invalid signature" });
+      }
+      try {
+        event = req.method === "POST" ? (JSON.parse(raw.toString("utf8") || "{}") ?? {}) : Object.fromEntries(url.searchParams);
+      } catch {
+        return reply(400, { error: "Invalid JSON body" });
+      }
+    } else {
+      // Unsigned webhook: the shared secret travels in the URL as ?token=
+      if (!tokenOk(url.searchParams.get("token"))) {
+        return reply(401, { error: "Invalid token" });
+      }
+      let body: Record<string, string> = {};
+      if (req.method === "POST") {
+        const text = raw.toString("utf8");
+        const type = req.headers["content-type"] ?? "";
+        try {
+          if (type.includes("application/json") && text) body = JSON.parse(text);
+          else if (type.includes("form")) body = Object.fromEntries(new URLSearchParams(text));
+        } catch {
+          return reply(400, { error: "Invalid JSON body" });
+        }
+      }
+      event = { ...Object.fromEntries(url.searchParams), ...body };
     }
 
-    let body: Record<string, string> = {};
-    if (req.method === "POST") {
-      const chunks: Buffer[] = [];
-      for await (const chunk of req) chunks.push(chunk as Buffer);
-      const raw = Buffer.concat(chunks).toString("utf8");
-      const type = req.headers["content-type"] ?? "";
-      if (type.includes("application/json") && raw) body = JSON.parse(raw);
-      else if (type.includes("form")) body = Object.fromEntries(new URLSearchParams(raw));
-    }
-
-    const event: Record<string, string | undefined> = { ...Object.fromEntries(url.searchParams), ...body };
     const status = sanitize(event.status);
 
     if (!status) {
@@ -118,7 +189,7 @@ export const webhook = api.raw(
         console.log("Email sent, message id:", sanitize(event.messageid));
         break;
       case "Opened":
-        console.log("Email opened from", sanitize(event.Country), sanitize(event.City));
+        console.log("Email opened from", sanitize(event.country ?? event.Country), sanitize(event.city ?? event.City));
         break;
       case "Clicked":
         console.log("Link clicked:", sanitize(event.target));

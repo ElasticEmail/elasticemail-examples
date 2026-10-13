@@ -107,7 +107,7 @@ curl -X POST http://localhost:3000/send \
 bun run examples/batch-send.ts        # one call, personalized per recipient
 bun run examples/with-attachments.ts  # base64 file attachment
 bun run examples/with-template.ts     # hosted template + merge values
-bun run examples/webhooks.ts          # create, list, delete a webhook
+bun run examples/webhooks.ts          # signed webhook: create, list, rotate secret, delete
 ```
 
 | Do this | Read |

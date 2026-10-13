@@ -12,7 +12,7 @@
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
-    "@elasticemail/elasticemail-client-ts-axios": "^4.2.0",
+    "@elasticemail/elasticemail-client-ts-axios": "^4.3.0",
     "nuxt": "^3.17.0",
     "vue": "^3.5.0"
   },

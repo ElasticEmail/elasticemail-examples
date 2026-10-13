@@ -57,12 +57,18 @@ webhook only if it gets a 2xx response. The URL must be publicly reachable at th
 answers 405 and fails the same way.
 
 **Every event answers 401**
-The `token` query parameter does not match `ELASTICEMAIL_WEBHOOK_TOKEN`. It is compared byte for byte:
-watch for a trailing space or newline in `.env`, and for a value that needed URL-encoding.
+With `ELASTICEMAIL_WEBHOOK_SECRET` set, the signature didn't verify: the secret is from another webhook
+or was rotated, the server clock is more than 5 minutes off, or something changed the body or the path
+before the handler saw it (a JSON body parser, a proxy that re-encodes the URL, a redirect). Also
+check that the webhook was created with `EnableSigning: true` - an unsigned webhook sends no
+signature at all. Without the secret, the `token` query parameter doesn't match
+`ELASTICEMAIL_WEBHOOK_TOKEN`. It is compared byte for byte: watch for a trailing space or newline in
+`.env`, and for a value that needed URL-encoding.
 
 **Events arrive but the body is empty**
-That is expected. Elastic Email sends events as GET requests with everything in the query string, so
-read `status`, `to` and the rest from the query parameters.
+That is expected for a webhook created without `DeliveryMethod: "PostJson"`: it sends events as GET
+requests with everything in the query string, so read `status`, `to` and the rest from the query
+parameters. `PostJson` webhooks send a JSON body.
 
 **Inbound email arrives but the body is empty**
 Inbound email is a form-encoded POST, not JSON. Mount the urlencoded body parser

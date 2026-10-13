@@ -8,11 +8,11 @@ Usage:
 Endpoints:
     GET  /health
     POST /send                     {"to", "subject", "message"}
-    GET|POST /webhook?token=...    Elastic Email event notifications
+    GET|POST /webhook              Elastic Email event notifications (signed, or ?token=...)
     POST /inbound?token=...        inbound email pushed by an inbound route
     POST /double-optin/subscribe   {"email", "name"}
     GET  /double-optin/confirm?email=&token=
-    POST /double-optin/webhook?token=...
+    GET|POST /double-optin/webhook (signed, or ?token=...)
     GET  /docs                     OpenAPI docs
 """
 
@@ -39,9 +39,13 @@ from ee import (
     FROM,
     LIST_NAME,
     PUBLIC_URL,
+    WEBHOOK_SECRET,
     WEBHOOK_TOKEN,
     api_error_message,
     get_configuration,
+    lower_keys,
+    signed_event,
+    verify_signature,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -111,6 +115,40 @@ async def event_params(request):
     return event
 
 
+def request_target(request):
+    """Path + query exactly as received (raw_path and query_string are the undecoded ASGI values)."""
+    path = (request.scope.get("raw_path") or request.url.path.encode()).decode("latin-1")
+    query = request.scope.get("query_string", b"").decode("latin-1")
+    return path + ("?" + query if query else "")
+
+
+async def webhook_event(request):
+    """Authenticate an Elastic Email notification and return (event, error_response).
+
+    With ELASTICEMAIL_WEBHOOK_SECRET set, the request must carry a valid signature and the event
+    is read from the JSON body (POST) or the query string (GET). Without it, the ?token= check
+    for unsigned webhooks applies.
+    """
+    if WEBHOOK_SECRET:
+        body = await request.body()  # raw body, read before any parsing
+        if not verify_signature(
+            WEBHOOK_SECRET,
+            request.headers.get("X-ElasticEmail-Timestamp"),
+            request.headers.get("X-ElasticEmail-Signature"),
+            request.method,
+            request_target(request),
+            body,
+        ):
+            return None, JSONResponse({"error": "Invalid signature"}, status_code=401)
+        event = signed_event(request.method, body, request.query_params)
+        if event is None:
+            return None, JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+        return event, None
+    if not token_ok(request.query_params.get("token")):
+        return None, unauthorized()
+    return lower_keys(await event_params(request)), None
+
+
 def send_html(to, subject, html_body, reply_to=None, attachments=None):
     message = ElasticEmail.EmailTransactionalMessageData(
         Recipients=ElasticEmail.TransactionalRecipient(To=[to]),
@@ -139,15 +177,16 @@ async def send_email(email_request: EmailRequest):
         return api_error(e)
 
 
-# Elastic Email event notifications. Parameters: transaction, messageid, to, from, subject,
-# date, status, category, channel, target (clicked URL), IP, Useragent, Country, City.
-# Elastic Email sends a GET to validate the URL when the webhook is saved.
+# Elastic Email event notifications. Fields: transaction, messageid, to, from, subject,
+# date, status, category, channel, target (clicked URL), ip, useragent, country, city.
+# Signed PostJson webhooks send them as a JSON body, Get webhooks in the query string.
+# Elastic Email sends a test request when the webhook is saved.
 @app.api_route("/webhook", methods=["GET", "POST"])
 async def webhook(request: Request):
-    if not token_ok(request.query_params.get("token")):
-        return unauthorized()
+    event, error = await webhook_event(request)
+    if error:
+        return error
 
-    event = await event_params(request)
     status = sanitize(event.get("status"))
 
     if not status:
@@ -158,7 +197,7 @@ async def webhook(request: Request):
     if status == "Sent":
         logger.info("Email sent, message id: %s", sanitize(event.get("messageid")))
     elif status == "Opened":
-        logger.info("Email opened from %s %s", sanitize(event.get("Country")), sanitize(event.get("City")))
+        logger.info("Email opened from %s %s", sanitize(event.get("country")), sanitize(event.get("city")))
     elif status == "Clicked":
         logger.info("Link clicked: %s", sanitize(event.get("target")))
     elif status == "Error":
@@ -244,11 +283,11 @@ async def double_optin_confirm(email: str = "", token: str = ""):
 # Click-tracking based confirmation: create a webhook for Clicked events pointing here.
 @app.api_route("/double-optin/webhook", methods=["GET", "POST"])
 async def double_optin_webhook(request: Request):
-    if not token_ok(request.query_params.get("token")):
-        return unauthorized()
+    event, error = await webhook_event(request)
+    if error:
+        return error
 
-    event = await event_params(request)
-    if request.method == "GET" and not event.get("status"):
+    if not event.get("status"):
         return {"ok": True}
 
     if event.get("status") != "Clicked" or "/double-optin/confirm" not in str(event.get("target") or ""):

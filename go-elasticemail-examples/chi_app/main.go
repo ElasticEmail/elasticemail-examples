@@ -30,6 +30,7 @@ var (
 	listName           string
 	publicURL          string
 	secret             string
+	webhookSecret      string
 	confirmRedirectURL string
 )
 
@@ -43,6 +44,7 @@ func main() {
 	listName = ee.Env("ELASTICEMAIL_LIST_NAME", "Newsletter")
 	publicURL = ee.Env("PUBLIC_URL", "http://localhost:3000")
 	secret = ee.Env("ELASTICEMAIL_WEBHOOK_TOKEN", "change_me")
+	webhookSecret = ee.Env("ELASTICEMAIL_WEBHOOK_SECRET", "")
 	confirmRedirectURL = ee.Env("CONFIRM_REDIRECT_URL", "")
 
 	r := chi.NewRouter()
@@ -56,6 +58,7 @@ func main() {
 	r.Post("/inbound", inboundHandler)
 	r.Post("/double-optin/subscribe", doubleOptinSubscribeHandler)
 	r.Get("/double-optin/confirm", doubleOptinConfirmHandler)
+	r.Get("/double-optin/webhook", doubleOptinWebhookHandler)
 	r.Post("/double-optin/webhook", doubleOptinWebhookHandler)
 
 	port := ee.Env("PORT", "3000")
@@ -136,22 +139,19 @@ func sendHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-// form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-// channel, target (clicked URL), IP, Useragent, Country, City.
-// Elastic Email sends a GET to validate the URL when the webhook is saved.
+// Elastic Email event notifications. Fields: transaction, messageid, to, from, subject, date,
+// status, category, channel, target (clicked URL), ip, useragent, country, city.
+// Signed webhooks (EnableSigning + DeliveryMethod PostJson, recommended) POST them as a JSON
+// body and are verified with ELASTICEMAIL_WEBHOOK_SECRET. Unsigned webhooks send a GET with the
+// fields in the query string and are checked with ?token=ELASTICEMAIL_WEBHOOK_TOKEN instead.
+// Elastic Email sends a test request when the webhook is saved.
 func webhookHandler(w http.ResponseWriter, r *http.Request) {
-	if !tokenOk(r.URL.Query().Get("token")) {
-		jsonResponse(w, http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
+	event, code, message := ee.ReadWebhook(r, webhookSecret, secret)
+	if event == nil {
+		jsonResponse(w, code, map[string]string{"error": message})
 		return
 	}
-
-	// FormValue reads both the query string and the form-encoded body.
-	if err := r.ParseForm(); err != nil {
-		jsonResponse(w, http.StatusBadRequest, map[string]string{"error": "Invalid form body"})
-		return
-	}
-	status := sanitize(r.FormValue("status"))
+	status := sanitize(event.Get("status"))
 
 	if status == "" {
 		// Validation ping or empty request
@@ -159,17 +159,17 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Webhook event: %s to: %s transaction: %s", status, sanitize(r.FormValue("to")), sanitize(r.FormValue("transaction")))
+	log.Printf("Webhook event: %s to: %s transaction: %s", status, sanitize(event.Get("to")), sanitize(event.Get("transaction")))
 
 	switch status {
 	case "Sent":
-		log.Println("Email sent, message id:", sanitize(r.FormValue("messageid")))
+		log.Println("Email sent, message id:", sanitize(event.Get("messageid")))
 	case "Opened":
-		log.Println("Email opened from", sanitize(r.FormValue("Country")), sanitize(r.FormValue("City")))
+		log.Println("Email opened from", sanitize(event.Get("country")), sanitize(event.Get("city")))
 	case "Clicked":
-		log.Println("Link clicked:", sanitize(r.FormValue("target")))
+		log.Println("Link clicked:", sanitize(event.Get("target")))
 	case "Error":
-		log.Println("Bounce/error, category:", sanitize(r.FormValue("category")))
+		log.Println("Bounce/error, category:", sanitize(event.Get("category")))
 	case "AbuseReport":
 		log.Println("Complaint received")
 	case "Unsubscribed":
@@ -335,18 +335,14 @@ func doubleOptinConfirmHandler(w http.ResponseWriter, r *http.Request) {
 
 // Click-tracking based confirmation: create a webhook for Clicked events pointing here.
 func doubleOptinWebhookHandler(w http.ResponseWriter, r *http.Request) {
-	if !tokenOk(r.URL.Query().Get("token")) {
-		jsonResponse(w, http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
+	event, code, message := ee.ReadWebhook(r, webhookSecret, secret)
+	if event == nil {
+		jsonResponse(w, code, map[string]string{"error": message})
 		return
 	}
-
-	if err := r.ParseForm(); err != nil {
-		jsonResponse(w, http.StatusBadRequest, map[string]string{"error": "Invalid form body"})
-		return
-	}
-	status := r.FormValue("status")
-	target := r.FormValue("target")
-	recipient := r.FormValue("to")
+	status := event.Get("status")
+	target := event.Get("target")
+	recipient := event.Get("to")
 
 	if status != "Clicked" || !strings.Contains(target, "/double-optin/confirm") {
 		jsonResponse(w, http.StatusOK, map[string]interface{}{"received": true, "status": sanitize(status), "message": "Event ignored"})

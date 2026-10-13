@@ -4,7 +4,7 @@ A single-file `Deno.serve` app that sends transactional email through the [Elast
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Deno 2 · Deno Deploy
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Deno 2 · Deno Deploy
 
 ## Prerequisites
 
@@ -31,7 +31,10 @@ Local runs read `.env` through the `--env` flag. For Deno Deploy, open the proje
 ELASTICEMAIL_API_KEY
 EMAIL_FROM
 ELASTICEMAIL_WEBHOOK_TOKEN
+ELASTICEMAIL_WEBHOOK_SECRET
 ```
+
+`ELASTICEMAIL_WEBHOOK_SECRET` is the `SigningSecret` (`whsec_...`) returned once when you create the webhook with `EnableSigning: true` and `DeliveryMethod: PostJson` (see [Webhooks](../README.md#webhooks)). Set it after creating the webhook; while it is empty, `/webhook` falls back to the `?token=` check (`ELASTICEMAIL_WEBHOOK_TOKEN`) for unsigned webhooks.
 
 Or from the CLI: `deployctl deploy --env-file=.env ...` (variables are stored on the deployment).
 
@@ -57,10 +60,13 @@ curl -X POST "$URL/webhook?token=change_me" \
   -d "status=Sent&to=you@yourdomain.com&transaction=abc&messageid=xyz"
 ```
 
+That last request only works while `ELASTICEMAIL_WEBHOOK_SECRET` is empty. With a signing secret set, send a signed request as shown in [Webhooks](../README.md#webhooks).
+
 ## Notes on runtime quirks
 
 - axios' default Node adapter does not work under Deno's npm compatibility, so the code passes `axios.create({ adapter: "fetch" })` as the third argument of `new EmailsApi(configuration, basePath, axios)`.
 - Dependencies are `npm:` specifiers pinned in `main.ts`; there is no `package.json`. `"nodeModulesDir": "none"` keeps the folder free of `node_modules`.
+- The webhook signature is checked with WebCrypto (`crypto.subtle`), built into Deno. The handler reads `await req.text()` before parsing JSON and signs `pathname + search` of `new URL(req.url)`, which keeps the percent-encoding.
 - `deno run -A` grants all permissions. For production narrow this to `--allow-net --allow-env`.
 - Deno Deploy runs the module once per isolate, so the `ELASTICEMAIL_API_KEY` check at the top fails fast on the first request if the variable is missing.
 
@@ -68,7 +74,7 @@ curl -X POST "$URL/webhook?token=change_me" \
 
 ```
 Write a Deno Deploy app (Deno.serve, single main.ts) in TypeScript that sends email with Elastic Email.
-Import { Configuration, EmailsApi } from "npm:@elasticemail/elasticemail-client-ts-axios@4.2.0" and
+Import { Configuration, EmailsApi } from "npm:@elasticemail/elasticemail-client-ts-axios@4.3.0" and
 axios from "npm:axios@1.18.1". Read the key with Deno.env.get("ELASTICEMAIL_API_KEY") and fail fast if missing;
 never hardcode keys. Create `new Configuration({ apiKey })` and
 `new EmailsApi(configuration, undefined, axios.create({ adapter: "fetch" }))` because axios' Node adapter
@@ -77,8 +83,12 @@ POST /send takes { to, subject, message } and calls emailsApi.emailsTransactiona
 Recipients.To = [to] and Content = { From, Subject, Body: [{ ContentType: "HTML", Content }] }.
 The From address must be a sender verified in Elastic Email. Return { success, transactionId, messageId }
 from response.data and { error } with the API status on failure (err.response.data.Error).
-GET|POST /webhook checks ?token= against ELASTICEMAIL_WEBHOOK_TOKEN with a constant-time compare and logs
-the status field. Add deno.json tasks: dev (deno run -A --env main.ts) and deploy (deployctl deploy).
+POST|GET /webhook verifies the Elastic Email signature when ELASTICEMAIL_WEBHOOK_SECRET is set:
+X-ElasticEmail-Signature holds comma-separated v1=<hex> entries, each the hex HMAC-SHA256 (WebCrypto crypto.subtle, key = the
+secret) of `${X-ElasticEmail-Timestamp}\n${method}\n${pathname + search of new URL(req.url)}\n${raw body}`, with the raw body read before
+parsing; reject timestamps older than 300 s, compare in constant time, answer 401 on failure, then read the event
+from the JSON body (POST) or the query (GET). Without the secret it checks ?token= against
+ELASTICEMAIL_WEBHOOK_TOKEN. Log the status field. Add deno.json tasks: dev (deno run -A --env main.ts) and deploy (deployctl deploy).
 ```
 
 ## Resources

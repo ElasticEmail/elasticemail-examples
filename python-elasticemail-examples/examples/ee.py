@@ -26,6 +26,9 @@ LIST_NAME = os.environ.get("ELASTICEMAIL_LIST_NAME", "Newsletter")
 TEMPLATE_NAME = os.environ.get("ELASTICEMAIL_TEMPLATE_NAME", "welcome-example")
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "http://localhost:3000")
 WEBHOOK_TOKEN = os.environ.get("ELASTICEMAIL_WEBHOOK_TOKEN", "change_me")
+# Signing secret (whsec_...) returned once when a webhook is created with EnableSigning.
+# When set, the webhook handlers require a valid signature instead of ?token=.
+WEBHOOK_SECRET = os.environ.get("ELASTICEMAIL_WEBHOOK_SECRET", "")
 SENDING_DOMAIN = os.environ.get("SENDING_DOMAIN", "yourdomain.com")
 CONFIRM_REDIRECT_URL = os.environ.get("CONFIRM_REDIRECT_URL", "")
 # Required by POST /send. Callers send it as "Authorization: Bearer <token>".
@@ -95,6 +98,61 @@ def header_text(value):
 def safe_equal(a, b):
     """Constant-time string comparison (bytes, so non-ASCII input cannot raise)."""
     return hmac.compare_digest(str(a or "").encode(), str(b or "").encode())
+
+
+WEBHOOK_TOLERANCE_SECONDS = 300
+
+
+def verify_signature(secret, timestamp, signature_header, method, target, body, now=None):
+    """Check the X-ElasticEmail-Signature of a signed webhook request.
+
+    target is the path + query exactly as received on the request line (still URL-encoded),
+    body the raw body as received ("" for GET). Signed message:
+    "{timestamp}\n{METHOD}\n{target}\n{body}", HMAC-SHA256 with the secret, lowercase hex.
+    """
+    timestamp = str(timestamp or "")
+    if not (timestamp.isascii() and timestamp.isdigit()):
+        return False
+    if abs((time.time() if now is None else now) - int(timestamp)) > WEBHOOK_TOLERANCE_SECONDS:
+        return False
+    if isinstance(body, bytes):
+        body = body.decode("utf-8", errors="replace")
+    message = "{}\n{}\n{}\n{}".format(timestamp, method.upper(), target, body or "")
+    expected = hmac.new(secret.encode(), message.encode(), hashlib.sha256).hexdigest()
+    entries = [part.strip() for part in str(signature_header or "").split(",")]
+    return any(safe_equal(part[3:], expected) for part in entries if part.startswith("v1="))
+
+
+def wsgi_request_target(environ):
+    """Path + query as received. Werkzeug and Gunicorn set RAW_URI, many servers REQUEST_URI."""
+    target = environ.get("RAW_URI") or environ.get("REQUEST_URI")
+    if target:
+        return target
+    from urllib.parse import quote
+
+    # WSGI paths are latin-1 decoded bytes; re-encode them the way a client would send them
+    path = environ.get("SCRIPT_NAME", "") + environ.get("PATH_INFO", "")
+    path = quote(path.encode("latin-1", errors="replace"), safe="/:@!$&'()*+,;=")
+    query = environ.get("QUERY_STRING", "")
+    return path + ("?" + query if query else "")
+
+
+def signed_event(method, body, query):
+    """Event of a verified request: the JSON body for POST (PostJson), the query string for GET."""
+    import json
+
+    if method.upper() == "POST":
+        try:
+            event = json.loads(body or b"{}")
+        except ValueError:
+            return None
+        return lower_keys(event) if isinstance(event, dict) else None
+    return lower_keys(query)
+
+
+def lower_keys(event):
+    """Elastic Email sends some GET parameter names capitalized (Country, City); read them case-insensitively."""
+    return {str(k).lower(): v for k, v in dict(event).items()}
 
 
 def email_shape_ok(email):

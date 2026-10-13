@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -5,6 +6,7 @@ using System.Text.RegularExpressions;
 using ElasticEmail.Api;
 using ElasticEmail.Client;
 using ElasticEmail.Model;
+using Microsoft.AspNetCore.Http.Features;
 
 DotNetEnv.Env.TraversePath().Load();
 
@@ -31,6 +33,8 @@ var contactEmail = Env("CONTACT_EMAIL", from);
 var listName = Env("ELASTICEMAIL_LIST_NAME", "Newsletter");
 var publicUrl = Env("PUBLIC_URL", "http://localhost:3000");
 var secret = Env("ELASTICEMAIL_WEBHOOK_TOKEN", "change_me");
+// Signing secret returned once when the webhook is created with EnableSigning (null when unset)
+var webhookSecret = Environment.GetEnvironmentVariable("ELASTICEMAIL_WEBHOOK_SECRET") is { Length: > 0 } ws ? ws : null;
 var confirmRedirectUrl = Environment.GetEnvironmentVariable("CONFIRM_REDIRECT_URL");
 
 // Strip newlines from user-controlled values before logging
@@ -87,6 +91,91 @@ static async Task<Dictionary<string, string>> ReadEventAsync(HttpRequest request
     return fields;
 }
 
+// Verifies an Elastic Email webhook signature: lowercase hex HMAC-SHA256 of
+// "{timestamp}\n{METHOD}\n{request target}\n{raw body}" keyed with the signing secret.
+// The header may carry several comma-separated "v1=" entries; any match is accepted.
+static bool VerifySignature(string signingSecret, string? timestamp, string? signatureHeader,
+    string method, string target, byte[] body, long? now = null)
+{
+    if (string.IsNullOrEmpty(signatureHeader)
+        || !long.TryParse(timestamp, NumberStyles.None, CultureInfo.InvariantCulture, out var ts)
+        || Math.Abs((now ?? DateTimeOffset.UtcNow.ToUnixTimeSeconds()) - ts) > 300)
+    {
+        return false;
+    }
+
+    var message = Encoding.UTF8.GetBytes($"{timestamp}\n{method}\n{target}\n").Concat(body).ToArray();
+    var expected = Encoding.ASCII.GetBytes(Convert.ToHexString(
+        HMACSHA256.HashData(Encoding.UTF8.GetBytes(signingSecret), message)).ToLowerInvariant());
+
+    var ok = false;
+    foreach (var entry in signatureHeader.Split(','))
+    {
+        var value = entry.Trim();
+        if (value.StartsWith("v1=", StringComparison.Ordinal)
+            && CryptographicOperations.FixedTimeEquals(expected, Encoding.ASCII.GetBytes(value[3..])))
+        {
+            ok = true;
+        }
+    }
+    return ok;
+}
+
+// Reads a webhook event. With ELASTICEMAIL_WEBHOOK_SECRET set the request must carry a valid
+// signature and the event comes from the JSON body (POST) or the query string (GET).
+// Without it, the ?token= shared secret is checked and query/form fields are merged.
+// Returns null when the request is not authentic.
+async Task<Dictionary<string, string>?> ReadWebhookEventAsync(HttpRequest request)
+{
+    if (webhookSecret == null)
+    {
+        return TokenOk(request.Query["token"]) ? await ReadEventAsync(request) : null;
+    }
+
+    // Raw body bytes and the request target exactly as received (still URL-encoded)
+    using var buffer = new MemoryStream();
+    await request.Body.CopyToAsync(buffer);
+    var body = buffer.ToArray();
+    var target = request.HttpContext.Features.Get<IHttpRequestFeature>()?.RawTarget
+        ?? $"{request.PathBase}{request.Path}{request.QueryString}";
+
+    if (!VerifySignature(webhookSecret, request.Headers["X-ElasticEmail-Timestamp"].ToString(),
+            request.Headers["X-ElasticEmail-Signature"].ToString(), request.Method, target, body))
+    {
+        return null;
+    }
+
+    var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    if (HttpMethods.IsGet(request.Method))
+    {
+        foreach (var (key, value) in request.Query)
+        {
+            fields[key] = value.ToString();
+        }
+    }
+    else if (body.Length > 0)
+    {
+        // PostJson: a flat JSON object with the same field names as the GET parameters
+        using var doc = JsonDocument.Parse(body);
+        if (doc.RootElement.ValueKind != JsonValueKind.Object)
+        {
+            return fields;
+        }
+        foreach (var prop in doc.RootElement.EnumerateObject())
+        {
+            if (prop.Value.ValueKind == JsonValueKind.String)
+            {
+                fields[prop.Name] = prop.Value.GetString() ?? "";
+            }
+            else if (prop.Value.ValueKind != JsonValueKind.Null)
+            {
+                fields[prop.Name] = prop.Value.GetRawText();
+            }
+        }
+    }
+    return fields;
+}
+
 static string? Json(JsonElement body, string name) =>
     body.ValueKind == JsonValueKind.Object && body.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.String
         ? prop.GetString()
@@ -131,18 +220,20 @@ app.MapPost("/send", async (HttpRequest request) =>
     }
 });
 
-// Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-// form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-// channel, target (clicked URL), IP, Useragent, Country, City.
-// Elastic Email sends a GET to validate the URL when the webhook is saved.
+// Elastic Email event notifications: transaction, messageid, to, from, subject, date, status,
+// category, channel, target (clicked URL), ip, useragent, country, city.
+// Signed webhooks (recommended, ELASTICEMAIL_WEBHOOK_SECRET set) are verified with HMAC-SHA256
+// and usually arrive as POST with a JSON body. Unsigned webhooks carry ?token= and send the
+// fields in the query string (GET) or as form fields (POST).
+// Elastic Email sends a test event when the webhook is saved.
 app.MapMethods("/webhook", new[] { "GET", "POST" }, async (HttpRequest request) =>
 {
-    if (!TokenOk(request.Query["token"]))
+    var ev = await ReadWebhookEventAsync(request);
+    if (ev == null)
     {
-        return Results.Json(new { error = "Invalid token" }, statusCode: 401);
+        return Results.Json(new { error = "Invalid signature or token" }, statusCode: 401);
     }
 
-    var ev = await ReadEventAsync(request);
     var status = Sanitize(ev.GetValueOrDefault("status"));
 
     if (status.Length == 0)
@@ -302,14 +393,15 @@ app.MapGet("/double-optin/confirm", async (HttpRequest request) =>
 });
 
 // Click-tracking based confirmation: create a webhook for Clicked events pointing here.
-app.MapPost("/double-optin/webhook", async (HttpRequest request) =>
+// Verified like /webhook: signature when ELASTICEMAIL_WEBHOOK_SECRET is set, else ?token=.
+app.MapMethods("/double-optin/webhook", new[] { "GET", "POST" }, async (HttpRequest request) =>
 {
-    if (!TokenOk(request.Query["token"]))
+    var ev = await ReadWebhookEventAsync(request);
+    if (ev == null)
     {
-        return Results.Json(new { error = "Invalid token" }, statusCode: 401);
+        return Results.Json(new { error = "Invalid signature or token" }, statusCode: 401);
     }
 
-    var ev = await ReadEventAsync(request);
     var status = ev.GetValueOrDefault("status");
     var target = ev.GetValueOrDefault("target") ?? "";
     var to = ev.GetValueOrDefault("to") ?? "";

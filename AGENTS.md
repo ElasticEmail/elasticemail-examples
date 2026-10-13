@@ -42,13 +42,21 @@ Each stack is self-contained. There is no root package, workspace or shared buil
   [docs/environment-variables.md](docs/environment-variables.md).
 - **`EMAIL_FROM` must belong to a domain verified on the account.** Most "the send returned 200 but
   nothing arrived" and most 4xx failures on send come from an unverified sender.
-- **Webhooks are not signed.** Elastic Email sends each event as a **GET** with the data in the query
-  string (`status`, `to`, `transaction`, `messageid`, `category`, `target`). The handler must check a
-  shared `?token=` secret with a constant-time compare, and answer 2xx quickly.
+- **Webhook signing is opt-in, chosen when the webhook is created.** Create webhooks with
+  `EnableSigning: true` and `DeliveryMethod: "PostJson"` (SDKs 4.3.0+): each request is then a `POST`
+  with a JSON body and an `X-ElasticEmail-Signature: v1=<hex>` header, the HMAC-SHA256 of
+  `{X-ElasticEmail-Timestamp}\n{METHOD}\n{raw path+query}\n{raw body}` keyed with the `SigningSecret`
+  that the create call returns **once** (store it as `ELASTICEMAIL_WEBHOOK_SECRET`). Verify against the
+  raw body, reject timestamps more than 5 minutes off, compare in constant time, 401 on mismatch.
+  Webhooks created without signing (the default, and all older ones) are unsigned **GET** requests
+  with the data in the query string (`status`, `to`, `transaction`, `messageid`, `category`,
+  `target`); protect those with a shared `?token=` secret and a constant-time compare. Either way,
+  answer 2xx quickly. Details: [docs/webhooks.md](docs/webhooks.md).
 - **Saving a webhook fires a test event** (`to=test@test.com`, `messageid=abc1234`). Elastic Email only
-  saves the webhook if that request gets a 2xx, so the URL must be publicly reachable at save time.
+  saves the webhook if that request gets a 2xx (a new signed webhook also accepts 401/403, since the
+  endpoint doesn't have the secret yet), so the URL must be publicly reachable at save time.
 - **Inbound email is a form POST**, not JSON: `from_email`, `subject`, `body_text`, `body_html`,
-  `att1_name`, `att1_content`, ... Protect it with the same `?token=` check.
+  `att1_name`, `att1_content`, ... It is not signed: protect it with a `?token=` check.
 - **Transactional vs bulk:** `POST /emails/transactional` for one message to personal recipients,
   `POST /emails` for one bulk job with per-recipient merge fields. Both return `TransactionID` and
   `MessageID`.

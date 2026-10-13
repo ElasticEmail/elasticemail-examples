@@ -11,7 +11,12 @@ Parameters:
     Type: String
     NoEcho: true
     Default: change_me
-    Description: Shared secret expected in ?token= on /webhook
+    Description: Shared secret expected in ?token= on /webhook (unsigned webhooks)
+  ElasticEmailWebhookSecret:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Signing secret returned once when the webhook is created with EnableSigning; leave empty to use ElasticEmailWebhookToken
   EmailFrom:
     Type: String
     Default: Acme <hello@yourdomain.com>
@@ -42,6 +47,7 @@ Resources:
         Variables:
           ELASTICEMAIL_API_KEY: !Ref ElasticEmailApiKey
           ELASTICEMAIL_WEBHOOK_TOKEN: !Ref ElasticEmailWebhookToken
+          ELASTICEMAIL_WEBHOOK_SECRET: !Ref ElasticEmailWebhookSecret
           EMAIL_FROM: !Ref EmailFrom
       Events:
         Send:

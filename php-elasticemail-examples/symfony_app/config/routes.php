@@ -72,5 +72,5 @@ return function (RoutingConfigurator $routes): void {
 
     $routes->add('double_optin_webhook', '/double-optin/webhook')
         ->controller([WebhookController::class, 'doubleOptin'])
-        ->methods(['POST']);
+        ->methods(['GET', 'POST']);
 };

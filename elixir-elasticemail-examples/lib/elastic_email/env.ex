@@ -18,6 +18,8 @@ defmodule ElasticEmail.Env do
   def to, do: fetch(:to, "EMAIL_TO") || "you@yourdomain.com"
   def contact_email, do: fetch(:contact_email, "CONTACT_EMAIL") || from()
   def webhook_token, do: fetch(:webhook_token, "ELASTICEMAIL_WEBHOOK_TOKEN") || "change_me"
+  # Signing secret returned once when the webhook is created with EnableSigning (nil when unset)
+  def webhook_secret, do: fetch(:webhook_secret, "ELASTICEMAIL_WEBHOOK_SECRET")
   def list_name, do: fetch(:list_name, "ELASTICEMAIL_LIST_NAME") || "Newsletter"
   def template_name, do: fetch(:template_name, "ELASTICEMAIL_TEMPLATE_NAME") || "welcome-example"
   def public_url, do: fetch(:public_url, "PUBLIC_URL") || "http://localhost:3000"

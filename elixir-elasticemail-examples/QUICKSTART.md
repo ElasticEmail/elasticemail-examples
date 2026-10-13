@@ -107,7 +107,8 @@ mix run examples/basic_send.exs
 ```
 
 `lib/elastic_email.ex` adds `get/2`, `post/3`, `put/2`, `patch/2`, `delete/1`, `path_segment/1` for
-encoding emails and list names into URLs, and `format_error/1`.
+encoding emails and list names into URLs, and `format_error/1`. `lib/elastic_email/webhook.ex`
+verifies signed webhook requests.
 
 ## 6. Or run the Phoenix app
 
@@ -136,7 +137,7 @@ mix run examples/batch_send.exs            # one call, personalized per recipien
 mix run examples/with_attachments.exs      # base64 file attachment
 mix run examples/with_cid_attachments.exs  # inline image via cid:
 mix run examples/with_template.exs         # hosted template + merge values
-mix run examples/webhooks.exs              # create, list, delete a webhook
+mix run examples/webhooks.exs              # create a signed webhook, list, rotate secret, delete
 ```
 
 Because there is no SDK in the way, the [API map](../docs/api-map.md) doubles as your reference: every

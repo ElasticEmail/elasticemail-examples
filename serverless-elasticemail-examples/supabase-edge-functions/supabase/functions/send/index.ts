@@ -1,5 +1,5 @@
 import axios from "npm:axios@1.18.1";
-import { Configuration, EmailsApi } from "npm:@elasticemail/elasticemail-client-ts-axios@4.2.0";
+import { Configuration, EmailsApi } from "npm:@elasticemail/elasticemail-client-ts-axios@4.3.0";
 
 const apiKey = Deno.env.get("ELASTICEMAIL_API_KEY");
 if (!apiKey) {

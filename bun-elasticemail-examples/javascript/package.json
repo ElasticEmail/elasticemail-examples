@@ -9,6 +9,6 @@
     "example": "bun run"
   },
   "dependencies": {
-    "@elasticemail/elasticemail-client-ts-axios": "^4.2.0"
+    "@elasticemail/elasticemail-client-ts-axios": "^4.3.0"
   }
 }

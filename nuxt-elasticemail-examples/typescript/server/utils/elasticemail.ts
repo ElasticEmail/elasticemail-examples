@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { getQuery, readBody, setResponseStatus, type H3Event } from "h3";
+import { getQuery, getRequestHeader, readBody, readRawBody, setResponseStatus, type H3Event } from "h3";
 import {
   Configuration,
   ContactsApi,
@@ -17,6 +17,8 @@ export const templateName = process.env.ELASTICEMAIL_TEMPLATE_NAME || "welcome-e
 export const sendingDomain = process.env.SENDING_DOMAIN || "yourdomain.com";
 export const publicUrl = process.env.PUBLIC_URL || "http://localhost:3000";
 export const secret = process.env.ELASTICEMAIL_WEBHOOK_TOKEN || "change_me";
+// Signing secret returned once when the webhook is created with EnableSigning (whsec_...)
+export const webhookSecret = process.env.ELASTICEMAIL_WEBHOOK_SECRET || "";
 
 let config: Configuration | undefined;
 
@@ -105,4 +107,76 @@ export async function readJson(event: H3Event): Promise<Record<string, any>> {
 export function fail(event: H3Event, status: number, error: string): { error: string } {
   setResponseStatus(event, status);
   return { error };
+}
+
+/**
+ * Verify an Elastic Email webhook signature (webhooks created with EnableSigning: true).
+ * X-ElasticEmail-Signature carries one or more comma-separated "v1=<hex>" entries, each
+ * hex(HMAC-SHA256(secret, `${timestamp}\n${METHOD}\n${target}\n${rawBody}`)), where target is
+ * the path + query exactly as requested (still URL-encoded) and rawBody is "" for GET.
+ * Requests older or newer than 5 minutes are rejected to limit replays.
+ */
+export function verifySignature(
+  secret: string,
+  timestamp: string | null | undefined,
+  signature: string | null | undefined,
+  method: string,
+  target: string,
+  rawBody: string | Uint8Array,
+  now = Math.floor(Date.now() / 1000),
+): boolean {
+  if (!secret || !timestamp || !signature || !/^\d+$/.test(timestamp)) return false;
+  if (Math.abs(now - Number(timestamp)) > 300) return false;
+  const expected = createHmac("sha256", secret)
+    .update(`${timestamp}\n${method.toUpperCase()}\n${target}\n`)
+    .update(rawBody)
+    .digest();
+  return signature.split(",").some((entry) => {
+    const match = /^v1=([0-9a-f]{64})$/i.exec(entry.trim());
+    return match !== null && timingSafeEqual(Buffer.from(match[1], "hex"), expected);
+  });
+}
+
+/** Lowercase the keys and stringify the values (PostJson sends null for missing to/from/subject/...) */
+function normalizeEvent(fields: Record<string, unknown>): Record<string, string> {
+  const event: Record<string, string> = {};
+  for (const [key, value] of Object.entries(fields)) event[key.toLowerCase()] = value == null ? "" : String(value);
+  return event;
+}
+
+/** Parse the JSON object sent by PostJson webhooks, returning {} when it is missing or malformed */
+function parseJsonObject(raw: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(raw || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Authenticate an Elastic Email webhook request and return its event fields (keys lowercased),
+ * or null when the request must be rejected with 401 (Elastic Email then retries).
+ * - ELASTICEMAIL_WEBHOOK_SECRET set: a valid X-ElasticEmail-Signature is required. The event is
+ *   the JSON body (POST, DeliveryMethod PostJson) or the query string (GET).
+ * - Not set: unsigned webhooks fall back to the shared ?token= (ELASTICEMAIL_WEBHOOK_TOKEN).
+ */
+export async function readWebhook(event: H3Event): Promise<Record<string, string> | null> {
+  if (!webhookSecret) {
+    return tokenOk(getQuery(event).token) ? normalizeEvent(await readEvent(event)) : null;
+  }
+  // Read the raw body before parsing: the signature covers the exact bytes received.
+  const rawBody = event.method === "POST" ? ((await readRawBody(event, false)) ?? Buffer.alloc(0)) : Buffer.alloc(0);
+  // Path + query as received on the request line (still URL-encoded)
+  const req = event.node.req as typeof event.node.req & { originalUrl?: string };
+  const valid = verifySignature(
+    webhookSecret,
+    getRequestHeader(event, "x-elasticemail-timestamp"),
+    getRequestHeader(event, "x-elasticemail-signature"),
+    event.method,
+    req.originalUrl || req.url || "/",
+    rawBody,
+  );
+  if (!valid) return null;
+  return normalizeEvent(event.method === "POST" ? parseJsonObject(rawBody.toString("utf8")) : getQuery(event));
 }

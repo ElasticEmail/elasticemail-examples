@@ -4,6 +4,7 @@ import html
 import json
 import logging
 import re
+import time
 from urllib.parse import quote
 
 import ElasticEmail
@@ -67,6 +68,68 @@ def event_params(request):
     return event
 
 
+def verify_signature(secret, timestamp, signature_header, method, target, body, now=None):
+    """Check the X-ElasticEmail-Signature of a signed webhook request.
+
+    Signed message: "{timestamp}\n{METHOD}\n{target}\n{raw body}", HMAC-SHA256 with the
+    secret, lowercase hex. target is the path + query as received, body "" for GET.
+    """
+    timestamp = str(timestamp or "")
+    if not (timestamp.isascii() and timestamp.isdigit()):
+        return False
+    if abs((time.time() if now is None else now) - int(timestamp)) > 300:
+        return False
+    if isinstance(body, bytes):
+        body = body.decode("utf-8", errors="replace")
+    message = "{}\n{}\n{}\n{}".format(timestamp, method.upper(), target, body or "")
+    expected = hmac.new(secret.encode(), message.encode(), hashlib.sha256).hexdigest()
+    entries = [part.strip() for part in str(signature_header or "").split(",")]
+    return any(
+        hmac.compare_digest(part[3:].encode(), expected.encode()) for part in entries if part.startswith("v1=")
+    )
+
+
+def request_target(request):
+    """Path + query as received. Gunicorn sets RAW_URI, many servers REQUEST_URI; runserver sets
+    neither, so fall back to get_full_path() (re-encoded path + the raw query string)."""
+    return request.META.get("RAW_URI") or request.META.get("REQUEST_URI") or request.get_full_path()
+
+
+def lower_keys(event):
+    """Elastic Email sends some GET parameter names capitalized (Country, City); read them case-insensitively."""
+    return {str(k).lower(): v for k, v in dict(event).items()}
+
+
+def webhook_event(request):
+    """Authenticate an Elastic Email notification and return (event, error_response).
+
+    With ELASTICEMAIL_WEBHOOK_SECRET set, the request must carry a valid signature and the event
+    is read from the JSON body (POST) or the query string (GET). Without it, the ?token= check
+    for unsigned webhooks applies.
+    """
+    secret = settings.ELASTICEMAIL_WEBHOOK_SECRET
+    if secret:
+        body = request.body  # raw body, read before any parsing
+        if not verify_signature(
+            secret,
+            request.headers.get("X-ElasticEmail-Timestamp"),
+            request.headers.get("X-ElasticEmail-Signature"),
+            request.method,
+            request_target(request),
+            body,
+        ):
+            return None, JsonResponse({"error": "Invalid signature"}, status=401)
+        if request.method != "POST":
+            return lower_keys(request.GET.dict()), None
+        event = json_body(request)
+        if not isinstance(event, dict):
+            return None, JsonResponse({"error": "Invalid JSON body"}, status=400)
+        return lower_keys(event), None
+    if not token_ok(request.GET.get("token")):
+        return None, JsonResponse({"error": "Invalid token"}, status=401)
+    return lower_keys(event_params(request)), None
+
+
 def send_html(to, subject, html_body, reply_to=None, attachments=None):
     message = ElasticEmail.EmailTransactionalMessageData(
         Recipients=ElasticEmail.TransactionalRecipient(To=[to]),
@@ -107,16 +170,17 @@ def send_email(request):
         return api_error(e)
 
 
-# Elastic Email event notifications. Parameters: transaction, messageid, to, from, subject,
-# date, status, category, channel, target (clicked URL), IP, Useragent, Country, City.
-# Elastic Email sends a GET to validate the URL when the webhook is saved.
+# Elastic Email event notifications. Fields: transaction, messageid, to, from, subject,
+# date, status, category, channel, target (clicked URL), ip, useragent, country, city.
+# Signed PostJson webhooks send them as a JSON body, Get webhooks in the query string.
+# Elastic Email sends a test request when the webhook is saved.
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def webhook(request):
-    if not token_ok(request.GET.get("token")):
-        return JsonResponse({"error": "Invalid token"}, status=401)
+    event, error = webhook_event(request)
+    if error:
+        return error
 
-    event = event_params(request)
     status = sanitize(event.get("status"))
 
     if not status:
@@ -127,7 +191,7 @@ def webhook(request):
     if status == "Sent":
         logger.info("Email sent, message id: %s", sanitize(event.get("messageid")))
     elif status == "Opened":
-        logger.info("Email opened from %s %s", sanitize(event.get("Country")), sanitize(event.get("City")))
+        logger.info("Email opened from %s %s", sanitize(event.get("country")), sanitize(event.get("city")))
     elif status == "Clicked":
         logger.info("Link clicked: %s", sanitize(event.get("target")))
     elif status == "Error":
@@ -231,11 +295,11 @@ def double_optin_confirm(request):
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def double_optin_webhook(request):
-    if not token_ok(request.GET.get("token")):
-        return JsonResponse({"error": "Invalid token"}, status=401)
+    event, error = webhook_event(request)
+    if error:
+        return error
 
-    event = event_params(request)
-    if request.method == "GET" and not event.get("status"):
+    if not event.get("status"):
         return JsonResponse({"ok": True})
 
     if event.get("status") != "Clicked" or "/double-optin/confirm" not in str(event.get("target") or ""):

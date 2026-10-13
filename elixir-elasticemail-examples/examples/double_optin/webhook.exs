@@ -1,5 +1,6 @@
 # Alternative confirmation flow driven by Elastic Email click tracking.
-# Create a webhook (see webhooks.exs) pointing at POST /double-optin/webhook.
+# Create a webhook (see webhooks.exs) pointing at /double-optin/webhook.
+# Signed webhooks are verified with ELASTICEMAIL_WEBHOOK_SECRET; unsigned ones carry ?token=.
 # When the recipient clicks the confirm link, Elastic Email reports status=Clicked
 # with the clicked URL in "target". The contact is then added to the list.
 #
@@ -8,24 +9,21 @@
 defmodule DoubleOptinWebhook do
   use Plug.Router
 
-  plug Plug.Parsers, parsers: [:urlencoded, :json], pass: ["*/*"], json_decoder: Jason
+  # The body reader keeps the raw body for the signature check
+  plug Plug.Parsers,
+    parsers: [:urlencoded, :json],
+    pass: ["*/*"],
+    json_decoder: Jason,
+    body_reader: {ElasticEmail.Webhook, :read_body, []}
+
   plug :match
   plug :dispatch
 
-  # Elastic Email validates the URL with a GET when the webhook is saved.
-  get "/double-optin/webhook" do
-    if token_ok?(conn) do
-      send_json(conn, 200, %{ok: true})
-    else
-      send_json(conn, 401, %{error: "Invalid token"})
-    end
-  end
-
-  post "/double-optin/webhook" do
-    if token_ok?(conn) do
-      handle_event(conn, Map.merge(conn.query_params, conn.body_params))
-    else
-      send_json(conn, 401, %{error: "Invalid token"})
+  # Elastic Email sends a test event when the webhook is saved; GET is accepted too.
+  match "/double-optin/webhook", via: [:get, :post] do
+    case ElasticEmail.Webhook.read_event(conn) do
+      {:ok, event} -> handle_event(conn, event)
+      :error -> send_json(conn, 401, %{error: "Invalid signature or token"})
     end
   end
 
@@ -54,11 +52,6 @@ defmodule DoubleOptinWebhook do
           send_json(conn, 500, %{error: ElasticEmail.error_message(error)})
       end
     end
-  end
-
-  defp token_ok?(conn) do
-    given = to_string(conn.query_params["token"] || "")
-    Plug.Crypto.secure_compare(given, ElasticEmail.Env.webhook_token())
   end
 
   defp sanitize(nil), do: ""

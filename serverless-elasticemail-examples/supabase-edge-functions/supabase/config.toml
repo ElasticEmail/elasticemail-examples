@@ -5,7 +5,7 @@ project_id = "elasticemail-example"
 verify_jwt = false
 
 [functions.webhook]
-# Elastic Email cannot send a Supabase JWT, so the function checks ?token= instead.
+# Elastic Email cannot send a Supabase JWT, so the function checks the webhook signature (or ?token=) instead.
 verify_jwt = false
 
 [functions.auth-hook]

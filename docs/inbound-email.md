@@ -53,8 +53,8 @@ Form-encoded fields, not JSON:
 | `body_html` | HTML body, when the message had one |
 | `att1_name`, `att1_content` | First attachment: file name and base64 content. Then `att2_*`, `att3_*`, and so on. |
 
-The same `?token=` check as [webhooks](webhooks.md) guards the endpoint - inbound requests are
-unsigned too.
+A `?token=` check, the same one unsigned [webhooks](webhooks.md) use, guards the endpoint - inbound
+requests are not signed, unlike webhooks created with `EnableSigning`.
 
 ## Forwarding to a human
 

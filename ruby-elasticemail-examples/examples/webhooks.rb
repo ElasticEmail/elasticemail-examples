@@ -4,20 +4,22 @@
 ##
 # Webhook Management
 #
-# Elastic Email does not sign webhook requests. The examples append a shared secret
-# as a query parameter and the receiving handler checks it.
+# Creates a signed webhook: Elastic Email adds X-ElasticEmail-Timestamp and
+# X-ElasticEmail-Signature (HMAC-SHA256) headers and POSTs each event as JSON. The
+# receiving handler verifies the signature with ELASTICEMAIL_WEBHOOK_SECRET, so the URL
+# needs no ?token=. Signing and delivery method can't be changed after creation.
 #
 # Usage: ruby examples/webhooks.rb
 
 require_relative "ee"
-require "erb"
 
 webhook_api = ElasticEmail::WebhookApi.new
 
-webhook_url = "#{PUBLIC_URL}/webhook?token=#{ERB::Util.url_encode(WEBHOOK_TOKEN)}"
+webhook_url = "#{PUBLIC_URL}/webhook"
 
-# 1. Create. Elastic Email sends a GET to the URL on save, so the handler must be reachable
-#    and answer 2xx (use a tunnel such as ngrok for local development).
+# 1. Create. Elastic Email sends a test event to the URL on save, so the handler must be
+#    reachable (use a tunnel such as ngrok for local development). The handler doesn't know
+#    the secret yet and answers 401, which Elastic Email accepts for signed webhooks.
 webhook_id = nil
 begin
   webhook = webhook_api.webhook_post(
@@ -30,11 +32,15 @@ begin
       notification_for_clicked: true,
       notification_for_unsubscribed: true,
       notification_for_abuse_report: true,
-      notification_for_error: true
+      notification_for_error: true,
+      enable_signing: true,
+      delivery_method: "PostJson"
     )
   )
   webhook_id = webhook.webhook_id
   puts "Webhook created: #{webhook_id} #{webhook.url}"
+  # Returned only in this response: store it as ELASTICEMAIL_WEBHOOK_SECRET
+  puts "Signing secret (shown once, store as ELASTICEMAIL_WEBHOOK_SECRET): #{webhook.signing_secret}"
 rescue ElasticEmail::ApiError => e
   api_error("create webhook", e)
 end
@@ -50,7 +56,17 @@ rescue ElasticEmail::ApiError => e
   api_error("list webhooks", e)
 end
 
-# 3. Delete the one we created (comment out to keep it)
+# 3. Rotate the signing secret. The old secret stops working immediately (no grace period).
+if webhook_id
+  begin
+    rotated = webhook_api.webhook_by_publicid_secret_rotate_post(webhook_id)
+    puts "\nNew signing secret (store as ELASTICEMAIL_WEBHOOK_SECRET): #{rotated.signing_secret}"
+  rescue ElasticEmail::ApiError => e
+    api_error("rotate webhook secret", e)
+  end
+end
+
+# 4. Delete the one we created (comment out to keep it)
 if webhook_id
   begin
     webhook_api.webhook_by_publicid_delete(webhook_id)

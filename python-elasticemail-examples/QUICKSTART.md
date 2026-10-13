@@ -135,7 +135,7 @@ python examples/batch_send.py            # one call, personalized per recipient
 python examples/with_attachments.py      # base64 file attachment
 python examples/with_cid_attachments.py  # inline image via cid:
 python examples/with_template.py         # hosted template + merge values
-python examples/webhooks.py              # create, list, delete a webhook
+python examples/webhooks.py              # create a signed webhook, rotate its secret, delete it
 ```
 
 | Do this | Read |

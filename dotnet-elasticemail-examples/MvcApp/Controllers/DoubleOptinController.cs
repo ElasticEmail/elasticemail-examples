@@ -98,15 +98,17 @@ public class DoubleOptinController : ControllerBase
     }
 
     // Click-tracking based confirmation: create a webhook for Clicked events pointing here.
+    // Verified like /webhook: signature when ELASTICEMAIL_WEBHOOK_SECRET is set, else ?token=.
+    [HttpGet("/double-optin/webhook")]
     [HttpPost("/double-optin/webhook")]
     public async Task<IActionResult> Webhook()
     {
-        if (!Ee.TokenOk(Request.Query["token"]))
+        var ev = await Ee.ReadWebhookEventAsync(Request);
+        if (ev == null)
         {
-            return Unauthorized(new { error = "Invalid token" });
+            return Unauthorized(new { error = "Invalid signature or token" });
         }
 
-        var ev = await Ee.ReadEventAsync(Request);
         var status = ev.GetValueOrDefault("status");
         var target = ev.GetValueOrDefault("target") ?? "";
         var to = ev.GetValueOrDefault("to") ?? "";

@@ -24,6 +24,9 @@ defmodule ElasticEmail do
 
   def post(path, body, params \\ []), do: request(:post, path, json: body, params: params)
 
+  @doc "POST without a request body, e.g. `/webhook/{id}/secret/rotate`."
+  def post(path), do: request(:post, path, [])
+
   def put(path, body), do: request(:put, path, json: body)
 
   def patch(path, body), do: request(:patch, path, json: body)

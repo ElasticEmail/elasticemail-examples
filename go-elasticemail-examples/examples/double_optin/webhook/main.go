@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,15 +12,14 @@ import (
 )
 
 // Alternative confirmation flow driven by Elastic Email click tracking.
-// Create a webhook (see examples/webhooks) pointing at POST /double-optin/webhook.
+// Create a webhook (see examples/webhooks) pointing at /double-optin/webhook.
 // When the recipient clicks the confirm link, Elastic Email reports status=Clicked
 // with the clicked URL in "target". The contact is then added to the list.
 
-var expectedToken string
-
-func tokenOk(token string) bool {
-	return subtle.ConstantTimeCompare([]byte(token), []byte(expectedToken)) == 1
-}
+var (
+	expectedToken string
+	webhookSecret string
+)
 
 func sanitize(value string) string {
 	return strings.NewReplacer("\r", "", "\n", "").Replace(value)
@@ -38,31 +36,30 @@ func main() {
 
 	listName := ee.Env("ELASTICEMAIL_LIST_NAME", "Newsletter")
 	expectedToken = ee.Env("ELASTICEMAIL_WEBHOOK_TOKEN", "change_me")
+	webhookSecret = ee.Env("ELASTICEMAIL_WEBHOOK_SECRET", "")
 
 	http.HandleFunc("/double-optin/webhook", func(w http.ResponseWriter, r *http.Request) {
-		if !tokenOk(r.URL.Query().Get("token")) {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
-			return
-		}
-
-		// Elastic Email validates the URL with a GET when the webhook is saved.
-		if r.Method == http.MethodGet {
-			writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
-			return
-		}
-		if r.Method != http.MethodPost {
+		if r.Method != http.MethodGet && r.Method != http.MethodPost {
 			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 			return
 		}
 
-		// Parameters arrive in the query string or as form fields; FormValue checks both.
-		if err := r.ParseForm(); err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid form body"})
+		// Signed webhooks (POST + JSON) are verified with ELASTICEMAIL_WEBHOOK_SECRET;
+		// unsigned ones (GET + query string) with ?token=ELASTICEMAIL_WEBHOOK_TOKEN.
+		event, code, message := ee.ReadWebhook(r, webhookSecret, expectedToken)
+		if event == nil {
+			writeJSON(w, code, map[string]string{"error": message})
 			return
 		}
-		status := sanitize(r.FormValue("status"))
-		target := sanitize(r.FormValue("target"))
-		recipient := sanitize(r.FormValue("to"))
+		status := sanitize(event.Get("status"))
+		target := sanitize(event.Get("target"))
+		recipient := sanitize(event.Get("to"))
+
+		// Test request sent when the webhook is saved.
+		if status == "" {
+			writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+			return
+		}
 
 		if status != "Clicked" || !strings.Contains(target, "/double-optin/confirm") {
 			writeJSON(w, http.StatusOK, map[string]interface{}{"received": true, "status": status, "message": "Event ignored"})

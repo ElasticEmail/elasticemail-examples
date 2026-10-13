@@ -14,7 +14,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@elasticemail/elasticemail-client-ts-axios": "^4.2.0",
+    "@elasticemail/elasticemail-client-ts-axios": "^4.3.0",
     "@trigger.dev/sdk": "^4.6.0",
     "dotenv": "^16.4.0"
   },

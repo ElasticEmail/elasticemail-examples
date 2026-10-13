@@ -50,8 +50,8 @@ import node from "@astrojs/node";
 export default defineConfig({
   output: "server",
   adapter: node({ mode: "standalone" }),
-  // Elastic Email posts webhook and inbound notifications form-encoded without an Origin
-  // header, which Astro's default CSRF check rejects. The handlers verify ?token= instead.
+  // Elastic Email posts inbound notifications form-encoded without an Origin header, which
+  // Astro's default CSRF check rejects. The handlers verify the signature or ?token= instead.
   security: { checkOrigin: false },
 });
 ```

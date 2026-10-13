@@ -2,7 +2,7 @@
 
 > Every language-neutral guide and every stack quickstart from the Elastic Email examples repository, in one file.
 > Repository: https://github.com/ElasticEmail/elasticemail-examples. Index: https://github.com/ElasticEmail/elasticemail-examples/blob/main/llms.txt. Use-case to file map: https://github.com/ElasticEmail/elasticemail-examples/blob/main/examples.json.
-> Examples target the Elastic Email REST API v4 with the official SDKs at version 4.2.0.
+> Examples target the Elastic Email REST API v4 with the official SDKs at version 4.3.0.
 
 ---
 
@@ -28,7 +28,7 @@ Each stack folder has its own `QUICKSTART.md` (five minutes to a first send) and
 | [Templates](templates.md) | Hosted templates, merge values, creating a template from code |
 | [Contacts and lists](contacts-and-lists.md) | Lists, contact CRUD, statuses, custom fields |
 | [Double opt-in](double-opt-in.md) | Both confirmation flows the examples implement, and when to pick which |
-| [Webhooks](webhooks.md) | Event notifications, the parameters they carry, and the token scheme |
+| [Webhooks](webhooks.md) | Event notifications, signature verification (HMAC-SHA256), the parameters they carry, and the token fallback |
 | [Inbound email](inbound-email.md) | Inbound routes, MX setup, the parsed fields you receive |
 | [Suppressions](suppressions.md) | Unsubscribes, bounces, complaints |
 | [Domains and deliverability](domains-and-deliverability.md) | SPF, DKIM, MX, DMARC, tracking CNAME |
@@ -55,8 +55,10 @@ credentials rather than the API key. See the [SMTP integrations](../smtp-elastic
 - Server apps expose the same routes with the same JSON shapes, whatever the language:
   `POST /send` takes `{ to, subject, message }` and answers `{ success, transactionId, messageId }`.
 - Failures answer `{ "error": "<message from the API>" }` with the status the API returned.
-- Webhook and inbound endpoints carry a shared secret in the query string (`?token=...`) and compare
-  it in constant time. Elastic Email does not sign its callbacks, so this is the only check available.
+- Webhook endpoints verify the HMAC-SHA256 `X-ElasticEmail-Signature` header when
+  `ELASTICEMAIL_WEBHOOK_SECRET` is set (webhooks created with `EnableSigning: true`). Inbound endpoints,
+  and webhooks created without signing, carry a shared secret in the query string (`?token=...`)
+  compared in constant time. See [Webhooks](webhooks.md).
 - Sends set both an HTML and a plain text body part where it makes sense. Some mail clients and most
   spam filters expect both.
 
@@ -245,6 +247,7 @@ is Go, and C# with `Async` appended.
 |---|---|---|---|---|
 | Create a webhook | `POST /webhook` | `webhookPost` | `webhook_post` | `WebhookPost` |
 | List webhooks | `GET /webhook` | `webhookGet` | `webhook_get` | `WebhookGet` |
+| Rotate a webhook's signing secret | `POST /webhook/{publicid}/secret/rotate` | `webhookByPublicidSecretRotatePost` | `webhook_by_publicid_secret_rotate_post` | `WebhookByPublicidSecretRotatePost` |
 | Delete a webhook | `DELETE /webhook/{publicid}` | `webhookByPublicidDelete` | `webhook_by_publicid_delete` | `WebhookByPublicidDelete` |
 | Create a route | `POST /inboundroute` | `inboundroutePost` | `inboundroute_post` | `InboundroutePost` |
 | List routes | `GET /inboundroute` | `inboundrouteGet` | `inboundroute_get` | `InboundrouteGet` |
@@ -711,7 +714,8 @@ Every stack reads the same set of variables from a `.env` file next to the proje
 | `EMAIL_FROM` | yes | `Acme <hello@yourdomain.com>` | The `From` header on every send. Must belong to a domain verified on the account. |
 | `EMAIL_TO` | yes | `you@yourdomain.com` | Test recipient for the standalone scripts. Elastic Email has no sandbox address, so use one of your own inboxes. |
 | `CONTACT_EMAIL` | no | falls back to `EMAIL_FROM` | Team inbox. The inbound handler forwards parsed mail here; the contact form example sends its notification here. |
-| `ELASTICEMAIL_WEBHOOK_TOKEN` | no | `change_me` | Shared secret appended to webhook and inbound URLs as `?token=`, and the HMAC key for double opt-in confirm links. Change it before exposing anything publicly. |
+| `ELASTICEMAIL_WEBHOOK_SECRET` | no | empty | Signing secret (`whsec_...`) returned once when a webhook is created with `EnableSigning: true`. When set, webhook handlers require a valid `X-ElasticEmail-Signature`; when empty they fall back to `ELASTICEMAIL_WEBHOOK_TOKEN`. See [Webhooks](webhooks.md). |
+| `ELASTICEMAIL_WEBHOOK_TOKEN` | no | `change_me` | Shared secret appended to inbound URLs and unsigned webhook URLs as `?token=`, and the HMAC key for double opt-in confirm links. Change it before exposing anything publicly. |
 | `ELASTICEMAIL_LIST_NAME` | no | `Newsletter` | Contact list used by the contacts and double opt-in examples. Created on first run if missing. |
 | `ELASTICEMAIL_TEMPLATE_NAME` | no | `welcome-example` | Template used by the template example. Created on first run if missing. |
 | `PUBLIC_URL` | no | per stack (see below) | Base URL used to build confirm links and the webhook/inbound URLs that get registered with Elastic Email. Set it to your tunnel URL during local development. |
@@ -796,6 +800,8 @@ The default matches the dev server port, so local links work without editing any
 - A verified sender is not optional. Sending from an unverified domain returns a 4xx from the API,
   not a bounce later. See [Domains and deliverability](domains-and-deliverability.md), or
   [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain) for the dashboard steps.
+- `ELASTICEMAIL_WEBHOOK_SECRET` comes from Elastic Email, not from you: copy it from the webhook create
+  (or rotate) response. Rotating it has no grace period, so update the variable straight away.
 - `ELASTICEMAIL_WEBHOOK_TOKEN` does double duty: URL secret and HMAC key. If you rotate it, confirm
   links already in people's inboxes stop validating.
 - `PUBLIC_URL` is what gets stored inside Elastic Email when a webhook or inbound route is created.
@@ -1029,8 +1035,8 @@ Form-encoded fields, not JSON:
 | `body_html` | HTML body, when the message had one |
 | `att1_name`, `att1_content` | First attachment: file name and base64 content. Then `att2_*`, `att3_*`, and so on. |
 
-The same `?token=` check as [webhooks](webhooks.md) guards the endpoint - inbound requests are
-unsigned too.
+A `?token=` check, the same one unsigned [webhooks](webhooks.md) use, guards the endpoint - inbound
+requests are not signed, unlike webhooks created with `EnableSigning`.
 
 ## Forwarding to a human
 
@@ -1465,12 +1471,18 @@ webhook only if it gets a 2xx response. The URL must be publicly reachable at th
 answers 405 and fails the same way.
 
 **Every event answers 401**
-The `token` query parameter does not match `ELASTICEMAIL_WEBHOOK_TOKEN`. It is compared byte for byte:
-watch for a trailing space or newline in `.env`, and for a value that needed URL-encoding.
+With `ELASTICEMAIL_WEBHOOK_SECRET` set, the signature didn't verify: the secret is from another webhook
+or was rotated, the server clock is more than 5 minutes off, or something changed the body or the path
+before the handler saw it (a JSON body parser, a proxy that re-encodes the URL, a redirect). Also
+check that the webhook was created with `EnableSigning: true` - an unsigned webhook sends no
+signature at all. Without the secret, the `token` query parameter doesn't match
+`ELASTICEMAIL_WEBHOOK_TOKEN`. It is compared byte for byte: watch for a trailing space or newline in
+`.env`, and for a value that needed URL-encoding.
 
 **Events arrive but the body is empty**
-That is expected. Elastic Email sends events as GET requests with everything in the query string, so
-read `status`, `to` and the rest from the query parameters.
+That is expected for a webhook created without `DeliveryMethod: "PostJson"`: it sends events as GET
+requests with everything in the query string, so read `status`, `to` and the rest from the query
+parameters. `PostJson` webhooks send a JSON body.
 
 **Inbound email arrives but the body is empty**
 Inbound email is a form-encoded POST, not JSON. Mount the urlencoded body parser
@@ -1571,8 +1583,109 @@ opens, clicks, bounces and complaints without polling.
 
 ## The thing to know first
 
-**Elastic Email does not sign webhook requests.** There is no signature header to verify. Every
-example therefore puts a shared secret in the URL and checks it:
+**Signing is opt-in, and it is chosen when the webhook is created.** A webhook created with
+`EnableSigning: true` signs every request with HMAC-SHA256, using a secret that Elastic Email returns
+**once**, in the create response. With `DeliveryMethod: "PostJson"` events arrive as a `POST` with a
+JSON body instead of a `GET` with a query string. Neither option can be switched on or off later.
+
+A webhook created without them, including every webhook created before signing existed, sends
+**unsigned `GET`** requests. Those can only be protected with a shared secret in the URL.
+
+Every handler in this repository supports both:
+
+| `ELASTICEMAIL_WEBHOOK_SECRET` | What the handler does |
+|---|---|
+| set (recommended) | Requires a valid `X-ElasticEmail-Signature`, reads the event from the JSON body (`POST`) or the query string (`GET`), answers 401 otherwise |
+| empty | Falls back to the `?token=<ELASTICEMAIL_WEBHOOK_TOKEN>` check, for unsigned webhooks |
+
+## Registering one
+
+```typescript
+import { WebhookApi, WebhookDeliveryMethod } from "@elasticemail/elasticemail-client-ts-axios";
+
+const { data } = await webhookApi.webhookPost({
+  Name: "examples-webhook",
+  URL: `${publicUrl}/webhook`,
+  NotifyOncePerEmail: false,
+  NotificationForSent: true,
+  NotificationForOpened: true,
+  NotificationForClicked: true,
+  NotificationForUnsubscribed: true,
+  NotificationForAbuseReport: true,
+  NotificationForError: true,
+  EnableSigning: true,
+  DeliveryMethod: WebhookDeliveryMethod.PostJson,
+});
+// data.WebhookID, and data.SigningSecret - shown only now: store it as ELASTICEMAIL_WEBHOOK_SECRET
+```
+
+`webhookGet(limit, offset)` lists webhooks, `webhookByPublicidSecretRotatePost(id)` replaces the
+secret (and returns the new one, only in that response), `webhookByPublicidDelete(id)` removes one.
+The SDK method names in every language are in [api-map.md](api-map.md). Signing needs the SDKs at
+4.3.0 or later.
+
+For an unsigned webhook, leave out `EnableSigning` and `DeliveryMethod` and put the token in the URL:
+`${publicUrl}/webhook?token=${encodeURIComponent(token)}`.
+
+## Verifying a signed request
+
+Signed requests carry three headers:
+
+| Header | Value |
+|---|---|
+| `X-ElasticEmail-Timestamp` | Unix time in seconds when the request was sent |
+| `X-ElasticEmail-Signature` | `v1=<lowercase hex>`. Treat it as a comma-separated list and accept the request if any `v1=` entry matches. |
+| `X-ElasticEmail-Webhook-Id` | The webhook's ID, to pick the right secret when several webhooks share an endpoint |
+
+The signature is computed over four parts joined by a line feed:
+
+```
+signature = hex(HMAC-SHA256(key = secret, message = "{timestamp}\n{METHOD}\n{request target}\n{raw body}"))
+```
+
+- `request target` is the path and query string **exactly as received**, still URL-encoded
+  (`req.originalUrl` in Express, `RAW_URI`/`REQUEST_URI` in Python and PHP, `r.RequestURI` in Go,
+  `pathname + search` of the request URL in Fetch-API runtimes).
+- `raw body` is the body bytes **before** any JSON parsing. A `GET` has an empty body.
+
+```typescript
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+const verifySignature = (headers: Record<string, string | undefined>, method: string,
+                         target: string, rawBody: string, secret: string): boolean => {
+  const timestamp = Number(headers["x-elasticemail-timestamp"]);
+  if (!Number.isInteger(timestamp) || Math.abs(Date.now() / 1000 - timestamp) > 300) return false;
+
+  const expected = Buffer.from(
+    createHmac("sha256", secret).update(`${timestamp}\n${method}\n${target}\n${rawBody}`).digest("hex"));
+
+  return (headers["x-elasticemail-signature"] ?? "").split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith("v1="))
+    .some((part) => {
+      const received = Buffer.from(part.slice(3));
+      return received.length === expected.length && timingSafeEqual(received, expected);
+    });
+};
+```
+
+Rules:
+
+1. Read the raw body before parsing it. Parsing and re-serializing changes the bytes.
+2. Reject timestamps more than 5 minutes away from your clock. Every retry is signed again with a
+   fresh timestamp, so retried events still pass.
+3. Compare in constant time, return 401 on a mismatch. Elastic Email retries for up to 24 hours, so
+   nothing is lost while you fix a wrong secret.
+4. Signed and `POST` webhooks don't follow redirects: register the final URL.
+
+Test vectors (secret `whsec_test_secret`, timestamp `1790000000`):
+
+| Method | Target | Body | Signature |
+|---|---|---|---|
+| `POST` | `/webhook?v=2` | `{"status":"Sent","to":"ann@example.com"}` | `9e2169fcd0a96f634795bb9eac9c985574a7dcf9741b4c863cb4a75bdea3b465` |
+| `GET` | `/webhook?status=Sent&to=ann%40example.com` | (empty) | `e1d554a00233bcf7b00d296348cd3f4390fdd578fe606789b3067b0487442b52` |
+
+## Protecting an unsigned webhook
 
 ```
 https://your-app.example.com/webhook?token=<ELASTICEMAIL_WEBHOOK_TOKEN>
@@ -1587,52 +1700,31 @@ const tokenOk = (token: unknown): boolean => {
 ```
 
 Constant-time comparison, 401 on mismatch. The URL carries a secret, so it belongs in secret storage
-and not in a shared log or a screenshot.
+and not in a shared log or a screenshot. To move an unsigned webhook to signing, create a new signed
+webhook on a different URL (for example `/webhook?v=2`), deploy verification, then delete the old one.
 
-## Registering one
+## Rotating the secret
 
-```typescript
-const { data } = await webhookApi.webhookPost({
-  Name: "examples-webhook",
-  URL: `${publicUrl}/webhook?token=${encodeURIComponent(token)}`,
-  NotifyOncePerEmail: false,
-  NotificationForSent: true,
-  NotificationForOpened: true,
-  NotificationForClicked: true,
-  NotificationForUnsubscribed: true,
-  NotificationForAbuseReport: true,
-  NotificationForError: true,
-});
-// data.WebhookID
-```
+`POST /webhook/{id}/secret/rotate` returns a new `SigningSecret`. There is no grace period: within
+about a minute only the new secret is used. Update `ELASTICEMAIL_WEBHOOK_SECRET` straight away; events
+your endpoint rejects in the meantime are retried and signed with the new secret.
 
-`webhookGet(limit, offset)` lists them, `webhookByPublicidDelete(id)` removes one.
+## The test event on save
 
-**Saving a webhook sends a test event.** As soon as you save, Elastic Email calls the URL once and
-keeps the webhook only if the response is 2xx. If your endpoint is not reachable at that moment, the
-save fails.
+**Creating a webhook (or changing its URL) sends a test event**, using the webhook's method and
+signing. The webhook is kept only if the response is accepted:
 
-The test event looks like a real one, with sample values:
+- unsigned webhook: a 2xx;
+- signed webhook, **created**: a 2xx, 401 or 403 - your endpoint can't know the brand-new secret yet;
+- signed webhook, **URL changed**: a 2xx only.
 
-```
-?token=...&transaction=<random id>&to=test@test.com&from=fromTest@test.com&account=account@test.com
- &status=opened&channel=testchannel&category=sent&subject=test&messageid=abc1234
-```
-
-Your `token` is included because it is part of the URL you registered, so the token check passes.
-The handlers in this repository accept the test event and log it. In your own app, skip it before it
-reaches your database, for example by ignoring events where `messageid` is `abc1234`.
+The test event carries sample values (`to=test@test.com`, `messageid=abc1234`, `status=opened` in
+lowercase). The handlers in this repository accept it and log it. In your own app, skip it before it
+reaches your database.
 
 ## What arrives
 
-Every event is a GET request with the details in the query string. There is no request body. The
-handlers also merge in form fields, so a test POST from curl works too:
-
-```typescript
-const event = { ...req.query, ...(req.body ?? {}) };
-```
-
-| Parameter | Meaning |
+| Field | Meaning |
 |---|---|
 | `status` | `Sent`, `Opened`, `Clicked`, `Error`, `AbuseReport`, `Unsubscribed` |
 | `to` | Recipient address |
@@ -1646,7 +1738,11 @@ const event = { ...req.query, ...(req.body ?? {}) };
 | `postback` | The `Postback` value you set on the send, if any |
 | `ip`, `useragent`, `country`, `state`, `city` | Where the open or click came from |
 
-All parameter names are lowercase. Values are case-sensitive where they matter: a real event has
+A `Get` webhook sends these as query parameters. A `PostJson` webhook sends the same names in a flat
+JSON object (`Content-Type: application/json`); there, `to`, `from`, `channel`, `subject` and
+`messageid` are `null` when empty, and any query string you put in the webhook URL is kept as is.
+
+All field names are lowercase. Values are case-sensitive where they matter: a real event has
 `status=Opened`, while the save-time test event has `status=opened`.
 
 ## Handling the events
@@ -1677,8 +1773,9 @@ What each one is worth in practice:
   and duplicates.
 - **Expect duplicates.** `NotifyOncePerEmail: false` means several events per message, and retries
   can repeat one. Key your processing on `messageid` plus `status`.
-- **Never log raw event values.** They are attacker-controlled. The examples strip `\r` and `\n`
-  with `sanitize()` before anything reaches a log line.
+- **Never log raw event values.** They are attacker-controlled, even on a signed webhook: the
+  signature proves who sent the request, not that `to` or `target` are safe. The examples strip `\r`
+  and `\n` with `sanitize()` before anything reaches a log line.
 - **Do not assume ordering.** `Opened` can arrive before `Sent` finishes processing on your side.
 
 ## Local development
@@ -1690,31 +1787,42 @@ ngrok http 3000
 # set PUBLIC_URL to the https URL ngrok prints, restart the app, then create the webhook
 ```
 
-Simulate an event without waiting for a real one:
+Simulate an event against an unsigned handler (`ELASTICEMAIL_WEBHOOK_SECRET` empty):
 
 ```bash
 curl "http://localhost:3000/webhook?token=change_me&status=Sent&to=you@yourdomain.com&transaction=abc&messageid=xyz"
+```
 
-curl "http://localhost:3000/webhook?token=change_me&status=Clicked&to=you@yourdomain.com&target=https%3A%2F%2Fexample.com%2Fpricing"
+Simulate a signed `POST` (with `ELASTICEMAIL_WEBHOOK_SECRET=whsec_test_secret`):
+
+```bash
+BODY='{"status":"Sent","to":"you@yourdomain.com","transaction":"abc","messageid":"xyz"}'
+TS=$(date +%s)
+SIG=$(printf '%s\n%s\n%s\n%s' "$TS" POST /webhook "$BODY" | openssl dgst -sha256 -hmac whsec_test_secret -hex | sed 's/^.* //')
+curl -X POST http://localhost:3000/webhook -H 'Content-Type: application/json' \
+  -H "X-ElasticEmail-Timestamp: $TS" -H "X-ElasticEmail-Signature: v1=$SIG" -d "$BODY"
 ```
 
 ## Framework-specific traps
 
 | Stack | Trap |
 |---|---|
+| All | Signature verification needs the **raw** body and the **raw** path + query. Global JSON body parsers and URL rewriting break it; the examples keep the raw body for the webhook route. |
 | SvelteKit | The built-in CSRF check rejects form posts without an `Origin` header before the handler runs. Inbound email arrives as exactly that kind of post. `kit.csrf.checkOrigin` is set to `false` in `svelte.config.js` for this reason. |
-| Express | Needs `express.urlencoded()` mounted, or inbound email's form fields never appear in `req.body`. The examples raise its limit to `25mb` for inbound mail. |
-| Fastify | Does not parse form bodies by default. The examples register `@fastify/formbody` and raise `bodyLimit` to 25 MB for inbound mail. |
-| NestJS | POST handlers answer 201 by default; the controllers set `@HttpCode(200)`. The token check is a Guard. |
-| Node.js (`node:http`) | There is no body parser. The example reads the stream, parses forms with `URLSearchParams`, and caps the body at 25 MB. It also merges the query string into the event, because events arrive as GET. |
+| Express | `express.json()` keeps a copy of the raw body for signature checks. `express.urlencoded()` is mounted for inbound email, with its limit raised to `25mb`. |
+| Fastify | Does not parse form bodies by default. The examples register `@fastify/formbody` and raise `bodyLimit` to 25 MB for inbound mail, and keep the raw JSON body for the webhook route. |
+| NestJS | POST handlers answer 201 by default; the controllers set `@HttpCode(200)`. The app is created with `rawBody: true` so the guard can verify signatures. |
+| Node.js (`node:http`) | There is no body parser. The example reads the stream (capped at 25 MB) and verifies against those bytes. For `Get` webhooks it merges the query string into the event. |
 | Supabase Edge Functions | Set `verify_jwt = false` for the webhook function - Elastic Email sends no JWT. |
 | RedwoodJS | Functions receive an API Gateway style event; form bodies are parsed with `URLSearchParams`. |
-| Next.js, Remix, Astro, Nuxt, TanStack | A route that only exports `POST` answers 405 to Elastic Email's GET, and saving the webhook fails. The handlers export both GET and POST. |
+| Next.js, Remix, Astro, Nuxt, TanStack | Read the body with `await request.text()` before parsing. For unsigned `Get` webhooks, a route that only exports `POST` answers 405 and saving the webhook fails, so the handlers export both GET and POST. |
 
 ## In this repository
 
-- `webhooks` in every stack creates, lists and deletes a webhook.
-- The server apps expose `GET|POST /webhook?token=...` with the full event switch.
+- `webhooks` in every stack creates a signed `PostJson` webhook, prints its secret, lists webhooks,
+  rotates the secret and deletes the webhook.
+- The server apps expose `GET|POST /webhook` with signature verification (or the `?token=` fallback)
+  and the full event switch.
 - `double-optin-webhook` shows a handler that acts on one specific event type.
 
 ---
@@ -1998,7 +2106,7 @@ php src/send/batch.php             # one call, personalized per recipient
 php src/attachments/send.php       # base64 file attachment
 php src/attachments/send_cid.php   # inline image via cid:
 php src/templates/send.php         # hosted template + merge values
-php src/webhooks/manage.php        # create, list, delete a webhook
+php src/webhooks/manage.php        # create a signed webhook, rotate its secret, delete it
 ```
 
 | Do this | Read |
@@ -2143,7 +2251,7 @@ php artisan email:send-test you@yourdomain.com --name="Ann"
 | `POST /api/send/template` | Hosted template, created on first use |
 | `POST /api/send/batch` | Bulk send with per-recipient merge fields |
 | `POST /api/contact` | Contact form: confirmation to the visitor, notification to the team |
-| `GET|POST /api/webhook?token=` | Event notifications |
+| `GET|POST /api/webhook` | Event notifications (signed with `ELASTICEMAIL_WEBHOOK_SECRET`, or `?token=` for unsigned webhooks) |
 | `POST /api/inbound?token=` | Inbound mail, forwarded to `CONTACT_EMAIL` |
 | `/api/contacts`, `/api/domains`, `/api/double-optin/*` | Full CRUD, see the README |
 
@@ -2298,7 +2406,7 @@ python examples/batch_send.py            # one call, personalized per recipient
 python examples/with_attachments.py      # base64 file attachment
 python examples/with_cid_attachments.py  # inline image via cid:
 python examples/with_template.py         # hosted template + merge values
-python examples/webhooks.py              # create, list, delete a webhook
+python examples/webhooks.py              # create a signed webhook, rotate its secret, delete it
 ```
 
 | Do this | Read |
@@ -2441,7 +2549,7 @@ ruby examples/batch_send.rb            # one call, personalized per recipient
 ruby examples/with_attachments.rb      # base64 file attachment
 ruby examples/with_cid_attachments.rb  # inline image via cid:
 ruby examples/with_template.rb         # hosted template + merge values
-ruby examples/webhooks.rb              # create, list, delete a webhook
+ruby examples/webhooks.rb              # create a signed webhook, list, rotate secret, delete
 ```
 
 | Do this | Read |
@@ -2613,7 +2721,7 @@ go run ./examples/batch_send/             # one call, personalized per recipient
 go run ./examples/with_attachments/       # base64 file attachment
 go run ./examples/with_cid_attachments/   # inline image via cid:
 go run ./examples/with_template/          # hosted template + merge values
-go run ./examples/webhooks/               # create, list, delete a webhook
+go run ./examples/webhooks/               # create a signed webhook, list, rotate secret, delete
 ```
 
 | Do this | Read |
@@ -2926,7 +3034,7 @@ dotnet run -- batch-send             # one call, personalized per recipient
 dotnet run -- with-attachments       # base64 file attachment
 dotnet run -- with-cid-attachments   # inline image via cid:
 dotnet run -- with-template          # hosted template + merge values
-dotnet run -- webhooks               # create, list, delete a webhook
+dotnet run -- webhooks               # create a signed webhook, list, rotate secret, delete
 dotnet run -- email-status <transactionId>
 ```
 
@@ -3209,7 +3317,7 @@ cargo run --example basic_send
 ```
 
 `src/lib.rs` holds the shared helpers: `config()`, `from()`, `to()`, `print_api_error()`,
-`api_error_message()`, plus `token_ok()` and `hmac_hex()` for the webhook and double opt-in examples.
+`api_error_message()`, plus `read_webhook()`/`verify_signature()`, `token_ok()` and `hmac_hex()` for the webhook and double opt-in examples.
 
 ## 6. Or run the Axum app
 
@@ -3249,7 +3357,7 @@ cargo run --example batch_send            # one call, personalized per recipient
 cargo run --example with_attachments      # base64 file attachment
 cargo run --example with_cid_attachments  # inline image via cid:
 cargo run --example with_template         # hosted template + merge values
-cargo run --example webhooks              # create, list, delete a webhook
+cargo run --example webhooks              # create a signed webhook, list, rotate secret, delete
 cargo run --example email_status -- <transactionId>
 ```
 
@@ -3374,7 +3482,8 @@ mix run examples/basic_send.exs
 ```
 
 `lib/elastic_email.ex` adds `get/2`, `post/3`, `put/2`, `patch/2`, `delete/1`, `path_segment/1` for
-encoding emails and list names into URLs, and `format_error/1`.
+encoding emails and list names into URLs, and `format_error/1`. `lib/elastic_email/webhook.ex`
+verifies signed webhook requests.
 
 ## 6. Or run the Phoenix app
 
@@ -3403,7 +3512,7 @@ mix run examples/batch_send.exs            # one call, personalized per recipien
 mix run examples/with_attachments.exs      # base64 file attachment
 mix run examples/with_cid_attachments.exs  # inline image via cid:
 mix run examples/with_template.exs         # hosted template + merge values
-mix run examples/webhooks.exs              # create, list, delete a webhook
+mix run examples/webhooks.exs              # create a signed webhook, list, rotate secret, delete
 ```
 
 Because there is no SDK in the way, the [API map](../docs/api-map.md) doubles as your reference: every
@@ -3530,7 +3639,8 @@ and path, and `/send` looks like this:
 ```typescript
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
-  const body = req.method === "GET" ? {} : await readBody(req); // JSON or form-encoded
+  const rawBody = req.method === "GET" ? "" : await readRawBody(req); // kept for webhook signatures
+  const body = parseBody(rawBody, req.headers["content-type"]); // JSON or form-encoded
 
   switch (`${req.method} ${url.pathname}`) {
     case "GET /health":
@@ -3568,7 +3678,7 @@ npx tsx examples/batch-send.ts            # one call, personalized per recipient
 npx tsx examples/with-attachments.ts      # base64 file attachment
 npx tsx examples/with-template.ts         # hosted template + merge values
 npx tsx examples/scheduled-send.ts        # delayed delivery
-npx tsx examples/webhooks.ts              # create, list, delete a webhook
+npx tsx examples/webhooks.ts              # signed webhook: create, list, rotate secret, delete
 ```
 
 | Do this | Read |
@@ -3717,7 +3827,7 @@ npx tsx examples/batch-send.ts            # one call, personalized per recipient
 npx tsx examples/with-attachments.ts      # base64 file attachment
 npx tsx examples/with-template.ts         # hosted template + merge values
 npx tsx examples/scheduled-send.ts        # delayed delivery
-npx tsx examples/webhooks.ts              # create, list, delete a webhook
+npx tsx examples/webhooks.ts              # create a signed webhook, list, rotate secret, delete
 ```
 
 | Do this | Read |
@@ -3868,7 +3978,7 @@ npx tsx examples/batch-send.ts            # one call, personalized per recipient
 npx tsx examples/with-attachments.ts      # base64 file attachment
 npx tsx examples/with-template.ts         # hosted template + merge values
 npx tsx examples/scheduled-send.ts        # delayed delivery
-npx tsx examples/webhooks.ts              # create, list, delete a webhook
+npx tsx examples/webhooks.ts              # signed webhook: create, list, rotate secret, delete
 ```
 
 | Do this | Read |
@@ -4019,7 +4129,7 @@ npx tsx examples/batch-send.ts            # one call, personalized per recipient
 npx tsx examples/with-attachments.ts      # base64 file attachment
 npx tsx examples/with-template.ts         # hosted template + merge values
 npx tsx examples/scheduled-send.ts        # delayed delivery
-npx tsx examples/webhooks.ts              # create, list, delete a webhook
+npx tsx examples/webhooks.ts              # signed webhook: create, list, rotate secret, delete
 ```
 
 | Do this | Read |
@@ -4279,7 +4389,7 @@ curl -X POST http://localhost:3000/send \
 bun run examples/batch-send.ts        # one call, personalized per recipient
 bun run examples/with-attachments.ts  # base64 file attachment
 bun run examples/with-template.ts     # hosted template + merge values
-bun run examples/webhooks.ts          # create, list, delete a webhook
+bun run examples/webhooks.ts          # signed webhook: create, list, rotate secret, delete
 ```
 
 | Do this | Read |
@@ -4659,7 +4769,7 @@ http://localhost:5173 has a page per feature, each calling one of the `+server` 
 
 ## One SvelteKit-specific setting
 
-Elastic Email posts webhooks form-encoded and without an `Origin` header. SvelteKit's built-in CSRF
+Elastic Email posts inbound email (and unsigned webhooks) form-encoded and without an `Origin` header. SvelteKit's built-in CSRF
 check would answer 403 before the handler runs, so `kit.csrf.checkOrigin` is set to `false` in
 `svelte.config.js`. Turn it back on if you add form actions that need it, and exempt the webhook
 routes instead.
@@ -4730,8 +4840,8 @@ import node from "@astrojs/node";
 export default defineConfig({
   output: "server",
   adapter: node({ mode: "standalone" }),
-  // Elastic Email posts webhook and inbound notifications form-encoded without an Origin
-  // header, which Astro's default CSRF check rejects. The handlers verify ?token= instead.
+  // Elastic Email posts inbound notifications form-encoded without an Origin header, which
+  // Astro's default CSRF check rejects. The handlers verify the signature or ?token= instead.
   security: { checkOrigin: false },
 });
 ```
@@ -4921,8 +5031,10 @@ export const handler = async (event: APIGatewayEvent) => {
 };
 ```
 
-Webhook and inbound notifications arrive form-encoded, not as JSON; `api/src/lib/elasticemail.ts`
-parses those with `URLSearchParams`.
+Signed webhooks (created with `EnableSigning` and `DeliveryMethod: PostJson`) arrive as JSON with an
+`X-ElasticEmail-Signature` header that `readWebhook` in `api/src/lib/elasticemail.ts` verifies against
+`ELASTICEMAIL_WEBHOOK_SECRET`. Inbound notifications and unsigned webhooks arrive form-encoded or in the
+query string and are parsed with `URLSearchParams`.
 
 ## 6. Run it
 
@@ -4947,8 +5059,8 @@ curl -X POST http://localhost:8910/.redwood/functions/send \
 
 http://localhost:8910 has a page per feature, each posting to one of the functions.
 
-When you register a webhook or inbound route, the URL is
-`PUBLIC_URL/.redwood/functions/webhook?token=...` - note the `.redwood/functions` prefix.
+When you register a webhook or inbound route, the URL is `PUBLIC_URL/.redwood/functions/webhook`
+(signed webhooks) or `PUBLIC_URL/.redwood/functions/inbound?token=...` - note the `.redwood/functions` prefix.
 
 ## Next steps
 
@@ -5103,7 +5215,7 @@ here is a standalone project with the same three endpoints:
 
 - `GET /health` -> `{ status: "ok" }`
 - `POST /send` with `{ to, subject, message }` -> `{ success, transactionId, messageId }`
-- `GET|POST /webhook?token=...` -> Elastic Email event handler
+- `POST|GET /webhook` -> Elastic Email event handler (signed requests, or `?token=` for unsigned webhooks)
 
 ## Prerequisites
 
@@ -5289,6 +5401,7 @@ cp .secret.local.example .secret.local
 firebase login && firebase use --add
 firebase functions:secrets:set ELASTICEMAIL_API_KEY
 firebase functions:secrets:set ELASTICEMAIL_WEBHOOK_TOKEN
+firebase functions:secrets:set ELASTICEMAIL_WEBHOOK_SECRET   # "none" until you create a signed webhook
 
 npm run serve    # http://127.0.0.1:5001/demo-elasticemail/us-central1/api
 npm run deploy
@@ -5313,7 +5426,8 @@ npm run build && func azure functionapp publish <app-name>
 
 Node.js v4 programming model: functions register with `app.http(...)`, no `function.json`. `host.json`
 clears the default `/api` route prefix so the paths match the other platforms. Once deployed, `/send`
-requires the function key (`x-functions-key` header); the webhook stays anonymous behind its `?token=`.
+requires the function key (`x-functions-key` header); the webhook stays anonymous behind its signature
+(or `?token=`) check.
 
 ### Google Cloud Run
 
@@ -5359,30 +5473,57 @@ curl -X POST $URL/send \
   -H "Content-Type: application/json" \
   -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Hi from the edge!"}'
 
-# Simulate an event the way Elastic Email sends it: form-encoded
-curl -X POST "$URL/webhook?token=change_me" \
-  -d "status=Sent&to=you@yourdomain.com&transaction=abc&messageid=xyz"
+# Simulate an unsigned event (ELASTICEMAIL_WEBHOOK_SECRET empty, ?token= check)
+curl "$URL/webhook?token=change_me&status=Sent&to=you%40yourdomain.com&transaction=abc&messageid=xyz"
+```
+
+With `ELASTICEMAIL_WEBHOOK_SECRET` set, sign the request the way Elastic Email does:
+
+```bash
+SECRET=whsec_...   # your ELASTICEMAIL_WEBHOOK_SECRET
+TS=$(date +%s)
+BODY='{"status":"Sent","to":"you@yourdomain.com","transaction":"abc","messageid":"xyz"}'
+SIG=$(printf '%s\nPOST\n/webhook\n%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$SECRET" -r | cut -d' ' -f1)
+curl -X POST "$URL/webhook" -H "Content-Type: application/json" \
+  -H "X-ElasticEmail-Timestamp: $TS" -H "X-ElasticEmail-Signature: v1=$SIG" -d "$BODY"
 ```
 
 ## 6. Register the webhook
 
-Once deployed you have a public HTTPS URL, which is all a webhook needs:
+Once deployed you have a public HTTPS URL, which is all a webhook needs. Create it signed, with JSON
+POST delivery (both settings are fixed at creation):
 
 ```typescript
-await new WebhookApi(config).webhookPost({
+import { WebhookApi, WebhookDeliveryMethod } from "@elasticemail/elasticemail-client-ts-axios";
+
+const { data } = await new WebhookApi(config).webhookPost({
   Name: "serverless-example",
-  URL: `https://<your-deployment>/webhook?token=${process.env.ELASTICEMAIL_WEBHOOK_TOKEN}`,
+  URL: "https://<your-deployment>/webhook",
+  EnableSigning: true,
+  DeliveryMethod: WebhookDeliveryMethod.PostJson,
   NotificationForSent: true,
   NotificationForOpened: true,
   NotificationForClicked: true,
   NotificationForError: true,
 });
+console.log("Store as ELASTICEMAIL_WEBHOOK_SECRET (shown only once):", data.SigningSecret);
 ```
 
-When you save a webhook, Elastic Email sends one test event to the URL and saves the webhook only
-if it gets a 2xx response, so deploy before registering. The test event carries sample values
-(`to=test@test.com`, `messageid=abc1234`). The handlers accept it like any other event; in your own
-app, skip it before it reaches your data.
+`SigningSecret` (`whsec_...`) is returned only in this response. Set it as `ELASTICEMAIL_WEBHOOK_SECRET` the
+same way you set the API key on your platform (`ElasticEmailWebhookSecret` on Encore) and redeploy. From then on
+the handler accepts only requests with a valid `X-ElasticEmail-Signature` and answers 401 to anything else.
+If you lose the secret, `webhookByPublicidSecretRotatePost(publicId)` issues a new one; the old one stops
+working immediately.
+
+When you create the webhook, Elastic Email sends one test event. For a signed webhook it arrives before your
+function knows the secret and gets a 401, which Elastic Email accepts for that test, so the create call still
+succeeds. Signed and POST webhooks do not follow redirects, so register the final URL.
+
+Unsigned webhooks still work: leave `ELASTICEMAIL_WEBHOOK_SECRET` empty, register
+`https://<your-deployment>/webhook?token=<ELASTICEMAIL_WEBHOOK_TOKEN>`, and the handler checks the token
+instead. An unsigned webhook is saved only if its test event gets a 2xx, so deploy before registering. The
+test event carries sample values (`to=test@test.com`, `messageid=abc1234`); in your own app, skip it before
+it reaches your data.
 
 ## Next steps
 

@@ -4,6 +4,7 @@ import com.elasticemail.api.ContactsApi
 import com.elasticemail.api.EmailsApi
 import com.elasticemail.api.ListsApi
 import com.elasticemail.client.ApiException
+import com.elasticemail.examples.Ee
 import com.elasticemail.client.Configuration
 import com.elasticemail.client.auth.ApiKeyAuth
 import com.elasticemail.model.BodyContentType
@@ -27,8 +28,10 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.contentType
+import io.ktor.server.request.httpMethod
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
+import io.ktor.server.request.uri
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.get
@@ -54,6 +57,7 @@ private val contactEmail = env("CONTACT_EMAIL", from)
 private val listName = env("ELASTICEMAIL_LIST_NAME", "Newsletter")
 private val publicUrl = env("PUBLIC_URL", "http://localhost:3000")
 private val secret = env("ELASTICEMAIL_WEBHOOK_TOKEN", "change_me")
+private val webhookSecret = env("ELASTICEMAIL_WEBHOOK_SECRET", "")
 private val confirmRedirectUrl = env("CONFIRM_REDIRECT_URL")
 
 private lateinit var emailsApi: EmailsApi
@@ -132,17 +136,14 @@ private suspend fun send(call: ApplicationCall) {
     }
 }
 
-// Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-// form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-// channel, target (clicked URL), IP, Useragent, Country, City.
-// Elastic Email sends a GET to validate the URL when the webhook is saved.
+// Elastic Email event notifications. Fields: transaction, messageid, to, from, subject, date,
+// status, category, channel, target (clicked URL), ip, useragent, country, city.
+// Signed webhooks (EnableSigning + DeliveryMethod PostJson, recommended) POST them as a JSON
+// body and are verified with ELASTICEMAIL_WEBHOOK_SECRET. Unsigned webhooks send a GET with the
+// fields in the query string and are checked with ?token=ELASTICEMAIL_WEBHOOK_TOKEN instead.
+// Elastic Email sends a test request when the webhook is saved.
 private suspend fun webhook(call: ApplicationCall) {
-    if (!tokenOk(call.request.queryParameters["token"])) {
-        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
-        return
-    }
-
-    val event = params(call)
+    val event = readWebhook(call) ?: return
     val status = sanitize(event["status"])
 
     if (status.isEmpty()) {
@@ -155,7 +156,7 @@ private suspend fun webhook(call: ApplicationCall) {
 
     when (status) {
         "Sent" -> println("Email sent, message id: ${sanitize(event["messageid"])}")
-        "Opened" -> println("Email opened from ${sanitize(event["Country"])} ${sanitize(event["City"])}")
+        "Opened" -> println("Email opened from ${sanitize(event["country"])} ${sanitize(event["city"])}")
         "Clicked" -> println("Link clicked: ${sanitize(event["target"])}")
         "Error" -> println("Bounce/error, category: ${sanitize(event["category"])}")
         "AbuseReport" -> println("Complaint received")
@@ -298,12 +299,7 @@ private suspend fun doubleOptinConfirm(call: ApplicationCall) {
 
 // Click-tracking based confirmation: create a webhook for Clicked events pointing here.
 private suspend fun doubleOptinWebhook(call: ApplicationCall) {
-    if (!tokenOk(call.request.queryParameters["token"])) {
-        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
-        return
-    }
-
-    val event = params(call)
+    val event = readWebhook(call) ?: return
     val status = sanitize(event["status"])
     val target = event["target"].orEmpty()
     val to = sanitize(event["to"])
@@ -328,7 +324,24 @@ private suspend fun jsonBody(call: ApplicationCall): Map<String, String?> = try 
     emptyMap()
 }
 
-/** Query string parameters first, form fields override (Elastic Email posts form-encoded). */
+/**
+ * Verifies an event notification (signature with ELASTICEMAIL_WEBHOOK_SECRET, otherwise ?token=)
+ * and returns its fields, or answers the error and returns null. The signature covers the raw
+ * request target (call.request.uri is the path and query as sent, still URL-encoded) and the raw
+ * body bytes, received before anything parses them.
+ */
+private suspend fun readWebhook(call: ApplicationCall): Map<String, String>? {
+    val body = call.receive<ByteArray>()
+    val webhook = Ee.readWebhook(
+        webhookSecret, secret, call.request.httpMethod.value, call.request.uri, { call.request.headers[it] }, body,
+    )
+    if (webhook.event == null) {
+        call.respond(HttpStatusCode.fromValue(webhook.status), mapOf("error" to webhook.error))
+    }
+    return webhook.event
+}
+
+/** Query string parameters first, form fields override (inbound posts form-encoded). */
 private suspend fun params(call: ApplicationCall): Map<String, String> {
     val merged = mutableMapOf<String, String>()
     call.request.queryParameters.forEach { k, v -> merged[k] = v.firstOrNull().orEmpty() }

@@ -4,7 +4,7 @@ A containerised Hono server on Node.js 20 that sends transactional email through
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20 (container) · Google Cloud Run
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20 (container) · Google Cloud Run
 
 ## Prerequisites
 
@@ -42,6 +42,14 @@ for s in elasticemail-api-key elasticemail-webhook-token; do
     --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
     --role=roles/secretmanager.secretAccessor
 done
+```
+
+`ELASTICEMAIL_WEBHOOK_SECRET` is the `SigningSecret` (`whsec_...`) returned once when you create the webhook with `EnableSigning: true` and `DeliveryMethod: PostJson` (see [Webhooks](../README.md#webhooks)). Set it after creating the webhook; while it is empty, `/webhook` falls back to the `?token=` check (`ELASTICEMAIL_WEBHOOK_TOKEN`) for unsigned webhooks. After creating the signed webhook, store it the same way and attach it to the service (grant the service account access to it as above):
+
+```bash
+printf '%s' 'whsec_...' | gcloud secrets create elasticemail-webhook-secret --data-file=-
+gcloud run services update elasticemail-example --region europe-west1 \
+  --update-secrets ELASTICEMAIL_WEBHOOK_SECRET=elasticemail-webhook-secret:latest
 ```
 
 `--set-secrets` on deploy maps each secret to an environment variable, so the code reads `process.env.ELASTICEMAIL_API_KEY` like any other Node app. `EMAIL_FROM` is not secret and goes in `--set-env-vars`.
@@ -83,14 +91,17 @@ curl -X POST "$URL/webhook?token=change_me" \
   -d "status=Sent&to=you@yourdomain.com&transaction=abc&messageid=xyz"
 ```
 
+That last request only works while `ELASTICEMAIL_WEBHOOK_SECRET` is empty. With a signing secret set, send a signed request as shown in [Webhooks](../README.md#webhooks).
+
 Logs: `gcloud run services logs read elasticemail-example --region europe-west1`, or Logs Explorer in the console.
 
 ## Notes on runtime quirks
 
-- Full Node.js in a container, so the SDK uses its default axios adapter and `node:crypto` is available for the constant-time token compare.
+- Full Node.js in a container, so the SDK uses its default axios adapter and `node:crypto` is available for the HMAC signature check and the constant-time token compare.
+- The webhook reads the raw body with `await c.req.text()` before parsing JSON, and takes the signed request target from `c.env.incoming.url` (Node's `IncomingMessage.url`, the path + query exactly as on the request line). The app is typed `new Hono<{ Bindings: HttpBindings }>()` so `c.env.incoming` is available.
 - Cloud Run sets `PORT` (8080 unless you change it). The server binds `0.0.0.0:$PORT`; binding to `localhost` makes the revision fail its startup check.
 - Use `/health`, not `/healthz`. Cloud Run's frontend reserves some paths ending in `z`, and requests to them never reach the container.
-- `--allow-unauthenticated` is required for the webhook: Elastic Email calls it without Google credentials, and the save-time test event must get a 2xx or the webhook is not saved. The `?token=` check is what protects it. It also leaves `/send` open to anyone with the URL, so add your own auth before using this in production, or deploy the send path as a separate service without `--allow-unauthenticated`.
+- `--allow-unauthenticated` is required for the webhook: Elastic Email calls it without Google credentials. The signature check (or, for unsigned webhooks, the `?token=` check) is what protects it. It also leaves `/send` open to anyone with the URL, so add your own auth before using this in production, or deploy the send path as a separate service without `--allow-unauthenticated`.
 - A secret referenced as `:latest` is resolved when an instance starts. After rotating the key, deploy a new revision (or pin a version number) so running instances pick it up.
 - The process exits at startup if `ELASTICEMAIL_API_KEY` is missing, so a deploy without `--set-secrets` fails its health check instead of serving errors.
 - `.gcloudignore` keeps `node_modules`, `dist` and `.env` out of the upload; the `Dockerfile` installs and builds inside Cloud Build.
@@ -107,8 +118,12 @@ Routes: GET /health returns { status: "ok" }; POST /send takes { to, subject, me
 emailsApi.emailsTransactionalPost with Recipients.To = [to] and Content = { From, Subject,
 Body: [{ ContentType: "HTML", Content }, { ContentType: "PlainText", Content }] }. The From address must be
 a sender verified in Elastic Email. Return { success, transactionId, messageId } from response.data, and
-{ error } with the API status on failure (err.response.data.Error). GET|POST /webhook checks ?token= against
-process.env.ELASTICEMAIL_WEBHOOK_TOKEN with crypto.timingSafeEqual and logs the status field.
+{ error } with the API status on failure (err.response.data.Error). POST|GET /webhook verifies the Elastic Email signature when ELASTICEMAIL_WEBHOOK_SECRET is set:
+X-ElasticEmail-Signature holds comma-separated v1=<hex> entries, each the hex HMAC-SHA256 (node:crypto, key = the
+secret) of `${X-ElasticEmail-Timestamp}\n${method}\n${c.env.incoming.url (HttpBindings from @hono/node-server)}\n${raw body}`, with the raw body read before
+parsing; reject timestamps older than 300 s, compare in constant time, answer 401 on failure, then read the event
+from the JSON body (POST) or the query (GET). Without the secret it checks ?token= against
+process.env.ELASTICEMAIL_WEBHOOK_TOKEN with crypto.timingSafeEqual. Log the status field.
 Listen on process.env.PORT (default 8080) bound to 0.0.0.0.
 ```
 

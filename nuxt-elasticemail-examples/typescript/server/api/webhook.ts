@@ -1,24 +1,26 @@
-// GET|POST /api/webhook?token=...
+// GET|POST /api/webhook
 //
-// Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-// form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-// channel, target (clicked URL), IP, Useragent, Country, City.
-// Elastic Email does not sign webhooks; the shared ?token= is checked instead.
-// Elastic Email sends a GET to validate the URL when the webhook is saved, so GET must answer 2xx.
+// Elastic Email event notifications: transaction, messageid, to, from, subject, date, status,
+// category, channel, target (clicked URL), ip, useragent, country, city, ...
+// Signed webhooks (created with EnableSigning + DeliveryMethod PostJson, ELASTICEMAIL_WEBHOOK_SECRET
+// set) arrive as a POST with a JSON body and an X-ElasticEmail-Signature header, verified in
+// readWebhook. Unsigned webhooks send the fields in the query string (GET) and are checked
+// with the shared ?token= (ELASTICEMAIL_WEBHOOK_TOKEN) instead.
+// Requests without a status (validation pings, test events) are answered 2xx.
 // No method suffix in the file name, so this handler receives every method.
-import { defineEventHandler, getQuery } from "h3";
-import { fail, readEvent, sanitize, tokenOk } from "../utils/elasticemail";
+import { defineEventHandler } from "h3";
+import { fail, readWebhook, sanitize } from "../utils/elasticemail";
 
 export default defineEventHandler(async (event) => {
   if (event.method !== "GET" && event.method !== "POST") {
     return fail(event, 405, "Method not allowed");
   }
 
-  if (!tokenOk(getQuery(event).token)) {
-    return fail(event, 401, "Invalid token");
+  const payload = await readWebhook(event);
+  if (!payload) {
+    return fail(event, 401, "Invalid signature or token");
   }
 
-  const payload = await readEvent(event);
   const status = sanitize(payload.status);
 
   if (!status) {
@@ -33,7 +35,7 @@ export default defineEventHandler(async (event) => {
       console.log("Email sent, message id:", sanitize(payload.messageid));
       break;
     case "Opened":
-      console.log("Email opened from", sanitize(payload.Country), sanitize(payload.City));
+      console.log("Email opened from", sanitize(payload.country), sanitize(payload.city));
       break;
     case "Clicked":
       console.log("Link clicked:", sanitize(payload.target));

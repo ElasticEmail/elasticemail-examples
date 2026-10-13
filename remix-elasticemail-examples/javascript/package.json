@@ -10,7 +10,7 @@
     "start": "remix-serve ./build/server/index.js"
   },
   "dependencies": {
-    "@elasticemail/elasticemail-client-ts-axios": "^4.2.0",
+    "@elasticemail/elasticemail-client-ts-axios": "^4.3.0",
     "@remix-run/node": "^2.16.0",
     "@remix-run/react": "^2.16.0",
     "@remix-run/serve": "^2.16.0",

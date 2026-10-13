@@ -1,7 +1,5 @@
 namespace ElasticEmailExamples;
 
-using System.Security.Cryptography;
-using System.Text;
 using ElasticEmail.Api;
 using ElasticEmail.Client;
 using ElasticEmail.Model;
@@ -18,38 +16,23 @@ public static class DoubleOptinWebhook
     {
         var listsApi = new ListsApi(Ee.Config());
         var listName = Ee.ListName;
-        var expectedToken = Encoding.UTF8.GetBytes(Ee.WebhookToken);
-
-        bool TokenOk(string? token)
-        {
-            var given = Encoding.UTF8.GetBytes(token ?? "");
-            return CryptographicOperations.FixedTimeEquals(given, expectedToken);
-        }
 
         static string Sanitize(string? value) => (value ?? "").Replace("\r", "").Replace("\n", "");
 
         var builder = WebApplication.CreateBuilder();
         var app = builder.Build();
 
-        // Elastic Email validates the URL with a GET when the webhook is saved.
-        app.MapGet("/double-optin/webhook", (HttpRequest request) =>
+        // Signed webhooks (ELASTICEMAIL_WEBHOOK_SECRET set) are verified with HMAC-SHA256 and
+        // usually arrive as POST + JSON; unsigned ones carry ?token=. GET is accepted too.
+        app.MapMethods("/double-optin/webhook", new[] { "GET", "POST" }, async (HttpRequest request) =>
         {
-            if (!TokenOk(request.Query["token"]))
+            var ev = await Ee.ReadWebhookEventAsync(request);
+            if (ev == null)
             {
-                return Results.Json(new { error = "Invalid token" }, statusCode: 401);
-            }
-            return Results.Json(new { ok = true });
-        });
-
-        app.MapPost("/double-optin/webhook", async (HttpRequest request) =>
-        {
-            if (!TokenOk(request.Query["token"]))
-            {
-                return Results.Json(new { error = "Invalid token" }, statusCode: 401);
+                return Results.Json(new { error = "Invalid signature or token" }, statusCode: 401);
             }
 
-            var form = request.HasFormContentType ? await request.ReadFormAsync() : null;
-            string Field(string key) => form != null && form.TryGetValue(key, out var v) ? v.ToString() : request.Query[key].ToString();
+            string Field(string key) => ev.GetValueOrDefault(key) ?? "";
 
             var status = Sanitize(Field("status"));
             var target = Sanitize(Field("target"));

@@ -44,5 +44,8 @@ EMAIL_FROM = os.environ.get("EMAIL_FROM", "Acme <hello@yourdomain.com>")
 CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", EMAIL_FROM)
 ELASTICEMAIL_LIST_NAME = os.environ.get("ELASTICEMAIL_LIST_NAME", "Newsletter")
 ELASTICEMAIL_WEBHOOK_TOKEN = os.environ.get("ELASTICEMAIL_WEBHOOK_TOKEN", "change_me")
+# Signing secret returned once when the webhook is created with EnableSigning.
+# When set, /webhook and /double-optin/webhook require a valid signature instead of ?token=.
+ELASTICEMAIL_WEBHOOK_SECRET = os.environ.get("ELASTICEMAIL_WEBHOOK_SECRET", "")
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "http://localhost:3000")
 CONFIRM_REDIRECT_URL = os.environ.get("CONFIRM_REDIRECT_URL", "")

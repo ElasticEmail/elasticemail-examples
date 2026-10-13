@@ -5,7 +5,7 @@ Send transactional and bulk email from PHP with the [Elastic Email](https://elas
 > **First time here?** The [PHP quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `elasticemail/elasticemail-php@4.2.0` · PHP 8.1+ · Slim 4, Symfony 6.4/7
+**Versions:** Elastic Email REST API v4 · SDK `elasticemail/elasticemail-php@4.3.0` · PHP 8.1+ · Slim 4, Symfony 6.4/7
 
 ## Prerequisites
 
@@ -82,12 +82,14 @@ php src/domains/manage.php
 
 ### Webhooks
 ```bash
-# Create, list and delete a webhook pointing at PUBLIC_URL/webhook?token=...
+# Create a signed POST + JSON webhook pointing at PUBLIC_URL/webhook, rotate its secret, delete it
 php src/webhooks/manage.php
 
 # Standalone handler (serve behind a public URL, e.g. ngrok)
 php -S localhost:3000 src/webhooks/handler.php
 ```
+
+`manage.php` prints the webhook's `SigningSecret`; store it as `ELASTICEMAIL_WEBHOOK_SECRET` (it is shown only once). With it set, the handlers require a valid `X-ElasticEmail-Signature` (HMAC-SHA256 over timestamp, method, raw request target and raw body) and answer `401` otherwise. Leave it empty to use unsigned webhooks with `?token=ELASTICEMAIL_WEBHOOK_TOKEN` in the URL instead.
 
 ### Inbound Routes
 ```bash
@@ -162,11 +164,11 @@ Both server apps expose these routes with the same JSON shapes.
 
 - `GET /health` -> `{"status": "ok"}`
 - `POST /send` body `{"to", "subject", "message"}` -> `{"success": true, "transactionId", "messageId"}`
-- `GET|POST /webhook?token=...` - Elastic Email event notifications. Elastic Email sends each event as a GET request with the details in the query string (`status`, `to`, `transaction`, `messageid`, `target`, ...). The `token` must match `ELASTICEMAIL_WEBHOOK_TOKEN`.
+- `GET|POST /webhook` - Elastic Email event notifications (`status`, `to`, `transaction`, `messageid`, `target`, ...). Recommended: a signed webhook with `DeliveryMethod: PostJson`, which sends each event as a POST with a JSON body; set `ELASTICEMAIL_WEBHOOK_SECRET` and the route verifies the signature (`401` if it is missing or wrong). Fallback for unsigned webhooks: leave the secret empty, add `?token=...` matching `ELASTICEMAIL_WEBHOOK_TOKEN` to the URL, and the details arrive in the query string of a GET.
 - `POST /inbound?token=...` - inbound email pushed by an inbound route (`from_email`, `subject`, `body_html`, `att1_name`, `att1_content`, ...). Forwards a copy to `CONTACT_EMAIL`.
 - `POST /double-optin/subscribe` body `{"email", "name"}` - stores the contact as Transactional and sends a confirmation link
 - `GET /double-optin/confirm?email=&token=` - verifies the HMAC token and adds the contact to `ELASTICEMAIL_LIST_NAME`
-- `POST /double-optin/webhook?token=...` - confirms on a `Clicked` event whose `target` is the confirm link
+- `GET|POST /double-optin/webhook` - confirms on a `Clicked` event whose `target` is the confirm link (signed, or `?token=...` like `/webhook`)
 
 Failures return `{"error": "<message from the API>"}` with the API status code.
 
@@ -217,7 +219,7 @@ php-elasticemail-examples/
 │   ├── domains/
 │   │   └── manage.php            # Domain verification
 │   ├── webhooks/
-│   │   ├── manage.php            # Create, list, delete webhooks
+│   │   ├── manage.php            # Create a signed webhook, rotate its secret, delete it
 │   │   └── handler.php           # Standalone event endpoint
 │   ├── inbound/
 │   │   ├── manage.php            # Inbound routes

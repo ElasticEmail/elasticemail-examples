@@ -110,7 +110,7 @@ cargo run --example basic_send
 ```
 
 `src/lib.rs` holds the shared helpers: `config()`, `from()`, `to()`, `print_api_error()`,
-`api_error_message()`, plus `token_ok()` and `hmac_hex()` for the webhook and double opt-in examples.
+`api_error_message()`, plus `read_webhook()`/`verify_signature()`, `token_ok()` and `hmac_hex()` for the webhook and double opt-in examples.
 
 ## 6. Or run the Axum app
 
@@ -150,7 +150,7 @@ cargo run --example batch_send            # one call, personalized per recipient
 cargo run --example with_attachments      # base64 file attachment
 cargo run --example with_cid_attachments  # inline image via cid:
 cargo run --example with_template         # hosted template + merge values
-cargo run --example webhooks              # create, list, delete a webhook
+cargo run --example webhooks              # create a signed webhook, list, rotate secret, delete
 cargo run --example email_status -- <transactionId>
 ```
 

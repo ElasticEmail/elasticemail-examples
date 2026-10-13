@@ -4,7 +4,7 @@ Send transactional email and receive webhooks from Vercel Functions using the [E
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ and Edge runtime · Vercel Functions
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ and Edge runtime · Vercel Functions
 
 ## Prerequisites
 
@@ -28,7 +28,10 @@ vercel link
 vercel env add ELASTICEMAIL_API_KEY
 vercel env add ELASTICEMAIL_WEBHOOK_TOKEN
 vercel env add EMAIL_FROM
+vercel env add ELASTICEMAIL_WEBHOOK_SECRET   # after creating a signed webhook
 ```
+
+`ELASTICEMAIL_WEBHOOK_SECRET` is the `SigningSecret` (`whsec_...`) returned once when you create the webhook with `EnableSigning: true` and `DeliveryMethod: PostJson` (see [Webhooks](../README.md#webhooks)). Set it after creating the webhook; while it is empty, `/webhook` falls back to the `?token=` check (`ELASTICEMAIL_WEBHOOK_TOKEN`) for unsigned webhooks.
 
 Choose the Production (and Preview) environments when prompted. `vercel env pull` writes them to `.env.local` for local runs.
 
@@ -59,6 +62,8 @@ curl -X POST "$URL/webhook?token=change_me" \
   -d "status=Sent&to=you@yourdomain.com&transaction=abc&messageid=xyz"
 ```
 
+That last request only works while `ELASTICEMAIL_WEBHOOK_SECRET` is empty. With a signing secret set, send a signed request as shown in [Webhooks](../README.md#webhooks).
+
 `vercel.json` rewrites `/send`, `/send-edge`, `/webhook` and `/health` to the matching `/api/*` function, so both paths work.
 
 ## Notes on runtime quirks
@@ -66,6 +71,7 @@ curl -X POST "$URL/webhook?token=change_me" \
 - Files in `api/` starting with `_` (like `api/_lib.ts`) are not deployed as functions; that is where the shared logic lives.
 - The Node functions use the Web `Request`/`Response` signature (`export default async function handler(req: Request)`), which requires Node.js 20+ on Vercel. `export const config = { runtime: "nodejs" }` pins the runtime.
 - The Edge function (`export const runtime = "edge"`) has no `node:http`, so `createEmailsApi(true)` passes `axios.create({ adapter: "fetch" })` as the third argument of `EmailsApi`.
+- The webhook signature is checked with WebCrypto (`crypto.subtle`) so `api/_lib.ts` stays Edge-safe. The handler reads `await req.text()` before parsing JSON and signs `pathname + search` of `new URL(req.url)`, which keeps the percent-encoding. Because of the `/webhook` -> `/api/webhook` rewrite, a request seen on `/api/webhook` is also checked against `/webhook`, so either URL can be registered.
 - Function logs (`console.log` in the webhook handler) show up in the Vercel dashboard under Logs, or with `vercel logs <deployment-url>`.
 
 ## AI assistant prompt
@@ -82,7 +88,12 @@ POST /send takes { to, subject, message } and calls emailsApi.emailsTransactiona
 Recipients.To = [to] and Content = { From, Subject, Body: [{ ContentType: "HTML", Content }] }.
 The From address must be a sender verified in Elastic Email. Return { success, transactionId, messageId }
 from response.data, and { error } with the API status on failure (err.response.data.Error).
-GET|POST /webhook must check ?token= against process.env.ELASTICEMAIL_WEBHOOK_TOKEN and log the status field.
+POST|GET /webhook verifies the Elastic Email signature when ELASTICEMAIL_WEBHOOK_SECRET is set:
+X-ElasticEmail-Signature holds comma-separated v1=<hex> entries, each the hex HMAC-SHA256 (WebCrypto crypto.subtle, key = the
+secret) of `${X-ElasticEmail-Timestamp}\n${method}\n${pathname + search of new URL(req.url)}\n${raw body}`, with the raw body read before
+parsing; reject timestamps older than 300 s, compare in constant time, answer 401 on failure, then read the event
+from the JSON body (POST) or the query (GET). Without the secret it must check ?token= against
+process.env.ELASTICEMAIL_WEBHOOK_TOKEN. Log the status field.
 ```
 
 ## Resources

@@ -14,8 +14,11 @@ return [
     // Team inbox used by the inbound forwarder
     'contact_email' => env('CONTACT_EMAIL'),
 
-    // Shared secret appended to webhook and inbound URLs as ?token=...
-    // Elastic Email does not sign webhooks, so the handlers check this value instead.
+    // Signing secret returned once when the webhook is created with EnableSigning; leave empty
+    // to use ELASTICEMAIL_WEBHOOK_TOKEN. When set, the webhook routes require a valid signature.
+    'webhook_secret' => env('ELASTICEMAIL_WEBHOOK_SECRET'),
+
+    // Shared secret appended to inbound URLs (and to unsigned webhook URLs) as ?token=...
     'webhook_token' => env('ELASTICEMAIL_WEBHOOK_TOKEN', 'change_me'),
 
     // Contact list used by the contacts and double opt-in endpoints

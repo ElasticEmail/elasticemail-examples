@@ -17,6 +17,8 @@ const contactEmail = process.env.CONTACT_EMAIL || from;
 const listName = process.env.ELASTICEMAIL_LIST_NAME || "Newsletter";
 const publicUrl = process.env.PUBLIC_URL || "http://localhost:3000";
 const secret = process.env.ELASTICEMAIL_WEBHOOK_TOKEN || "change_me";
+// Signing secret returned once when the webhook is created with EnableSigning
+const webhookSecret = process.env.ELASTICEMAIL_WEBHOOK_SECRET;
 const confirmRedirectUrl = process.env.CONFIRM_REDIRECT_URL;
 
 function json(data: unknown, status = 200): Response {
@@ -34,6 +36,36 @@ const tokenOk = (token: unknown): boolean => {
   const a = Buffer.from(String(token ?? ""));
   const b = Buffer.from(secret);
   return a.length === b.length && timingSafeEqual(a, b);
+};
+
+/**
+ * Verify an Elastic Email webhook signature: lowercase hex HMAC-SHA256 (key = signing secret) of
+ * "{timestamp}\n{METHOD}\n{path + query as received}\n{raw body}", sent as "v1=<hex>" entries
+ * in X-ElasticEmail-Signature. Rejects timestamps more than 5 minutes off.
+ */
+const verifySignature = (
+  signingSecret: string,
+  method: string,
+  target: string,
+  rawBody: string,
+  timestamp: string | undefined,
+  signature: string | undefined,
+): boolean => {
+  const ts = Number(timestamp);
+  if (!timestamp || !Number.isInteger(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false;
+  const expected = Buffer.from(
+    createHmac("sha256", signingSecret)
+      .update(`${timestamp}\n${method}\n${target}\n${rawBody}`)
+      .digest("hex"),
+  );
+  return String(signature ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith("v1="))
+    .some((part) => {
+      const given = Buffer.from(part.slice(3));
+      return given.length === expected.length && timingSafeEqual(given, expected);
+    });
 };
 
 const hmac = (value: string) => createHmac("sha256", secret).update(value).digest("hex");
@@ -59,6 +91,36 @@ async function readBody(req: Request): Promise<Record<string, string>> {
 }
 
 const queryToObject = (url: URL): Record<string, string> => Object.fromEntries(url.searchParams);
+
+/**
+ * Authenticate an Elastic Email webhook request and return its event fields (keys lowercased),
+ * or null. With ELASTICEMAIL_WEBHOOK_SECRET set, the signature is required and the event is the
+ * JSON body (POST) or the query string (GET); otherwise the ?token= shared secret is checked.
+ */
+async function webhookEvent(req: Request, url: URL): Promise<Record<string, unknown> | null> {
+  let event: Record<string, unknown>;
+  if (webhookSecret) {
+    // Raw body and request target exactly as received (new URL keeps the percent-encoding)
+    const rawBody = req.method === "POST" ? await req.text() : "";
+    const ok = verifySignature(
+      webhookSecret,
+      req.method,
+      url.pathname + url.search,
+      rawBody,
+      req.headers.get("X-ElasticEmail-Timestamp") ?? undefined,
+      req.headers.get("X-ElasticEmail-Signature") ?? undefined,
+    );
+    if (!ok) return null;
+    event = req.method === "POST" ? (rawBody ? JSON.parse(rawBody) : {}) : queryToObject(url);
+  } else {
+    if (!tokenOk(url.searchParams.get("token"))) return null;
+    const body = req.method === "POST" ? await readBody(req) : {};
+    event = { ...queryToObject(url), ...body };
+  }
+  return Object.fromEntries(Object.entries(event).map(([k, v]) => [k.toLowerCase(), v]));
+}
+
+const unauthorized = { error: webhookSecret ? "Invalid signature" : "Invalid token" };
 
 Bun.serve({
   port: Number(process.env.PORT) || 3000,
@@ -96,17 +158,17 @@ Bun.serve({
     }
 
     // GET|POST /webhook
-    // Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-    // form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-    // channel, target (clicked URL), IP, Useragent, Country, City.
-    // Elastic Email sends a GET to validate the URL when the webhook is saved.
+    // Elastic Email event notifications: transaction, messageid, to, from, subject, date, status,
+    // category, channel, target (clicked URL), ip, useragent, country, city.
+    // Signed webhooks (EnableSigning + DeliveryMethod PostJson) arrive as POST with a JSON body and
+    // X-ElasticEmail-* signature headers; unsigned ones as GET with the fields in the query string.
+    // Elastic Email sends a test event when the webhook is saved.
     if ((req.method === "GET" || req.method === "POST") && path === "/webhook") {
-      if (!tokenOk(url.searchParams.get("token"))) {
-        return json({ error: "Invalid token" }, 401);
+      const event = await webhookEvent(req, url);
+      if (!event) {
+        return json(unauthorized, 401);
       }
 
-      const body = req.method === "POST" ? await readBody(req) : {};
-      const event = { ...queryToObject(url), ...body };
       const status = sanitize(event.status);
 
       if (!status) {
@@ -121,7 +183,7 @@ Bun.serve({
           console.log("Email sent, message id:", sanitize(event.messageid));
           break;
         case "Opened":
-          console.log("Email opened from", sanitize(event.Country), sanitize(event.City));
+          console.log("Email opened from", sanitize(event.country), sanitize(event.city));
           break;
         case "Clicked":
           console.log("Link clicked:", sanitize(event.target));
@@ -250,20 +312,20 @@ Bun.serve({
       }
     }
 
-    // POST /double-optin/webhook
+    // GET|POST /double-optin/webhook
     // Click-tracking based confirmation: create a webhook for Clicked events pointing here.
-    if (req.method === "POST" && path === "/double-optin/webhook") {
-      if (!tokenOk(url.searchParams.get("token"))) {
-        return json({ error: "Invalid token" }, 401);
+    if ((req.method === "GET" || req.method === "POST") && path === "/double-optin/webhook") {
+      const event = await webhookEvent(req, url);
+      if (!event) {
+        return json(unauthorized, 401);
       }
 
-      const event = { ...queryToObject(url), ...(await readBody(req)) };
       if (event.status !== "Clicked" || !String(event.target ?? "").includes("/double-optin/confirm")) {
         return json({ received: true, status: sanitize(event.status), message: "Event ignored" });
       }
 
       try {
-        await listsApi.listsByNameContactsPost(listName, { Emails: [event.to] });
+        await listsApi.listsByNameContactsPost(listName, { Emails: [String(event.to)] });
         return json({ received: true, confirmed: true, email: sanitize(event.to) });
       } catch (err) {
         const { status, message } = apiError(err);

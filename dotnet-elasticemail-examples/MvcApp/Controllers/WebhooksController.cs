@@ -16,20 +16,22 @@ public class WebhooksController : ControllerBase
         _emailsApi = emailsApi;
     }
 
-    // Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-    // form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-    // channel, target (clicked URL), IP, Useragent, Country, City.
-    // Elastic Email sends a GET to validate the URL when the webhook is saved.
+    // Elastic Email event notifications: transaction, messageid, to, from, subject, date, status,
+    // category, channel, target (clicked URL), ip, useragent, country, city.
+    // Signed webhooks (recommended, ELASTICEMAIL_WEBHOOK_SECRET set) are verified with HMAC-SHA256
+    // and usually arrive as POST with a JSON body. Unsigned webhooks carry ?token= and send the
+    // fields in the query string (GET) or as form fields (POST).
+    // Elastic Email sends a test event when the webhook is saved.
     [HttpGet("/webhook")]
     [HttpPost("/webhook")]
     public async Task<IActionResult> HandleWebhook()
     {
-        if (!Ee.TokenOk(Request.Query["token"]))
+        var ev = await Ee.ReadWebhookEventAsync(Request);
+        if (ev == null)
         {
-            return Unauthorized(new { error = "Invalid token" });
+            return Unauthorized(new { error = "Invalid signature or token" });
         }
 
-        var ev = await Ee.ReadEventAsync(Request);
         var status = Ee.Sanitize(ev.GetValueOrDefault("status"));
 
         if (status.Length == 0)

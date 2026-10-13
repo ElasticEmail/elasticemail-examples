@@ -134,7 +134,7 @@ dotnet run -- batch-send             # one call, personalized per recipient
 dotnet run -- with-attachments       # base64 file attachment
 dotnet run -- with-cid-attachments   # inline image via cid:
 dotnet run -- with-template          # hosted template + merge values
-dotnet run -- webhooks               # create, list, delete a webhook
+dotnet run -- webhooks               # create a signed webhook, list, rotate secret, delete
 dotnet run -- email-status <transactionId>
 ```
 

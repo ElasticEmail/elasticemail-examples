@@ -1,10 +1,10 @@
 import "dotenv/config";
-import { timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import express from "express";
 import { Configuration, ListsApi } from "@elasticemail/elasticemail-client-ts-axios";
 
 // Alternative confirmation flow driven by Elastic Email click tracking.
-// Create a webhook (see webhooks.ts) pointing at POST /double-optin/webhook.
+// Create a webhook (see webhooks.ts) pointing at /double-optin/webhook.
 // When the recipient clicks the confirm link, Elastic Email reports status=Clicked
 // with the clicked URL in "target". The contact is then added to the list.
 
@@ -13,6 +13,8 @@ const listsApi = new ListsApi(config);
 
 const listName = process.env.ELASTICEMAIL_LIST_NAME || "Newsletter";
 const expectedToken = process.env.ELASTICEMAIL_WEBHOOK_TOKEN || "change_me";
+// Signing secret returned once when the webhook is created with EnableSigning
+const webhookSecret = process.env.ELASTICEMAIL_WEBHOOK_SECRET;
 
 const tokenOk = (token) => {
   const a = Buffer.from(String(token ?? ""));
@@ -20,32 +22,74 @@ const tokenOk = (token) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 
+/**
+ * Verify an Elastic Email webhook signature: lowercase hex HMAC-SHA256 (key = signing secret) of
+ * "{timestamp}\n{METHOD}\n{path + query as received}\n{raw body}", sent as "v1=<hex>" entries
+ * in X-ElasticEmail-Signature. Rejects timestamps more than 5 minutes off.
+ */
+const verifySignature = (signingSecret, method, target, rawBody, timestamp, signature) => {
+  const ts = Number(timestamp);
+  if (!timestamp || !Number.isInteger(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false;
+  const expected = Buffer.from(
+    createHmac("sha256", signingSecret)
+      .update(`${timestamp}\n${method}\n${target}\n`)
+      .update(rawBody)
+      .digest("hex"),
+  );
+  return String(signature ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith("v1="))
+    .some((part) => {
+      const given = Buffer.from(part.slice(3));
+      return given.length === expected.length && timingSafeEqual(given, expected);
+    });
+};
+
 const sanitize = (value) => String(value ?? "").replace(/[\r\n]/g, "");
 
 const app = express();
 app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
+// Keep the raw bytes: webhook signatures are computed over the body exactly as sent
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  }),
+);
 
-// Elastic Email validates the URL with a GET when the webhook is saved.
-app.get("/double-optin/webhook", (req, res) => {
-  if (!tokenOk(req.query.token)) {
-    res.status(401).json({ error: "Invalid token" });
-    return;
+// Signed webhooks (EnableSigning + DeliveryMethod PostJson) arrive as POST with a JSON body;
+// unsigned ones as GET with the fields in the query string and the shared ?token=.
+app.all("/double-optin/webhook", async (req, res) => {
+  let event;
+  if (webhookSecret) {
+    const ok = verifySignature(
+      webhookSecret,
+      req.method,
+      req.originalUrl,
+      req.rawBody ?? "",
+      req.get("X-ElasticEmail-Timestamp"),
+      req.get("X-ElasticEmail-Signature"),
+    );
+    if (!ok) {
+      res.status(401).json({ error: "Invalid signature" });
+      return;
+    }
+    event = req.method === "POST" ? (req.body ?? {}) : req.query;
+  } else {
+    if (!tokenOk(req.query.token)) {
+      res.status(401).json({ error: "Invalid token" });
+      return;
+    }
+    event = { ...req.query, ...(req.body ?? {}) };
   }
-  res.json({ ok: true });
-});
 
-app.post("/double-optin/webhook", async (req, res) => {
-  if (!tokenOk(req.query.token)) {
-    res.status(401).json({ error: "Invalid token" });
-    return;
-  }
-
-  const event = { ...req.query, ...req.body };
   const status = sanitize(event.status);
   const target = sanitize(event.target);
   const recipient = sanitize(event.to);
 
+  // Elastic Email validates the URL with a test event when the webhook is saved.
   if (status !== "Clicked" || !target.includes("/double-optin/confirm")) {
     res.json({ received: true, status, message: "Event ignored" });
     return;

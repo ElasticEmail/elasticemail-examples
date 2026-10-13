@@ -12,8 +12,8 @@ import {
 } from "@nestjs/common";
 import type { Response } from "express";
 import { ElasticEmailService } from "../elasticemail/elasticemail.service";
-import { hmac, safeEqual, sanitize } from "../common/security";
-import { TokenGuard } from "../common/token.guard";
+import { hmac, safeEqual, sanitize, webhookEvent } from "../common/security";
+import { WebhookGuard } from "../common/token.guard";
 
 type Fields = Record<string, string>;
 
@@ -74,22 +74,23 @@ export class DoubleOptinController {
   }
 
   // Click-tracking based confirmation: create a webhook for Clicked events pointing here.
-  // Elastic Email sends events as GET; a form POST is accepted too.
+  // Signed webhooks arrive as POST + JSON and are verified by WebhookGuard; unsigned ones arrive
+  // as GET with ?token= in the URL.
   @Get("webhook")
-  @UseGuards(TokenGuard)
+  @UseGuards(WebhookGuard)
   webhookGet(@Query() query: Fields) {
-    return this.handleClick({ ...query });
+    return this.handleClick(webhookEvent(query));
   }
 
   @Post("webhook")
   @HttpCode(200)
-  @UseGuards(TokenGuard)
+  @UseGuards(WebhookGuard)
   webhookPost(@Query() query: Fields, @Body() body: Fields) {
-    return this.handleClick({ ...query, ...(body ?? {}) });
+    return this.handleClick(webhookEvent(query, body));
   }
 
   private async handleClick(event: Fields) {
-    if (event.status !== "Clicked" || !String(event.target ?? "").includes("/double-optin/confirm")) {
+    if (event.status !== "Clicked" || !event.to || !String(event.target ?? "").includes("/double-optin/confirm")) {
       return { received: true, status: sanitize(event.status), message: "Event ignored" };
     }
 

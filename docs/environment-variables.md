@@ -9,7 +9,8 @@ Every stack reads the same set of variables from a `.env` file next to the proje
 | `EMAIL_FROM` | yes | `Acme <hello@yourdomain.com>` | The `From` header on every send. Must belong to a domain verified on the account. |
 | `EMAIL_TO` | yes | `you@yourdomain.com` | Test recipient for the standalone scripts. Elastic Email has no sandbox address, so use one of your own inboxes. |
 | `CONTACT_EMAIL` | no | falls back to `EMAIL_FROM` | Team inbox. The inbound handler forwards parsed mail here; the contact form example sends its notification here. |
-| `ELASTICEMAIL_WEBHOOK_TOKEN` | no | `change_me` | Shared secret appended to webhook and inbound URLs as `?token=`, and the HMAC key for double opt-in confirm links. Change it before exposing anything publicly. |
+| `ELASTICEMAIL_WEBHOOK_SECRET` | no | empty | Signing secret (`whsec_...`) returned once when a webhook is created with `EnableSigning: true`. When set, webhook handlers require a valid `X-ElasticEmail-Signature`; when empty they fall back to `ELASTICEMAIL_WEBHOOK_TOKEN`. See [Webhooks](webhooks.md). |
+| `ELASTICEMAIL_WEBHOOK_TOKEN` | no | `change_me` | Shared secret appended to inbound URLs and unsigned webhook URLs as `?token=`, and the HMAC key for double opt-in confirm links. Change it before exposing anything publicly. |
 | `ELASTICEMAIL_LIST_NAME` | no | `Newsletter` | Contact list used by the contacts and double opt-in examples. Created on first run if missing. |
 | `ELASTICEMAIL_TEMPLATE_NAME` | no | `welcome-example` | Template used by the template example. Created on first run if missing. |
 | `PUBLIC_URL` | no | per stack (see below) | Base URL used to build confirm links and the webhook/inbound URLs that get registered with Elastic Email. Set it to your tunnel URL during local development. |
@@ -94,6 +95,8 @@ The default matches the dev server port, so local links work without editing any
 - A verified sender is not optional. Sending from an unverified domain returns a 4xx from the API,
   not a bounce later. See [Domains and deliverability](domains-and-deliverability.md), or
   [How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain) for the dashboard steps.
+- `ELASTICEMAIL_WEBHOOK_SECRET` comes from Elastic Email, not from you: copy it from the webhook create
+  (or rotate) response. Rotating it has no grace period, so update the variable straight away.
 - `ELASTICEMAIL_WEBHOOK_TOKEN` does double duty: URL secret and HMAC key. If you rotate it, confirm
   links already in people's inboxes stop validating.
 - `PUBLIC_URL` is what gets stored inside Elastic Email when a webhook or inbound route is created.

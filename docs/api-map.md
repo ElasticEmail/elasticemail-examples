@@ -82,6 +82,7 @@ is Go, and C# with `Async` appended.
 |---|---|---|---|---|
 | Create a webhook | `POST /webhook` | `webhookPost` | `webhook_post` | `WebhookPost` |
 | List webhooks | `GET /webhook` | `webhookGet` | `webhook_get` | `WebhookGet` |
+| Rotate a webhook's signing secret | `POST /webhook/{publicid}/secret/rotate` | `webhookByPublicidSecretRotatePost` | `webhook_by_publicid_secret_rotate_post` | `WebhookByPublicidSecretRotatePost` |
 | Delete a webhook | `DELETE /webhook/{publicid}` | `webhookByPublicidDelete` | `webhook_by_publicid_delete` | `WebhookByPublicidDelete` |
 | Create a route | `POST /inboundroute` | `inboundroutePost` | `inboundroute_post` | `InboundroutePost` |
 | List routes | `GET /inboundroute` | `inboundrouteGet` | `inboundroute_get` | `InboundrouteGet` |

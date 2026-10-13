@@ -4,7 +4,7 @@ Two 2nd gen Cloud Functions for Firebase, written in TypeScript on Node.js 20, t
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20 (firebase-functions 6) · Firebase Cloud Functions
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20 (firebase-functions 6) · Firebase Cloud Functions
 
 ## Prerequisites
 
@@ -30,9 +30,12 @@ firebase use --add                      # pick your project; writes .firebaserc
 ```bash
 firebase functions:secrets:set ELASTICEMAIL_API_KEY
 firebase functions:secrets:set ELASTICEMAIL_WEBHOOK_TOKEN
+firebase functions:secrets:set ELASTICEMAIL_WEBHOOK_SECRET   # "none" until you create a signed webhook
 ```
 
-Each command prompts for the value and stores it in Cloud Secret Manager. The functions list the secrets they need (`onRequest({ secrets: [apiKey, webhookToken] }, ...)`), and only those functions can read them, through `apiKey.value()`. `EMAIL_FROM` is a plain parameter (`defineString`) read from `.env`.
+Each command prompts for the value and stores it in Cloud Secret Manager. The functions list the secrets they need (`onRequest({ secrets: [apiKey, webhookToken, webhookSecret] }, ...)`), and only those functions can read them, through `apiKey.value()`.
+
+`ELASTICEMAIL_WEBHOOK_SECRET` is the `SigningSecret` (`whsec_...`) returned once when you create the webhook with `EnableSigning: true` and `DeliveryMethod: PostJson` (see [Webhooks](../README.md#webhooks)). Every secret a function lists must exist at deploy time and Secret Manager does not store empty values, so set it to `none` first; the handler then falls back to the `?token=` check. After creating the signed webhook, set the real value and redeploy. `EMAIL_FROM` is a plain parameter (`defineString`) read from `.env`.
 
 Keep the secret names out of `.env`: a deploy fails if the same name is both a secret and an environment variable.
 
@@ -60,6 +63,8 @@ curl -X POST "$URL/webhook?token=change_me" \
   -d "status=Sent&to=you@yourdomain.com&transaction=abc&messageid=xyz"
 ```
 
+That last request only works while `ELASTICEMAIL_WEBHOOK_SECRET` is `none` or empty. With a signing secret set, send a signed request as shown in [Webhooks](../README.md#webhooks); sign the path of the URL you call (`/api/webhook` on the `cloudfunctions.net` URL, `/webhook` on the `run.app` URL).
+
 The callable function is not meant for curl; call it from an app with the Firebase SDK, as shown in the next section. Logs: `firebase functions:log`, or Logs Explorer in the Google Cloud console.
 
 ## Call it from a Flutter or mobile app
@@ -79,11 +84,11 @@ The callable sends only to the signed-in user's own verified email address, so a
 
 ## Notes on runtime quirks
 
-- 2nd gen functions run on Cloud Run with full Node.js 20, so the SDK uses its default axios adapter and `node:crypto` is available for the constant-time token compare.
-- The three HTTP routes live in one function; `req.path` is the part of the URL after `/api`. Firebase parses JSON and form-encoded bodies before the handler runs, so `req.body` is already an object.
+- 2nd gen functions run on Cloud Run with full Node.js 20, so the SDK uses its default axios adapter and `node:crypto` is available for the HMAC signature check and the constant-time token compare.
+- The three HTTP routes live in one function; `req.path` is the part of the URL after `/api`. Firebase parses JSON and form-encoded bodies before the handler runs, so `req.body` is already an object. The signature covers the raw bytes, which Firebase keeps in `req.rawBody`, and the request target, taken from `req.originalUrl` (still URL-encoded). Because the `cloudfunctions.net` URL strips the function name before the handler sees the request, the handler checks the signature against both `/api` + `req.originalUrl` and `req.originalUrl`.
 - `apiKey.value()` works only inside a function that lists the secret in `secrets`, and only at request time, not at module load. That is why the `EmailsApi` is created lazily and cached for warm invocations.
 - Changing a secret's value does not update running functions. Redeploy after `functions:secrets:set`.
-- HTTP functions are public by default, which the webhook needs: Elastic Email calls it without credentials, and the save-time test event must get a 2xx or the webhook is not saved. The `?token=` check protects it. `/send` is open too, so add your own auth before using it in production, or drop it and keep only the callable.
+- HTTP functions are public by default, which the webhook needs: Elastic Email calls it without credentials. The signature check (or, for unsigned webhooks, the `?token=` check) protects it. `/send` is open too, so add your own auth before using it in production, or drop it and keep only the callable.
 - Turn on [App Check](https://firebase.google.com/docs/app-check) and set `enforceAppCheck: true` on the callable so only your genuine app can reach it.
 
 ## AI assistant prompt
@@ -98,8 +103,12 @@ An onRequest function `api` routes on req.path: GET /health returns { status: "o
 { to, subject, message } and calls emailsApi.emailsTransactionalPost with Recipients.To = [to] and
 Content = { From, Subject, Body: [{ ContentType: "HTML", Content }, { ContentType: "PlainText", Content }] }.
 The From address must be a sender verified in Elastic Email. Return { success, transactionId, messageId } from
-response.data, and { error } with the API status on failure (err.response.data.Error). GET|POST /webhook checks
-?token= against a second secret ELASTICEMAIL_WEBHOOK_TOKEN with crypto.timingSafeEqual and logs the status field.
+response.data, and { error } with the API status on failure (err.response.data.Error). POST|GET /webhook verifies the
+Elastic Email signature when the secret ELASTICEMAIL_WEBHOOK_SECRET is set: X-ElasticEmail-Signature holds
+comma-separated v1=<hex> entries, each the hex HMAC-SHA256 (node:crypto, key = the secret) of
+`${X-ElasticEmail-Timestamp}\n${method}\n${req.originalUrl}\n${req.rawBody}`; reject timestamps older than 300 s,
+compare with crypto.timingSafeEqual, answer 401 on failure, then read the event from the JSON body (POST) or the
+query (GET). Without the secret it checks ?token= against ELASTICEMAIL_WEBHOOK_TOKEN. Log the status field.
 Add an onCall function for a Flutter app that requires request.auth, sends only to request.auth.token.email
 when email_verified is true, and throws HttpsError on failure.
 ```

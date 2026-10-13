@@ -7,11 +7,11 @@ Usage:
 Endpoints:
     GET  /health
     POST /send                     {"to", "subject", "message"}
-    GET|POST /webhook?token=...    Elastic Email event notifications
+    GET|POST /webhook              Elastic Email event notifications (signed, or ?token=...)
     POST /inbound?token=...        inbound email pushed by an inbound route
     POST /double-optin/subscribe   {"email", "name"}
     GET  /double-optin/confirm?email=&token=
-    POST /double-optin/webhook?token=...
+    GET|POST /double-optin/webhook (signed, or ?token=...)
 """
 
 import hashlib
@@ -32,9 +32,14 @@ from ee import (
     FROM,
     LIST_NAME,
     PUBLIC_URL,
+    WEBHOOK_SECRET,
     WEBHOOK_TOKEN,
     api_error_message,
     get_configuration,
+    lower_keys,
+    signed_event,
+    verify_signature,
+    wsgi_request_target,
 )
 
 configuration = get_configuration()
@@ -79,6 +84,33 @@ def event_params():
     return event
 
 
+def webhook_event():
+    """Authenticate an Elastic Email notification and return (event, error_response).
+
+    With ELASTICEMAIL_WEBHOOK_SECRET set, the request must carry a valid signature and the event
+    is read from the JSON body (POST) or the query string (GET). Without it, the ?token= check
+    for unsigned webhooks applies.
+    """
+    if WEBHOOK_SECRET:
+        body = request.get_data()  # raw body, read before any parsing
+        if not verify_signature(
+            WEBHOOK_SECRET,
+            request.headers.get("X-ElasticEmail-Timestamp"),
+            request.headers.get("X-ElasticEmail-Signature"),
+            request.method,
+            wsgi_request_target(request.environ),
+            body,
+        ):
+            return None, (jsonify({"error": "Invalid signature"}), 401)
+        event = signed_event(request.method, body, request.args)
+        if event is None:
+            return None, (jsonify({"error": "Invalid JSON body"}), 400)
+        return event, None
+    if not token_ok(request.args.get("token")):
+        return None, (jsonify({"error": "Invalid token"}), 401)
+    return lower_keys(event_params()), None
+
+
 def send_html(to, subject, html_body, reply_to=None, attachments=None):
     message = ElasticEmail.EmailTransactionalMessageData(
         Recipients=ElasticEmail.TransactionalRecipient(To=[to]),
@@ -115,15 +147,16 @@ def send_email():
         return api_error(e)
 
 
-# Elastic Email event notifications. Parameters: transaction, messageid, to, from, subject,
-# date, status, category, channel, target (clicked URL), IP, Useragent, Country, City.
-# Elastic Email sends a GET to validate the URL when the webhook is saved.
+# Elastic Email event notifications. Fields: transaction, messageid, to, from, subject,
+# date, status, category, channel, target (clicked URL), ip, useragent, country, city.
+# Signed PostJson webhooks send them as a JSON body, Get webhooks in the query string.
+# Elastic Email sends a test request when the webhook is saved.
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
-    if not token_ok(request.args.get("token")):
-        return jsonify({"error": "Invalid token"}), 401
+    event, error = webhook_event()
+    if error:
+        return error
 
-    event = event_params()
     status = sanitize(event.get("status"))
 
     if not status:
@@ -135,7 +168,7 @@ def webhook():
     if status == "Sent":
         print("Email sent, message id:", sanitize(event.get("messageid")))
     elif status == "Opened":
-        print("Email opened from", sanitize(event.get("Country")), sanitize(event.get("City")))
+        print("Email opened from", sanitize(event.get("country")), sanitize(event.get("city")))
     elif status == "Clicked":
         print("Link clicked:", sanitize(event.get("target")))
     elif status == "Error":
@@ -230,11 +263,11 @@ def double_optin_confirm():
 # Click-tracking based confirmation: create a webhook for Clicked events pointing here.
 @app.route("/double-optin/webhook", methods=["GET", "POST"])
 def double_optin_webhook():
-    if not token_ok(request.args.get("token")):
-        return jsonify({"error": "Invalid token"}), 401
+    event, error = webhook_event()
+    if error:
+        return error
 
-    event = event_params()
-    if request.method == "GET" and not event.get("status"):
+    if not event.get("status"):
         return jsonify({"ok": True})
 
     if event.get("status") != "Clicked" or "/double-optin/confirm" not in str(event.get("target") or ""):

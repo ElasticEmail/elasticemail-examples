@@ -39,7 +39,7 @@ Route::prefix('send')->group(function () {
 // Contact form: confirmation to the sender + notification to CONTACT_EMAIL
 Route::post('/contact', [EmailController::class, 'submitContactForm']);
 
-// Elastic Email event notifications (GET is used by Elastic Email to validate the URL)
+// Elastic Email event notifications: POST + JSON for signed PostJson webhooks, GET for Get webhooks
 Route::match(['GET', 'POST'], '/webhook', [WebhookController::class, 'handle']);
 
 // Inbound email pushed by an inbound route

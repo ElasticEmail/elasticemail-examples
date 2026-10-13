@@ -2,9 +2,12 @@
 Double Opt-In: Webhook Handler
 
 Alternative confirmation flow driven by Elastic Email click tracking.
-Create a webhook (see webhooks.py) pointing at POST /double-optin/webhook.
+Create a webhook (see webhooks.py) pointing at /double-optin/webhook.
 When the recipient clicks the confirm link, Elastic Email reports status=Clicked
 with the clicked URL in "target". The contact is then added to the list.
+
+With ELASTICEMAIL_WEBHOOK_SECRET set (a webhook created with EnableSigning), every request
+must carry a valid X-ElasticEmail-Signature. Otherwise the ?token= check applies.
 
 Usage: python examples/double_optin_webhook.py
 """
@@ -17,7 +20,18 @@ import ElasticEmail
 from flask import Flask, jsonify, request
 
 sys.path.insert(0, os.path.dirname(__file__))
-from ee import LIST_NAME, WEBHOOK_TOKEN, api_error_message, get_configuration, print_api_error
+from ee import (
+    LIST_NAME,
+    WEBHOOK_SECRET,
+    WEBHOOK_TOKEN,
+    api_error_message,
+    get_configuration,
+    lower_keys,
+    print_api_error,
+    signed_event,
+    verify_signature,
+    wsgi_request_target,
+)
 
 configuration = get_configuration()
 app = Flask(__name__)
@@ -38,20 +52,38 @@ def event_params():
     return event
 
 
-# Elastic Email validates the URL with a GET when the webhook is saved.
-@app.route("/double-optin/webhook", methods=["GET"])
-def validate():
+def webhook_event():
+    """Authenticate the notification and return (event, error_response)."""
+    if WEBHOOK_SECRET:
+        body = request.get_data()  # raw body, read before any parsing
+        if not verify_signature(
+            WEBHOOK_SECRET,
+            request.headers.get("X-ElasticEmail-Timestamp"),
+            request.headers.get("X-ElasticEmail-Signature"),
+            request.method,
+            wsgi_request_target(request.environ),
+            body,
+        ):
+            return None, (jsonify({"error": "Invalid signature"}), 401)
+        event = signed_event(request.method, body, request.args)
+        if event is None:
+            return None, (jsonify({"error": "Invalid JSON body"}), 400)
+        return event, None
     if not token_ok(request.args.get("token")):
-        return jsonify({"error": "Invalid token"}), 401
-    return jsonify({"ok": True})
+        return None, (jsonify({"error": "Invalid token"}), 401)
+    return lower_keys(event_params()), None
 
 
-@app.route("/double-optin/webhook", methods=["POST"])
+# Elastic Email sends a test request when the webhook is saved.
+@app.route("/double-optin/webhook", methods=["GET", "POST"])
 def double_optin_webhook():
-    if not token_ok(request.args.get("token")):
-        return jsonify({"error": "Invalid token"}), 401
+    event, error = webhook_event()
+    if error:
+        return error
 
-    event = event_params()
+    if not event.get("status"):
+        return jsonify({"ok": True})
+
     status = sanitize(event.get("status"))
     target = sanitize(event.get("target"))
     recipient = sanitize(event.get("to"))

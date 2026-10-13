@@ -13,8 +13,10 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
- * Elastic Email does not sign webhook requests. Each handler checks the shared secret
- * appended to the URL as ?token= against ELASTICEMAIL_WEBHOOK_TOKEN.
+ * Webhook notifications: when ELASTICEMAIL_WEBHOOK_SECRET is set (a webhook created with
+ * EnableSigning), each request must carry a valid HMAC-SHA256 X-ElasticEmail-Signature.
+ * Without it, and always for inbound email (which is not signed), the shared secret appended
+ * to the URL as ?token= is checked against ELASTICEMAIL_WEBHOOK_TOKEN.
  */
 class WebhookController
 {
@@ -26,6 +28,43 @@ class WebhookController
     {
         $expected = $this->ee->env('ELASTICEMAIL_WEBHOOK_TOKEN', 'change_me');
         return hash_equals($expected, (string) $request->query->get('token', ''));
+    }
+
+    /**
+     * Authenticate an Elastic Email notification and return [event, null] or [null, error response].
+     * Signed: the event is the JSON body (POST, DeliveryMethod PostJson) or the query string (GET).
+     * Field names are lower-cased (GET webhooks send e.g. "Country", PostJson "country").
+     */
+    private function webhookEvent(Request $request): array
+    {
+        $secret = $this->ee->env('ELASTICEMAIL_WEBHOOK_SECRET');
+        if ($secret !== null) {
+            $body = $request->getContent(); // raw body, read before any parsing
+            $valid = $this->ee->verifySignature(
+                $secret,
+                (string) $request->headers->get('X-ElasticEmail-Timestamp', ''),
+                (string) $request->headers->get('X-ElasticEmail-Signature', ''),
+                $request->getMethod(),
+                $request->getRequestUri(), // path + query as received (REQUEST_URI)
+                $body
+            );
+            if (!$valid) {
+                return [null, new JsonResponse(['error' => 'Invalid signature'], 401)];
+            }
+            if (!$request->isMethod('POST')) {
+                return [array_change_key_case($request->query->all(), CASE_LOWER), null];
+            }
+            $event = $body === '' ? [] : json_decode($body, true);
+            if (!is_array($event)) {
+                return [null, new JsonResponse(['error' => 'Invalid JSON body'], 400)];
+            }
+            return [array_change_key_case($event, CASE_LOWER), null];
+        }
+
+        if (!$this->tokenOk($request)) {
+            return [null, new JsonResponse(['error' => 'Invalid token'], 401)];
+        }
+        return [array_change_key_case(array_merge($request->query->all(), $request->request->all()), CASE_LOWER), null];
     }
 
     private function sanitize($value): string
@@ -40,17 +79,17 @@ class WebhookController
     }
 
     /**
-     * Event notifications. Parameters arrive in the query string (GET) or as form fields (POST):
-     * transaction, messageid, to, from, subject, date, status, category, channel, target,
-     * IP, Useragent, Country, City. Elastic Email sends a GET to validate the URL on save.
+     * Event notifications. Fields: transaction, messageid, to, from, subject, date, status,
+     * category, channel, target, ip, useragent, country, city. Signed PostJson webhooks send them
+     * as a JSON body, Get webhooks in the query string. Elastic Email sends a test request on save.
      */
     public function handle(Request $request): JsonResponse
     {
-        if (!$this->tokenOk($request)) {
-            return new JsonResponse(['error' => 'Invalid token'], 401);
+        [$event, $error] = $this->webhookEvent($request);
+        if ($error !== null) {
+            return $error;
         }
 
-        $event = array_merge($request->query->all(), $request->request->all());
         $status = $this->sanitize($event['status'] ?? '');
 
         if ($status === '') {
@@ -64,7 +103,7 @@ class WebhookController
                 error_log('Email sent, message id: ' . $this->sanitize($event['messageid'] ?? ''));
                 break;
             case 'Opened':
-                error_log('Email opened from ' . $this->sanitize($event['Country'] ?? '') . ' ' . $this->sanitize($event['City'] ?? ''));
+                error_log('Email opened from ' . $this->sanitize($event['country'] ?? '') . ' ' . $this->sanitize($event['city'] ?? ''));
                 break;
             case 'Clicked':
                 error_log('Link clicked: ' . $this->sanitize($event['target'] ?? ''));
@@ -136,12 +175,15 @@ class WebhookController
      */
     public function doubleOptin(Request $request): JsonResponse
     {
-        if (!$this->tokenOk($request)) {
-            return new JsonResponse(['error' => 'Invalid token'], 401);
+        [$event, $error] = $this->webhookEvent($request);
+        if ($error !== null) {
+            return $error;
         }
 
-        $event = array_merge($request->query->all(), $request->request->all());
         $status = $this->sanitize($event['status'] ?? '');
+        if ($status === '') {
+            return new JsonResponse(['ok' => true]);
+        }
         $target = (string) ($event['target'] ?? '');
         $recipient = $this->sanitize($event['to'] ?? '');
         $listName = $this->ee->env('ELASTICEMAIL_LIST_NAME', 'Newsletter');

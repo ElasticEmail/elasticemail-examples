@@ -4,9 +4,9 @@ import adapter from "@sveltejs/adapter-auto";
 const config = {
   kit: {
     adapter: adapter(),
-    // Elastic Email posts webhook and inbound notifications form-encoded without an Origin header.
+    // Elastic Email posts inbound notifications form-encoded without an Origin header.
     // SvelteKit's CSRF check would reject those with 403 before any handler runs, so it is off here.
-    // The handlers verify the shared ?token= instead. Re-enable it if you add form actions.
+    // The handlers verify X-ElasticEmail-Signature (signed webhooks) or the shared ?token= instead. Re-enable it if you add form actions.
     csrf: { checkOrigin: false },
   },
 };

@@ -4,7 +4,7 @@ Send transactional email and receive webhooks from a Cloudflare Worker using the
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · workerd (Wrangler 3) · Cloudflare Workers
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · workerd (Wrangler 3) · Cloudflare Workers
 
 ## Prerequisites
 
@@ -28,7 +28,10 @@ Edit `EMAIL_FROM` in `wrangler.toml` (or `.dev.vars` for local runs).
 ```bash
 wrangler secret put ELASTICEMAIL_API_KEY
 wrangler secret put ELASTICEMAIL_WEBHOOK_TOKEN
+wrangler secret put ELASTICEMAIL_WEBHOOK_SECRET   # after creating a signed webhook
 ```
+
+`ELASTICEMAIL_WEBHOOK_SECRET` is the `SigningSecret` (`whsec_...`) returned once when you create the webhook with `EnableSigning: true` and `DeliveryMethod: PostJson` (see [Webhooks](../README.md#webhooks)). Set it after creating the webhook; while it is empty, `/webhook` falls back to the `?token=` check (`ELASTICEMAIL_WEBHOOK_TOKEN`) for unsigned webhooks.
 
 ## Deploy
 
@@ -48,10 +51,12 @@ curl -X POST $URL/send \
   -H "Content-Type: application/json" \
   -d '{"to": "you@yourdomain.com", "subject": "Hello", "message": "Hi from Workers!"}'
 
-# Simulate an Elastic Email webhook (form-encoded, as EE sends it)
+# Simulate an unsigned Elastic Email webhook (token check)
 curl -X POST "$URL/webhook?token=change_me" \
   -d "status=Sent&to=you@yourdomain.com&transaction=abc&messageid=xyz"
 ```
+
+That last request only works while `ELASTICEMAIL_WEBHOOK_SECRET` is empty. With a signing secret set, send a signed request as shown in [Webhooks](../README.md#webhooks).
 
 Watch logs with `wrangler tail`.
 
@@ -60,7 +65,8 @@ Watch logs with `wrangler tail`.
 - workerd does not ship `node:http`, which axios uses by default. The code passes `axios.create({ adapter: "fetch" })` as the third argument of `new EmailsApi(configuration, basePath, axios)` so requests go through `fetch`.
 - `nodejs_compat` is enabled so axios' Node-specific imports (`url`, `util`, `stream`) resolve during bundling.
 - Env vars are not globals. They arrive as the second argument of `fetch(request, env)`, so the `EmailsApi` instance is created per request.
-- When you save a webhook, Elastic Email sends one test event (a GET with `to=test@test.com` and `messageid=abc1234`) and saves the webhook only if the Worker answers 2xx. The handler accepts it like any other event.
+- There is no `node:crypto` HMAC here, so the webhook signature is checked with WebCrypto (`crypto.subtle.importKey` + `sign`). The handler reads `await request.text()` before parsing JSON and signs `pathname + search` of `new URL(request.url)`, which keeps the percent-encoding.
+- When you create a webhook, Elastic Email sends one test event (`to=test@test.com`, `messageid=abc1234`). An unsigned webhook is saved only if the Worker answers 2xx; for a signed one the Worker does not know the secret yet and answers 401, which Elastic Email accepts for that test.
 
 ## AI assistant prompt
 
@@ -74,8 +80,12 @@ Expose POST /send that takes { to, subject, message } and calls emailsApi.emails
 Recipients.To = [to] and Content = { From, Subject, Body: [{ ContentType: "HTML", Content }] }.
 The From address must be a sender verified in Elastic Email. Return { success, transactionId, messageId }
 from response.data.TransactionID and response.data.MessageID, and { error } with the API status on failure
-(err.response.data.Error). Add GET /health and a GET|POST /webhook handler that checks ?token= against
-env.ELASTICEMAIL_WEBHOOK_TOKEN and logs the status field. Use wrangler.toml with compatibility_flags = ["nodejs_compat"].
+(err.response.data.Error). Add GET /health and a POST|GET /webhook handler that verifies the Elastic Email signature when ELASTICEMAIL_WEBHOOK_SECRET is set:
+X-ElasticEmail-Signature holds comma-separated v1=<hex> entries, each the hex HMAC-SHA256 (WebCrypto crypto.subtle, key = the
+secret) of `${X-ElasticEmail-Timestamp}\n${method}\n${pathname + search of new URL(request.url)}\n${raw body}`, with the raw body read before
+parsing; reject timestamps older than 300 s, compare in constant time, answer 401 on failure, then read the event
+from the JSON body (POST) or the query (GET). Without the secret it checks ?token= against
+env.ELASTICEMAIL_WEBHOOK_TOKEN. Log the status field. Use wrangler.toml with compatibility_flags = ["nodejs_compat"].
 ```
 
 ## Resources

@@ -1,8 +1,8 @@
 # Elastic Email Examples
 
-> Runnable code samples for the Elastic Email email API (REST API v4, official SDKs 4.2.0): transactional and bulk sending, templates, attachments, webhooks, inbound email routing, contacts, double opt-in, suppressions, sending domains and account statistics - in 24 languages, frameworks and serverless platforms.
+> Runnable code samples for the Elastic Email email API (REST API v4, official SDKs 4.3.0): transactional and bulk sending, templates, attachments, webhooks, inbound email routing, contacts, double opt-in, suppressions, sending domains and account statistics - in 24 languages, frameworks and serverless platforms.
 
-Every example reads `ELASTICEMAIL_API_KEY`, `EMAIL_FROM` and `EMAIL_TO` from `.env`. `EMAIL_FROM` must belong to a domain verified in Elastic Email. The API base URL is `https://api.elasticemail.com/v4` and authentication is the `X-ElasticEmail-ApiKey` header. Webhooks are unsigned GET requests with event data in the query string; the examples verify a shared `?token=` secret with a constant-time compare. Inbound email arrives as a form POST.
+Every example reads `ELASTICEMAIL_API_KEY`, `EMAIL_FROM` and `EMAIL_TO` from `.env`. `EMAIL_FROM` must belong to a domain verified in Elastic Email. The API base URL is `https://api.elasticemail.com/v4` and authentication is the `X-ElasticEmail-ApiKey` header. Webhooks created with `EnableSigning: true` and `DeliveryMethod: "PostJson"` (SDKs 4.3.0+) are signed JSON POSTs: the examples verify the HMAC-SHA256 `X-ElasticEmail-Signature` header with `ELASTICEMAIL_WEBHOOK_SECRET`; unsigned webhooks (the default) are GET requests with event data in the query string, verified with a shared `?token=` secret and a constant-time compare. Inbound email arrives as a form POST.
 
 A machine-readable map from use case to source file for every stack is in [examples.json](https://github.com/ElasticEmail/elasticemail-examples/blob/main/examples.json). All guides and quickstarts in one file: [llms-full.txt](https://github.com/ElasticEmail/elasticemail-examples/blob/main/llms-full.txt).
 
@@ -15,7 +15,7 @@ A machine-readable map from use case to source file for every stack is in [examp
 - [Templates](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/templates.md): hosted templates, merge values, creating one from code
 - [Contacts and lists](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/contacts-and-lists.md): lists, contact CRUD, statuses, custom fields
 - [Double opt-in](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/double-opt-in.md): HMAC confirmation link vs the Clicked event
-- [Webhooks](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/webhooks.md): events, parameters, the token scheme, handler design
+- [Webhooks](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/webhooks.md): signed webhooks (HMAC-SHA256), events, parameters, the token fallback, handler design
 - [Inbound email](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/inbound-email.md): inbound routes, MX setup, parsed fields
 - [Suppressions](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/suppressions.md): unsubscribes, bounces, complaints
 - [Domains and deliverability](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/domains-and-deliverability.md): SPF, DKIM, MX, DMARC, tracking, warm-up
@@ -38,7 +38,7 @@ A machine-readable map from use case to source file for every stack is in [examp
 - [Send email with Rust](https://github.com/ElasticEmail/elasticemail-examples/blob/main/rust-elasticemail-examples/QUICKSTART.md): elasticemail-rust, Axum
 - [Send email with Elixir](https://github.com/ElasticEmail/elasticemail-examples/blob/main/elixir-elasticemail-examples/QUICKSTART.md): REST API through Req, Phoenix
 - [Send email with Node.js](https://github.com/ElasticEmail/elasticemail-examples/blob/main/nodejs-elasticemail-examples/QUICKSTART.md): plain Node.js with node:http and no framework, TypeScript and JavaScript
-- [Send email with NestJS](https://github.com/ElasticEmail/elasticemail-examples/blob/main/nestjs-elasticemail-examples/QUICKSTART.md): NestJS 11, the SDK as an injectable provider, a token guard for webhooks, TypeScript only
+- [Send email with NestJS](https://github.com/ElasticEmail/elasticemail-examples/blob/main/nestjs-elasticemail-examples/QUICKSTART.md): NestJS 11, the SDK as an injectable provider, a signature guard for webhooks, TypeScript only
 - [Send email with Fastify](https://github.com/ElasticEmail/elasticemail-examples/blob/main/fastify-elasticemail-examples/QUICKSTART.md): Fastify 5 with @fastify/formbody, TypeScript and JavaScript
 - [Send email with Express](https://github.com/ElasticEmail/elasticemail-examples/blob/main/express-elasticemail-examples/QUICKSTART.md): Express 5, TypeScript and JavaScript
 - [Send email with Hono](https://github.com/ElasticEmail/elasticemail-examples/blob/main/hono-elasticemail-examples/QUICKSTART.md): Hono 4, TypeScript and JavaScript

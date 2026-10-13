@@ -4,7 +4,7 @@ Three HTTP-triggered Azure Functions on the Node.js v4 programming model (`app.h
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20 (Azure Functions v4) · Azure Functions
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20 (Azure Functions v4) · Azure Functions
 
 ## Prerequisites
 
@@ -45,6 +45,8 @@ az functionapp config appsettings set --name <app-name> --resource-group elastic
   "EMAIL_FROM=Acme <hello@yourdomain.com>"
 ```
 
+`ELASTICEMAIL_WEBHOOK_SECRET` is the `SigningSecret` (`whsec_...`) returned once when you create the webhook with `EnableSigning: true` and `DeliveryMethod: PostJson` (see [Webhooks](../README.md#webhooks)). Set it after creating the webhook; while it is empty, `/webhook` falls back to the `?token=` check (`ELASTICEMAIL_WEBHOOK_TOKEN`) for unsigned webhooks. Add it the same way: `--settings ELASTICEMAIL_WEBHOOK_SECRET=whsec_...`.
+
 App settings are encrypted at rest. To keep the key in Key Vault instead, give the Function App a managed identity with read access to the vault and set the value to a Key Vault reference; the code does not change:
 
 ```bash
@@ -77,15 +79,17 @@ curl -X POST "$URL/webhook?token=change_me" \
   -d "status=Sent&to=you@yourdomain.com&transaction=abc&messageid=xyz"
 ```
 
+That last request only works while `ELASTICEMAIL_WEBHOOK_SECRET` is empty. With a signing secret set, send a signed request as shown in [Webhooks](../README.md#webhooks).
+
 Logs: `func azure functionapp logstream <app-name>`, or Application Insights in the portal.
 
 ## Notes on runtime quirks
 
-- Full Node.js, so the SDK uses its default axios adapter and `node:crypto` is available for the constant-time token compare.
+- Full Node.js, so the SDK uses its default axios adapter and `node:crypto` is available for the HMAC signature check and the constant-time token compare.
 - The v4 programming model has no `function.json` files. Functions register themselves with `app.http(...)` when their file loads, and `"main": "dist/src/functions/*.js"` in `package.json` tells the host which compiled files to load. If `func start` finds no functions, run `npm run build` first.
 - HTTP routes get an `/api` prefix by default. `host.json` sets `"routePrefix": ""` so the paths match the other platforms; remove it if you prefer `/api/send`.
-- `HttpRequest` is Fetch-style: `req.query` is a `URLSearchParams`, and the body is read with `await req.json()` or `await req.formData()`. Handlers return `{ status, jsonBody }`.
-- `send` uses `authLevel: "function"`, so once deployed anyone calling `/send` must present a function key, as `?code=<key>` or an `x-functions-key` header. Get it with `az functionapp function keys list --name <app-name> --resource-group <rg> --function-name send`. `func start` does not check keys, so local testing needs none. `health` and `webhook` stay `anonymous`: Elastic Email cannot send a function key, and the save-time test event must get a 2xx or the webhook is not saved, so the `?token=` check protects the webhook.
+- `HttpRequest` is Fetch-style: `req.query` is a `URLSearchParams`, and the body is read with `await req.json()`, `await req.formData()` or, for the webhook signature, `await req.text()` before any parsing. The signed request target is `pathname + search` of `new URL(req.url)`, which keeps the percent-encoding. Handlers return `{ status, jsonBody }`.
+- `send` uses `authLevel: "function"`, so once deployed anyone calling `/send` must present a function key, as `?code=<key>` or an `x-functions-key` header. Get it with `az functionapp function keys list --name <app-name> --resource-group <rg> --function-name send`. `func start` does not check keys, so local testing needs none. `health` and `webhook` stay `anonymous`: Elastic Email cannot send a function key, so the signature check (or, for unsigned webhooks, the `?token=` check) protects the webhook.
 - `context.log` writes to Application Insights with the invocation ID attached; plain `console.log` also works but loses that correlation.
 
 ## AI assistant prompt
@@ -101,9 +105,12 @@ await req.json() and calls emailsApi.emailsTransactionalPost with Recipients.To 
 Content = { From, Subject, Body: [{ ContentType: "HTML", Content }, { ContentType: "PlainText", Content }] }.
 The From address must be a sender verified in Elastic Email. Return { success, transactionId, messageId } from
 response.data, and { status, jsonBody: { error } } with the API status on failure (err.response.data.Error).
-GET|POST /webhook (authLevel "anonymous") checks req.query.get("token") against
-process.env.ELASTICEMAIL_WEBHOOK_TOKEN with crypto.timingSafeEqual, reads form bodies with req.formData(),
-and logs the status field with context.log.
+POST|GET /webhook (authLevel "anonymous") verifies the Elastic Email signature when ELASTICEMAIL_WEBHOOK_SECRET is set:
+X-ElasticEmail-Signature holds comma-separated v1=<hex> entries, each the hex HMAC-SHA256 (node:crypto, key = the
+secret) of `${X-ElasticEmail-Timestamp}\n${method}\n${url.pathname + url.search}\n${raw body}`, with the raw body read before
+parsing; reject timestamps older than 300 s, compare in constant time, answer 401 on failure, then read the event
+from the JSON body (POST) or the query (GET). Without the secret it checks req.query.get("token") against
+process.env.ELASTICEMAIL_WEBHOOK_TOKEN with crypto.timingSafeEqual and reads form bodies with req.formData(). Log the status field with context.log.
 ```
 
 ## Resources

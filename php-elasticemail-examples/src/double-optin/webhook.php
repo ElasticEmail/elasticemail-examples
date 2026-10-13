@@ -7,6 +7,9 @@
  * confirm link, Elastic Email reports status=Clicked with the clicked URL in "target",
  * and the contact is added to the list.
  *
+ * With ELASTICEMAIL_WEBHOOK_SECRET set (a webhook created with EnableSigning), every request
+ * must carry a valid X-ElasticEmail-Signature. Otherwise the ?token= check applies.
+ *
  * Run locally:
  *   php -S localhost:3000 src/double-optin/webhook.php
  */
@@ -19,23 +22,22 @@ use ElasticEmail\Model\EmailsPayload;
 header('Content-Type: application/json');
 
 $listName = ee_env('ELASTICEMAIL_LIST_NAME', 'Newsletter');
-$expectedToken = ee_env('ELASTICEMAIL_WEBHOOK_TOKEN', 'change_me');
 
-if (!hash_equals($expectedToken, (string) ($_GET['token'] ?? ''))) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Invalid token']);
+[$event, $error] = ee_webhook_event_from_globals();
+if ($error !== null) {
+    http_response_code($error['status']);
+    echo json_encode(['error' => $error['error']]);
     exit;
 }
 
-// Elastic Email validates the URL with a GET when the webhook is saved.
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && !isset($_GET['status'])) {
+// Elastic Email sends a test request when the webhook is saved.
+if ((string) ($event['status'] ?? '') === '') {
     echo json_encode(['ok' => true]);
     exit;
 }
 
 $sanitize = fn($value): string => str_replace(["\r", "\n"], '', (string) ($value ?? ''));
 
-$event = array_merge($_GET, $_POST);
 $status = $sanitize($event['status'] ?? '');
 $target = $sanitize($event['target'] ?? '');
 $recipient = $sanitize($event['to'] ?? '');

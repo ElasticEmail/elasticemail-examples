@@ -67,6 +67,30 @@ class ElasticEmail
     }
 
     /**
+     * Check the X-ElasticEmail-Signature of a signed webhook request.
+     *
+     * Signed message: "{timestamp}\n{METHOD}\n{target}\n{body}", HMAC-SHA256 with the secret,
+     * lowercase hex. $target is the path + query exactly as received (still URL-encoded),
+     * $body the raw body ('' for GET). Any matching v1= entry of the header is accepted.
+     */
+    public function verifySignature(string $secret, string $timestamp, string $signatureHeader, string $method, string $target, string $body, ?int $now = null): bool
+    {
+        if (!ctype_digit($timestamp) || abs(($now ?? time()) - (int) $timestamp) > 300) {
+            return false;
+        }
+
+        $expected = hash_hmac('sha256', $timestamp . "\n" . strtoupper($method) . "\n" . $target . "\n" . $body, $secret);
+
+        foreach (explode(',', $signatureHeader) as $part) {
+            $part = trim($part);
+            if (str_starts_with($part, 'v1=') && hash_equals($expected, substr($part, 3))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * HTTP status and message from an API failure. Response body shape is {"Error": "..."}.
      *
      * @return array{status:int, message:string}

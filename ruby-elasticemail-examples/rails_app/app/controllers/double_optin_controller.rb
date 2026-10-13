@@ -3,9 +3,9 @@
 ##
 # POST /double-optin/subscribe        body { email, name }
 # GET  /double-optin/confirm?email=&token=
-# POST /double-optin/webhook?token=...  Clicked-event based confirmation
+# GET|POST /double-optin/webhook  Clicked-event based confirmation (signed, or ?token=...)
 class DoubleOptinController < ApplicationController
-  before_action :require_token!, only: :webhook
+  before_action :require_webhook_event!, only: :webhook
 
   PUBLIC_URL = ENV.fetch("PUBLIC_URL", "http://localhost:3000")
   CONFIRM_REDIRECT_URL = ENV["CONFIRM_REDIRECT_URL"]
@@ -72,10 +72,11 @@ class DoubleOptinController < ApplicationController
   end
 
   # Create a webhook for Clicked events pointing here (see examples/webhooks.rb).
+  # Verified like /webhook: signature when ELASTICEMAIL_WEBHOOK_SECRET is set, else ?token=.
   def webhook
-    status_value = sanitize(params[:status])
-    target = params[:target].to_s
-    recipient = params[:to].to_s
+    status_value = sanitize(@event["status"])
+    target = @event["target"].to_s
+    recipient = @event["to"].to_s
 
     unless status_value == "Clicked" && target.include?("/double-optin/confirm")
       return render json: { received: true, status: status_value, message: "Event ignored" }

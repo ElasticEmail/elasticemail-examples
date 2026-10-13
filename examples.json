@@ -9,7 +9,7 @@
     "auth": "X-ElasticEmail-ApiKey header",
     "reference": "https://elasticemail.com/developers/api-documentation/rest-api"
   },
-  "sdkVersion": "4.2.0",
+  "sdkVersion": "4.3.0",
   "env": {
     "required": [
       "ELASTICEMAIL_API_KEY",
@@ -113,7 +113,7 @@
       "readme": "nextjs-elasticemail-examples/typescript/README.md",
       "quickstart": "nextjs-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript, JavaScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 18.18+",
       "frameworks": [
         "Next.js 15",
@@ -195,7 +195,7 @@
       "readme": "php-elasticemail-examples/README.md",
       "quickstart": "php-elasticemail-examples/QUICKSTART.md",
       "language": "PHP",
-      "sdk": "elasticemail/elasticemail-php@4.2.0",
+      "sdk": "elasticemail/elasticemail-php@4.3.0",
       "runtime": "PHP 8.1+",
       "frameworks": [
         "Slim 4",
@@ -272,7 +272,7 @@
       "readme": "laravel-elasticemail-examples/README.md",
       "quickstart": "laravel-elasticemail-examples/QUICKSTART.md",
       "language": "PHP",
-      "sdk": "elasticemail/elasticemail-php@4.2.0",
+      "sdk": "elasticemail/elasticemail-php@4.3.0",
       "runtime": "PHP 8.2+",
       "frameworks": [
         "Laravel 11"
@@ -335,7 +335,7 @@
       "readme": "python-elasticemail-examples/README.md",
       "quickstart": "python-elasticemail-examples/QUICKSTART.md",
       "language": "Python",
-      "sdk": "ElasticEmail==4.2.1 (PyPI)",
+      "sdk": "ElasticEmail==4.3.0 (PyPI)",
       "runtime": "Python 3.9+",
       "frameworks": [
         "Flask",
@@ -485,7 +485,7 @@
       "readme": "go-elasticemail-examples/README.md",
       "quickstart": "go-elasticemail-examples/QUICKSTART.md",
       "language": "Go",
-      "sdk": "github.com/elasticemail/elasticemail-go/v4@v4.2.0",
+      "sdk": "github.com/elasticemail/elasticemail-go/v4@v4.3.0",
       "runtime": "Go 1.22+",
       "frameworks": [
         "Chi 5",
@@ -558,7 +558,7 @@
       "readme": "java-elasticemail-examples/README.md",
       "quickstart": "java-elasticemail-examples/QUICKSTART.md",
       "language": "Java",
-      "sdk": "com.github.ElasticEmail:elasticemail-java:4.2.0 (JitPack)",
+      "sdk": "com.github.ElasticEmail:elasticemail-java:4.3.0 (JitPack)",
       "runtime": "Java 17+, Maven 3.8+",
       "frameworks": [
         "Javalin",
@@ -633,7 +633,7 @@
       "readme": "dotnet-elasticemail-examples/README.md",
       "quickstart": "dotnet-elasticemail-examples/QUICKSTART.md",
       "language": "C#",
-      "sdk": "ElasticEmail 4.2.0 (NuGet)",
+      "sdk": "ElasticEmail 4.3.0 (NuGet)",
       "runtime": ".NET 8",
       "frameworks": [
         "ASP.NET Minimal APIs",
@@ -708,7 +708,7 @@
       "readme": "kotlin-elasticemail-examples/README.md",
       "quickstart": "kotlin-elasticemail-examples/QUICKSTART.md",
       "language": "Kotlin",
-      "sdk": "com.github.ElasticEmail:elasticemail-java:4.2.0 (JitPack)",
+      "sdk": "com.github.ElasticEmail:elasticemail-java:4.3.0 (JitPack)",
       "runtime": "Java 17+, Maven 3.8+",
       "frameworks": [
         "Kotlin 2.4",
@@ -780,7 +780,7 @@
       "readme": "rust-elasticemail-examples/README.md",
       "quickstart": "rust-elasticemail-examples/QUICKSTART.md",
       "language": "Rust",
-      "sdk": "ElasticEmail 4.2.0 (crates.io)",
+      "sdk": "ElasticEmail 4.3.0 (crates.io)",
       "runtime": "Rust 1.75+",
       "frameworks": [
         "Axum 0.8"
@@ -925,7 +925,7 @@
       "readme": "nodejs-elasticemail-examples/README.md",
       "quickstart": "nodejs-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript, JavaScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20+",
       "frameworks": [
         "node:http"
@@ -1015,7 +1015,7 @@
       "readme": "nestjs-elasticemail-examples/README.md",
       "quickstart": "nestjs-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20+",
       "frameworks": [
         "NestJS 11"
@@ -1088,7 +1088,7 @@
       "readme": "fastify-elasticemail-examples/README.md",
       "quickstart": "fastify-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript, JavaScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20+",
       "frameworks": [
         "Fastify 5"
@@ -1178,7 +1178,7 @@
       "readme": "express-elasticemail-examples/README.md",
       "quickstart": "express-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript, JavaScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20+",
       "frameworks": [
         "Express 5"
@@ -1268,7 +1268,7 @@
       "readme": "hono-elasticemail-examples/README.md",
       "quickstart": "hono-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript, JavaScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20+",
       "frameworks": [
         "Hono 4"
@@ -1358,7 +1358,7 @@
       "readme": "bun-elasticemail-examples/README.md",
       "quickstart": "bun-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript, JavaScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Bun 1.1+",
       "frameworks": [
         "Bun.serve()"
@@ -1448,7 +1448,7 @@
       "readme": "remix-elasticemail-examples/README.md",
       "quickstart": "remix-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript, JavaScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20+",
       "frameworks": [
         "Remix 2"
@@ -1529,7 +1529,7 @@
       "readme": "nuxt-elasticemail-examples/README.md",
       "quickstart": "nuxt-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript, JavaScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20+",
       "frameworks": [
         "Nuxt 3"
@@ -1616,7 +1616,7 @@
       "readme": "sveltekit-elasticemail-examples/README.md",
       "quickstart": "sveltekit-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript, JavaScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20+",
       "frameworks": [
         "SvelteKit 2",
@@ -1698,7 +1698,7 @@
       "readme": "astro-elasticemail-examples/README.md",
       "quickstart": "astro-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript, JavaScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20+",
       "frameworks": [
         "Astro 5"
@@ -1779,7 +1779,7 @@
       "readme": "redwoodjs-elasticemail-examples/README.md",
       "quickstart": "redwoodjs-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript, JavaScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20, Yarn 4",
       "frameworks": [
         "RedwoodJS 8"
@@ -1860,7 +1860,7 @@
       "readme": "tanstack-elasticemail-examples/README.md",
       "quickstart": "tanstack-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript, JavaScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20+",
       "frameworks": [
         "TanStack Start"
@@ -1942,7 +1942,7 @@
       "readme": "serverless-elasticemail-examples/cloudflare-workers/README.md",
       "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "workerd (Wrangler 3)",
       "frameworks": [
         "Cloudflare Workers"
@@ -1981,7 +1981,7 @@
       "readme": "serverless-elasticemail-examples/vercel-functions/README.md",
       "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20+ and Edge runtime",
       "frameworks": [
         "Vercel Functions"
@@ -2020,7 +2020,7 @@
       "readme": "serverless-elasticemail-examples/supabase-edge-functions/README.md",
       "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Deno (Supabase CLI 1.200+)",
       "frameworks": [
         "Supabase Edge Functions"
@@ -2059,7 +2059,7 @@
       "readme": "serverless-elasticemail-examples/aws-lambda/README.md",
       "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20 (AWS SAM)",
       "frameworks": [
         "AWS Lambda"
@@ -2098,7 +2098,7 @@
       "readme": "serverless-elasticemail-examples/deno-deploy/README.md",
       "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Deno 2",
       "frameworks": [
         "Deno Deploy"
@@ -2137,7 +2137,7 @@
       "readme": "serverless-elasticemail-examples/netlify-functions/README.md",
       "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20+ and Edge Functions",
       "frameworks": [
         "Netlify Functions"
@@ -2176,7 +2176,7 @@
       "readme": "serverless-elasticemail-examples/railway/README.md",
       "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20+ (Hono)",
       "frameworks": [
         "Railway"
@@ -2215,7 +2215,7 @@
       "readme": "serverless-elasticemail-examples/encore-ts/README.md",
       "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20+ (Encore 1.45)",
       "frameworks": [
         "Encore.ts"
@@ -2254,7 +2254,7 @@
       "readme": "serverless-elasticemail-examples/firebase-functions/README.md",
       "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20 (firebase-functions 6)",
       "frameworks": [
         "Firebase Cloud Functions"
@@ -2293,7 +2293,7 @@
       "readme": "serverless-elasticemail-examples/azure-functions/README.md",
       "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20 (Azure Functions v4)",
       "frameworks": [
         "Azure Functions"
@@ -2332,7 +2332,7 @@
       "readme": "serverless-elasticemail-examples/google-cloud-run/README.md",
       "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Node.js 20 (container)",
       "frameworks": [
         "Google Cloud Run"
@@ -2371,7 +2371,7 @@
       "readme": "serverless-elasticemail-examples/convex/README.md",
       "quickstart": "serverless-elasticemail-examples/QUICKSTART.md",
       "language": "TypeScript",
-      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.2.0",
+      "sdk": "@elasticemail/elasticemail-client-ts-axios@4.3.0",
       "runtime": "Convex (Node.js actions)",
       "frameworks": [
         "Convex"

@@ -17,6 +17,8 @@ export const templateName = env.ELASTICEMAIL_TEMPLATE_NAME || "welcome-example";
 export const sendingDomain = env.SENDING_DOMAIN || "yourdomain.com";
 export const publicUrl = env.PUBLIC_URL || "http://localhost:5173";
 export const secret = env.ELASTICEMAIL_WEBHOOK_TOKEN || "change_me";
+// Signing secret returned once when the webhook is created with EnableSigning (whsec_...)
+export const webhookSecret = env.ELASTICEMAIL_WEBHOOK_SECRET || "";
 
 let config;
 
@@ -96,4 +98,67 @@ export async function readEvent(request) {
 /** Parse a JSON request body, returning {} when it is missing or malformed */
 export async function readJson(request) {
   return request.json().catch(() => ({}));
+}
+
+/**
+ * Verify an Elastic Email webhook signature (webhooks created with EnableSigning: true).
+ * X-ElasticEmail-Signature carries one or more comma-separated "v1=<hex>" entries, each
+ * hex(HMAC-SHA256(secret, `${timestamp}\n${METHOD}\n${target}\n${rawBody}`)), where target is
+ * the path + query exactly as requested (still URL-encoded) and rawBody is "" for GET.
+ * Requests older or newer than 5 minutes are rejected to limit replays.
+ */
+export function verifySignature(secret, timestamp, signature, method, target, rawBody, now = Math.floor(Date.now() / 1000)) {
+  if (!secret || !timestamp || !signature || !/^\d+$/.test(timestamp)) return false;
+  if (Math.abs(now - Number(timestamp)) > 300) return false;
+  const expected = createHmac("sha256", secret)
+    .update(`${timestamp}\n${method.toUpperCase()}\n${target}\n`)
+    .update(rawBody)
+    .digest();
+  return signature.split(",").some((entry) => {
+    const match = /^v1=([0-9a-f]{64})$/i.exec(entry.trim());
+    return match !== null && timingSafeEqual(Buffer.from(match[1], "hex"), expected);
+  });
+}
+
+/** Lowercase the keys and stringify the values (PostJson sends null for missing to/from/subject/...) */
+function normalizeEvent(fields) {
+  const event = {};
+  for (const [key, value] of Object.entries(fields)) event[key.toLowerCase()] = value == null ? "" : String(value);
+  return event;
+}
+
+/** Parse the JSON object sent by PostJson webhooks, returning {} when it is missing or malformed */
+function parseJsonObject(raw) {
+  try {
+    const parsed = JSON.parse(raw || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Authenticate an Elastic Email webhook request and return its event fields (keys lowercased),
+ * or null when the request must be rejected with 401 (Elastic Email then retries).
+ * - ELASTICEMAIL_WEBHOOK_SECRET set: a valid X-ElasticEmail-Signature is required. The event is
+ *   the JSON body (POST, DeliveryMethod PostJson) or the query string (GET).
+ * - Not set: unsigned webhooks fall back to the shared ?token= (ELASTICEMAIL_WEBHOOK_TOKEN).
+ */
+export async function readWebhook(request) {
+  const url = new URL(request.url);
+  if (!webhookSecret) {
+    return tokenOk(url.searchParams.get("token")) ? normalizeEvent(await readEvent(request)) : null;
+  }
+  // Read the raw body before parsing: the signature covers the exact bytes received.
+  const rawBody = request.method === "POST" ? await request.text() : "";
+  const valid = verifySignature(
+    webhookSecret,
+    request.headers.get("x-elasticemail-timestamp"),
+    request.headers.get("x-elasticemail-signature"),
+    request.method,
+    url.pathname + url.search, // keeps the URL encoding of the request line
+    rawBody,
+  );
+  if (!valid) return null;
+  return normalizeEvent(request.method === "POST" ? parseJsonObject(rawBody) : Object.fromEntries(url.searchParams));
 }

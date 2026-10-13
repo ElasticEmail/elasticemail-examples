@@ -70,7 +70,7 @@ function InboundPage() {
       <div className="card warning">
         <h3>Notes</h3>
         <ul>
-          <li>Elastic Email does not sign these requests. The handler checks the shared token in the query string.</li>
+          <li>Inbound notifications are not signed. The handler checks the shared token in the query string.</li>
           <li>Fields: <code>from_email</code>, <code>from_name</code>, <code>env_from</code>, <code>env_to_list</code>, <code>to_list</code>, <code>header_list</code>, <code>subject</code>, <code>body_text</code>, <code>body_html</code>, <code>attN_name</code>, <code>attN_content</code> (base64).</li>
           <li>Return 2xx quickly. Do heavy processing asynchronously.</li>
         </ul>

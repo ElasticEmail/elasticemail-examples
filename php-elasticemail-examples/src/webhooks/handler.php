@@ -2,34 +2,36 @@
 /**
  * Standalone webhook endpoint for Elastic Email event notifications.
  *
- * Parameters arrive in the query string (GET) or as form fields (POST): transaction,
- * messageid, to, from, subject, date, status (Sent, Opened, Clicked, Error, AbuseReport,
- * Unsubscribed), category, channel, target (clicked URL), IP, Useragent, Country, City.
+ * Fields: transaction, messageid, to, from, subject, date, status (Sent, Opened, Clicked,
+ * Error, AbuseReport, Unsubscribed), category, channel, target (clicked URL), ip, useragent,
+ * country, city. A signed webhook with DeliveryMethod PostJson sends them as a JSON body,
+ * a Get webhook in the query string.
  *
- * Elastic Email sends a GET to validate the URL when the webhook is saved, so GET
- * without a status answers 200.
+ * Signed webhooks (recommended): set ELASTICEMAIL_WEBHOOK_SECRET to the SigningSecret printed
+ * by src/webhooks/manage.php. Every request must then carry a valid X-ElasticEmail-Signature,
+ * otherwise it gets 401 (Elastic Email retries). Unsigned webhooks: leave the secret empty and
+ * register PUBLIC_URL/webhook?token=<ELASTICEMAIL_WEBHOOK_TOKEN>.
+ *
+ * Elastic Email sends a test request when the webhook is saved; a request without a status
+ * answers 200.
  *
  * Run locally:
  *   php -S localhost:3000 src/webhooks/handler.php
- * and register PUBLIC_URL/webhook?token=... with src/webhooks/manage.php.
  */
 
 require_once __DIR__ . '/../bootstrap.php';
 
 header('Content-Type: application/json');
 
-$expectedToken = ee_env('ELASTICEMAIL_WEBHOOK_TOKEN', 'change_me');
-$givenToken = (string) ($_GET['token'] ?? '');
-
-if (!hash_equals($expectedToken, $givenToken)) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Invalid token']);
+[$event, $error] = ee_webhook_event_from_globals();
+if ($error !== null) {
+    http_response_code($error['status']);
+    echo json_encode(['error' => $error['error']]);
     exit;
 }
 
 $sanitize = fn($value): string => str_replace(["\r", "\n"], '', (string) ($value ?? ''));
 
-$event = array_merge($_GET, $_POST);
 $status = $sanitize($event['status'] ?? '');
 
 if ($status === '') {
@@ -45,7 +47,7 @@ switch ($status) {
         error_log('Email sent, message id: ' . $sanitize($event['messageid'] ?? ''));
         break;
     case 'Opened':
-        error_log('Email opened from ' . $sanitize($event['Country'] ?? '') . ' ' . $sanitize($event['City'] ?? ''));
+        error_log('Email opened from ' . $sanitize($event['country'] ?? '') . ' ' . $sanitize($event['city'] ?? ''));
         break;
     case 'Clicked':
         error_log('Link clicked: ' . $sanitize($event['target'] ?? ''));

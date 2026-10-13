@@ -1,9 +1,12 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
 
 const from = process.env.EMAIL_FROM || "Acme <hello@yourdomain.com>";
 const secret = process.env.ELASTICEMAIL_WEBHOOK_TOKEN || "change_me";
+// Signing secret (whsec_...) returned once when the webhook is created with EnableSigning.
+// When set, /webhook requires a valid signature; when empty, it falls back to the ?token= check.
+const signingSecret = process.env.ELASTICEMAIL_WEBHOOK_SECRET || "";
 
 let emailsApi: EmailsApi | undefined;
 function getEmailsApi(): EmailsApi {
@@ -33,14 +36,42 @@ const tokenOk = (token: unknown): boolean => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 
+/**
+ * Verify an Elastic Email webhook signature:
+ * X-ElasticEmail-Signature: v1=hex(HMAC-SHA256(secret, `${timestamp}\n${METHOD}\n${target}\n${rawBody}`)),
+ * where target is the path + query exactly as requested (still URL-encoded).
+ */
+function verifySignature(
+  key: string,
+  timestamp: string | undefined,
+  signatureHeader: string | undefined,
+  method: string,
+  target: string,
+  body: Buffer | string,
+): boolean {
+  if (!timestamp || !/^\d+$/.test(timestamp) || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
+  const expected = Buffer.from(
+    createHmac("sha256", key).update(`${timestamp}\n${method}\n${target}\n`).update(body).digest("hex"),
+  );
+  return (signatureHeader ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith("v1="))
+    .some((part) => {
+      const candidate = Buffer.from(part.slice(3));
+      return candidate.length === expected.length && timingSafeEqual(candidate, expected);
+    });
+}
+
 const apiError = (err: any) => ({
   status: err.response?.status ?? 500,
   message: err.response?.data?.Error ?? err.message ?? "Unknown error",
 });
 
-/** API Gateway base64-encodes binary-looking bodies; form posts from Elastic Email often arrive that way. */
-const rawBody = (event: APIGatewayProxyEventV2): string =>
-  event.body ? (event.isBase64Encoded ? Buffer.from(event.body, "base64").toString("utf8") : event.body) : "";
+/** API Gateway base64-encodes binary-looking bodies; form posts often arrive that way. */
+const rawBytes = (event: APIGatewayProxyEventV2): Buffer =>
+  event.body ? Buffer.from(event.body, event.isBase64Encoded ? "base64" : "utf8") : Buffer.alloc(0);
+const rawBody = (event: APIGatewayProxyEventV2): string => rawBytes(event).toString("utf8");
 
 /** Elastic Email webhooks are form-encoded; JSON is accepted too. */
 function readBody(event: APIGatewayProxyEventV2): Record<string, string> {
@@ -89,17 +120,43 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<Result> {
     }
   }
 
-  // Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-  // form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-  // channel, target (clicked URL), IP, Useragent, Country, City.
-  // Elastic Email sends a GET to validate the URL when the webhook is saved.
+  // Elastic Email event notifications. A signed webhook created with DeliveryMethod PostJson
+  // POSTs a flat JSON object; an unsigned one sends a GET with the same fields in the query string:
+  // transaction, messageid, to, from, subject, date, status, category, channel, target (clicked URL),
+  // ip, useragent, country, state, city. to/from/channel/subject/messageid may be null.
   if ((method === "GET" || method === "POST") && path === "/webhook") {
-    if (!tokenOk(query.token)) {
-      return json({ error: "Invalid token" }, 401);
+    let evt: Record<string, unknown>;
+    if (signingSecret) {
+      // Verify against the raw bytes and the raw path + query, before any parsing.
+      const body = rawBytes(event);
+      const target = event.rawPath + (event.rawQueryString ? `?${event.rawQueryString}` : "");
+      const ok = verifySignature(
+        signingSecret,
+        event.headers["x-elasticemail-timestamp"],
+        event.headers["x-elasticemail-signature"],
+        method,
+        target,
+        body,
+      );
+      if (!ok) {
+        // 401 makes Elastic Email retry. The test event sent when the webhook is created
+        // arrives before you know the secret; Elastic Email accepts a 401 for that one.
+        return json({ error: "Invalid signature" }, 401);
+      }
+      try {
+        evt = method === "POST" ? (JSON.parse(body.toString("utf8") || "{}") ?? {}) : query;
+      } catch {
+        return json({ error: "Invalid JSON body" }, 400);
+      }
+    } else {
+      // Unsigned webhook: the shared secret travels in the URL as ?token=
+      if (!tokenOk(query.token)) {
+        return json({ error: "Invalid token" }, 401);
+      }
+      const body = method === "POST" ? readBody(event) : {};
+      evt = { ...query, ...body };
     }
 
-    const body = method === "POST" ? readBody(event) : {};
-    const evt: Record<string, string | undefined> = { ...query, ...body };
     const status = sanitize(evt.status);
 
     if (!status) {
@@ -112,7 +169,7 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<Result> {
         console.log("Email sent, message id:", sanitize(evt.messageid));
         break;
       case "Opened":
-        console.log("Email opened from", sanitize(evt.Country), sanitize(evt.City));
+        console.log("Email opened from", sanitize(evt.country ?? evt.Country), sanitize(evt.city ?? evt.City));
         break;
       case "Clicked":
         console.log("Link clicked:", sanitize(evt.target));

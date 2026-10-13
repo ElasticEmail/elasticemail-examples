@@ -1,11 +1,11 @@
 # NestJS Email API Examples - Elastic Email
 
-Send transactional and bulk email from a NestJS 11 app on Node.js with the [Elastic Email](https://elasticemail.com/email-api) email API. The official Elastic Email TypeScript SDK (`@elasticemail/elasticemail-client-ts-axios`) is wrapped in an injectable `ElasticEmailService`, so controllers get the email, contact and list clients through Nest dependency injection. Webhook and inbound routes are protected by a `TokenGuard`, and an exception filter turns API failures into `{ "error": "..." }` responses. This stack is TypeScript only, because NestJS is built on decorators and a JavaScript variant would need a Babel setup that almost nobody uses.
+Send transactional and bulk email from a NestJS 11 app on Node.js with the [Elastic Email](https://elasticemail.com/email-api) email API. The official Elastic Email TypeScript SDK (`@elasticemail/elasticemail-client-ts-axios`) is wrapped in an injectable `ElasticEmailService`, so controllers get the email, contact and list clients through Nest dependency injection. Webhook routes verify Elastic Email's HMAC signature with a `WebhookGuard` (falling back to a `?token=` check for unsigned webhooks), inbound routes are protected by a `TokenGuard`, and an exception filter turns API failures into `{ "error": "..." }` responses. This stack is TypeScript only, because NestJS is built on decorators and a JavaScript variant would need a Babel setup that almost nobody uses.
 
 > **First time here?** The [NestJS quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ · NestJS 11
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · NestJS 11
 
 ## Prerequisites
 
@@ -72,13 +72,17 @@ How the app is put together:
 - `ElasticEmailModule` is a global module that provides `ElasticEmailService`. The service builds one
   `Configuration` from `ELASTICEMAIL_API_KEY` and exposes `emails` (`EmailsApi`), `contacts`
   (`ContactsApi`) and `lists` (`ListsApi`), plus the sender and list settings read from the environment.
+- `WebhookGuard` protects the webhook routes. When `ELASTICEMAIL_WEBHOOK_SECRET` is set it verifies
+  the `X-ElasticEmail-Signature` HMAC over `req.rawBody` and answers `401` on a bad or stale
+  signature; without a secret it delegates to `TokenGuard`.
 - `TokenGuard` checks `?token=` against `ELASTICEMAIL_WEBHOOK_TOKEN` with `crypto.timingSafeEqual`
-  and answers `401 { "error": "Invalid token" }` on a mismatch.
+  and answers `401 { "error": "Invalid token" }` on a mismatch. Inbound email always uses it.
 - `ApiExceptionFilter` is registered globally. Controllers simply `await` SDK calls; when the API
   answers `{ "Error": "..." }` with a 4xx/5xx, the filter responds `{ "error": "..." }` with the same
   status. Validation errors (`BadRequestException`) and unknown routes use the same shape.
-- `main.ts` raises the `urlencoded` body limit to 25 MB, because inbound email is a form POST that
-  carries base64 attachments.
+- `main.ts` creates the app with `rawBody: true`, so signed webhooks can be verified against the
+  body bytes as received, and raises the `urlencoded` body limit to 25 MB, because inbound email is
+  a form POST that carries base64 attachments.
 
 The app runs with `tsx`, which uses esbuild. esbuild does not emit decorator metadata, so Nest
 cannot resolve constructor dependencies from their types alone. The controllers inject the service
@@ -89,26 +93,43 @@ Keep that pattern, or switch to the Nest CLI (`nest start`) or SWC if you prefer
 
 - `GET /health` - Health check
 - `POST /send` - Send a transactional email
-- `GET|POST /webhook?token=...` - Handle Elastic Email event notifications
+- `POST|GET /webhook` - Handle Elastic Email event notifications (signed POST, or `?token=...` when unsigned)
 - `POST /inbound?token=...` - Receive inbound email pushed by an inbound route
 - `POST /double-optin/subscribe` - Store a contact and send a confirmation email
 - `GET /double-optin/confirm?email=...&token=...` - Add the contact to the list
-- `GET|POST /double-optin/webhook?token=...` - Confirm via Clicked event instead of a link
+- `POST|GET /double-optin/webhook` - Confirm via Clicked event instead of a link (signed POST, or `?token=...` when unsigned)
 
 ## Webhooks and inbound
 
-Elastic Email does not sign webhook requests. The examples put a shared secret in the URL
-(`?token=ELASTICEMAIL_WEBHOOK_TOKEN`) and `TokenGuard` checks it with a constant-time compare.
-Elastic Email sends each event as a GET request with the details in the query string: `status`
-(Sent, Opened, Clicked, Error, AbuseReport, Unsubscribed), `to`, `transaction`, `messageid`,
-`category`, `target`.
+The recommended setup is a signed webhook. `examples/webhooks.ts` creates it with
+`EnableSigning: true` and `DeliveryMethod: WebhookDeliveryMethod.PostJson`, and prints the
+`SigningSecret` (`whsec_...`) once; store it as `ELASTICEMAIL_WEBHOOK_SECRET`. Both options can be
+set only when the webhook is created, and `webhookByPublicidSecretRotatePost` issues a new secret
+(the old one stops working at once). Elastic Email then POSTs each event as a flat JSON body
+(`status`, `to`, `transaction`, `messageid`, `category`, `target`, ...; `to`, `from`, `channel`,
+`subject` and `messageid` may be `null`) with these headers:
+
+- `X-ElasticEmail-Timestamp` - unix seconds
+- `X-ElasticEmail-Signature` - `v1=<hex>`, a comma-separated list; any `v1=` entry may match
+- `X-ElasticEmail-Webhook-Id`
+
+The signature is the lowercase hex HMAC-SHA256, keyed with the secret, of
+`{timestamp}\n{METHOD}\n{path and query as received}\n{raw body}`. `WebhookGuard` rebuilds it from
+`req.originalUrl` and `req.rawBody` (kept by `rawBody: true` in `main.ts`), rejects timestamps more
+than 300 seconds off and compares in constant time. A failed check answers `401`, and Elastic Email
+retries. Signed webhooks do not follow redirects.
+
+Unsigned webhooks still work: leave `ELASTICEMAIL_WEBHOOK_SECRET` empty and put a shared secret in
+the URL (`?token=ELASTICEMAIL_WEBHOOK_TOKEN`), which `TokenGuard` checks with a constant-time compare.
+Unsigned events arrive as a GET request with the same fields in the query string.
 
 Inbound email arrives as a POST with form fields (`from_email`, `subject`, `body_text`, `body_html`,
 `att1_name`, `att1_content`, ...). The domain's MX record must point at `mx.inbound.elasticemail.com`.
 
 For local development expose the server with a tunnel such as ngrok and set `PUBLIC_URL` to it.
 When you save a webhook, Elastic Email sends one test event to the URL and saves the webhook only
-if it gets a 2xx response. The test event carries sample values (`to=test@test.com`,
+if it gets a 2xx response. For a signed webhook the test event arrives before your server knows the
+secret, so a `401`/`403` answer is accepted too and the create call still succeeds. The test event carries sample values (`to=test@test.com`,
 `messageid=abc1234`). The handlers accept it like any other event; in your own app, skip it before
 it reaches your data.
 
@@ -153,7 +174,7 @@ nestjs-elasticemail-examples/
 │   │   ├── email/email.controller.ts          # GET /health, POST /send
 │   │   ├── webhooks/webhooks.controller.ts    # /webhook, /inbound
 │   │   ├── double-optin/double-optin.controller.ts
-│   │   └── common/                            # TokenGuard, ApiExceptionFilter, HMAC helpers
+│   │   └── common/                            # TokenGuard, WebhookGuard, ApiExceptionFilter, HMAC helpers
 │   ├── package.json
 │   └── tsconfig.json
 ├── .env.example

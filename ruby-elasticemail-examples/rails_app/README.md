@@ -39,13 +39,20 @@ Response: `{"success": true, "transactionId": "...", "messageId": "..."}`
 
 ### Webhook Handler
 ```
-GET|POST http://localhost:3000/webhook?token=<ELASTICEMAIL_WEBHOOK_TOKEN>
+GET|POST http://localhost:3000/webhook
 ```
 
-Elastic Email sends each event as a GET request with the details in the query string (`status`,
-`to`, `transaction`, `messageid`, `target`, ...). When you save a webhook, it sends one test event
-(`to=test@test.com`, `messageid=abc1234`) and saves the webhook only if it gets a 2xx response.
-Requests without the right `token` get 401.
+Recommended: create the webhook with `EnableSigning: true` and `DeliveryMethod: "PostJson"`
+(see `../examples/webhooks.rb`) and store the `SigningSecret` it returns once as
+`ELASTICEMAIL_WEBHOOK_SECRET`. Each event then arrives as a POST with a JSON body (`status`, `to`,
+`transaction`, `messageid`, `target`, ...) and `X-ElasticEmail-Timestamp` / `X-ElasticEmail-Signature`
+headers. The handler verifies the HMAC-SHA256 signature over the raw body and rejects missing,
+wrong or older-than-5-minutes signatures with 401. The test event Elastic Email sends when the
+webhook is created arrives before you have the secret; Elastic Email accepts the 401 for it.
+
+Fallback for unsigned webhooks (`ELASTICEMAIL_WEBHOOK_SECRET` empty): use
+`/webhook?token=<ELASTICEMAIL_WEBHOOK_TOKEN>`. Events then arrive as GET requests with the details
+in the query string, and requests without the right `token` get 401.
 
 ### Inbound Email
 ```
@@ -66,15 +73,17 @@ The confirmation link points at `GET /double-optin/confirm?email=&token=` where 
 `HMAC_SHA256(ELASTICEMAIL_WEBHOOK_TOKEN, email)`. On success the contact is added to
 `ELASTICEMAIL_LIST_NAME` and the response is JSON, or a redirect when `CONFIRM_REDIRECT_URL` is set.
 
-`POST /double-optin/webhook?token=...` is the click-tracking variant: a `Clicked` event whose
-`target` contains `/double-optin/confirm` adds the recipient to the list.
+`GET|POST /double-optin/webhook` is the click-tracking variant: a `Clicked` event whose
+`target` contains `/double-optin/confirm` adds the recipient to the list. It is verified like
+`/webhook` (signature, or `?token=` for unsigned webhooks).
 
 ## Environment Variables
 
 - `ELASTICEMAIL_API_KEY` - API key (required)
 - `EMAIL_FROM` - verified sender, defaults to `Acme <hello@yourdomain.com>`
 - `CONTACT_EMAIL` - where inbound email is forwarded
-- `ELASTICEMAIL_WEBHOOK_TOKEN` - shared secret checked on webhook and inbound requests
+- `ELASTICEMAIL_WEBHOOK_SECRET` - signing secret returned once when the webhook is created with `EnableSigning`; leave empty to use `ELASTICEMAIL_WEBHOOK_TOKEN`
+- `ELASTICEMAIL_WEBHOOK_TOKEN` - shared secret checked on inbound requests and unsigned webhooks
 - `ELASTICEMAIL_LIST_NAME` - contact list used by double opt-in
 - `PUBLIC_URL` - public base URL used to build confirm links
 - `CONFIRM_REDIRECT_URL` - optional redirect after confirmation

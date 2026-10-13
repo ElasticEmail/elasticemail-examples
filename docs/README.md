@@ -18,7 +18,7 @@ Each stack folder has its own `QUICKSTART.md` (five minutes to a first send) and
 | [Templates](templates.md) | Hosted templates, merge values, creating a template from code |
 | [Contacts and lists](contacts-and-lists.md) | Lists, contact CRUD, statuses, custom fields |
 | [Double opt-in](double-opt-in.md) | Both confirmation flows the examples implement, and when to pick which |
-| [Webhooks](webhooks.md) | Event notifications, the parameters they carry, and the token scheme |
+| [Webhooks](webhooks.md) | Event notifications, signature verification (HMAC-SHA256), the parameters they carry, and the token fallback |
 | [Inbound email](inbound-email.md) | Inbound routes, MX setup, the parsed fields you receive |
 | [Suppressions](suppressions.md) | Unsubscribes, bounces, complaints |
 | [Domains and deliverability](domains-and-deliverability.md) | SPF, DKIM, MX, DMARC, tracking CNAME |
@@ -45,8 +45,10 @@ credentials rather than the API key. See the [SMTP integrations](../smtp-elastic
 - Server apps expose the same routes with the same JSON shapes, whatever the language:
   `POST /send` takes `{ to, subject, message }` and answers `{ success, transactionId, messageId }`.
 - Failures answer `{ "error": "<message from the API>" }` with the status the API returned.
-- Webhook and inbound endpoints carry a shared secret in the query string (`?token=...`) and compare
-  it in constant time. Elastic Email does not sign its callbacks, so this is the only check available.
+- Webhook endpoints verify the HMAC-SHA256 `X-ElasticEmail-Signature` header when
+  `ELASTICEMAIL_WEBHOOK_SECRET` is set (webhooks created with `EnableSigning: true`). Inbound endpoints,
+  and webhooks created without signing, carry a shared secret in the query string (`?token=...`)
+  compared in constant time. See [Webhooks](webhooks.md).
 - Sends set both an HTML and a plain text body part where it makes sense. Some mail clients and most
   spam filters expect both.
 

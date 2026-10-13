@@ -5,7 +5,7 @@ Send transactional and bulk email from Next.js 15 (App Router) with the [Elastic
 > **First time here?** The [Next.js quickstart](../QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 18.18+ · Next.js 15, React 19
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 18.18+ · Next.js 15, React 19
 
 ## Prerequisites
 
@@ -49,7 +49,11 @@ curl -X POST http://localhost:3000/api/send \
   -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Sent from Next.js"}'
 ```
 
-Webhook and inbound handlers need a public URL. Run `ngrok http 3000`, set `PUBLIC_URL` to the HTTPS URL and use `PUBLIC_URL/api/webhook?token=<ELASTICEMAIL_WEBHOOK_TOKEN>` (or `/api/inbound?token=...`) when creating the webhook or inbound route in Elastic Email. Elastic Email does not sign these requests; the token in the query string is what the handlers verify.
+Webhook and inbound handlers need a public URL. Run `ngrok http 3000` and set `PUBLIC_URL` to the HTTPS URL.
+
+Webhooks: create the webhook with `EnableSigning: true` and `DeliveryMethod: PostJson` (see the webhooks page) and URL `PUBLIC_URL/api/webhook`, then store the returned `SigningSecret` (`whsec_...`, shown only once) as `ELASTICEMAIL_WEBHOOK_SECRET`. Elastic Email then POSTs each event as JSON with `X-ElasticEmail-Timestamp` and `X-ElasticEmail-Signature` headers; the handlers read the raw body, check the HMAC-SHA256 signature and the 5-minute timestamp window, and answer 401 otherwise (Elastic Email accepts that 401 for the test event sent when the webhook is created, before the app knows the secret). Rotate the secret with `webhookByPublicidSecretRotatePost`. Unsigned webhooks still work: leave `ELASTICEMAIL_WEBHOOK_SECRET` empty and use `PUBLIC_URL/api/webhook?token=<ELASTICEMAIL_WEBHOOK_TOKEN>`.
+
+Inbound routes are not signed: use `PUBLIC_URL/api/inbound?token=<ELASTICEMAIL_WEBHOOK_TOKEN>`; the token in the query string is what the inbound handler verifies.
 
 ## API Endpoints
 
@@ -67,11 +71,11 @@ Webhook and inbound handlers need a public URL. Run `ngrok http 3000`, set `PUBL
 | GET | `/api/domains` | | `domainsGet` |
 | POST | `/api/domains` | `{ domain? }` | `domainsPost`, `domainsByDomainGet` |
 | GET | `/api/statistics` | `?days=30` | `statisticsGet(from, to)` |
-| GET, POST | `/api/webhook` | `?token=...` + event params | token check, log per `status` |
+| GET, POST | `/api/webhook` | JSON body + `X-ElasticEmail-Signature` (signed) or `?token=...` + event params | signature or token check, log per `status` |
 | POST | `/api/inbound` | `?token=...` + form fields | token check, forward to `CONTACT_EMAIL` |
 | POST | `/double-optin/subscribe` | `{ email, name? }` | `contactsPost` (Transactional), send confirm link |
 | GET | `/double-optin/confirm` | `?email=&token=` | HMAC check, `listsByNameContactsPost` |
-| GET, POST | `/double-optin/webhook` | `?token=...` + event params | on `Clicked` of the confirm URL, `listsByNameContactsPost` |
+| GET, POST | `/double-optin/webhook` | JSON body + `X-ElasticEmail-Signature` (signed) or `?token=...` + event params | on `Clicked` of the confirm URL, `listsByNameContactsPost` |
 
 Success responses for sends are `{ success: true, transactionId, messageId }`. Errors are `{ error }` with the status returned by the API.
 

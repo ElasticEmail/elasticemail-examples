@@ -5,7 +5,7 @@ Send transactional and bulk email from [Bun](https://bun.sh) with the [Elastic E
 > **First time here?** The [Bun quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Bun 1.1+ · Bun.serve()
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Bun 1.1+ · Bun.serve()
 
 ## Prerequisites
 
@@ -105,27 +105,37 @@ bun run dev
 
 - `GET /health` - Health check
 - `POST /send` - Send a transactional email
-- `GET|POST /webhook?token=...` - Handle Elastic Email event notifications
+- `GET|POST /webhook` - Handle Elastic Email event notifications (signed, or `?token=...`)
 - `POST /inbound?token=...` - Receive inbound email pushed by an inbound route
 - `POST /double-optin/subscribe` - Store a contact and send a confirmation email
 - `GET /double-optin/confirm?email=...&token=...` - Add the contact to the list
-- `POST /double-optin/webhook?token=...` - Confirm via Clicked event instead of a link
+- `GET|POST /double-optin/webhook` - Confirm via Clicked event instead of a link (signed, or `?token=...`)
 
 ## Webhooks and inbound
 
-Elastic Email does not sign webhook requests. The examples put a shared secret in the URL
-(`?token=ELASTICEMAIL_WEBHOOK_TOKEN`) and check it with a constant-time compare from `node:crypto`,
-which Bun supports.
-Elastic Email sends each event as a GET request with the details in the query string: `status`
-(Sent, Opened, Clicked, Error, AbuseReport, Unsubscribed), `to`, `transaction`, `messageid`,
-`category`, `target`.
+Create the webhook with `EnableSigning: true` and `DeliveryMethod: WebhookDeliveryMethod.PostJson`
+(see `examples/webhooks.ts`). Elastic Email then sends each event as a POST with a flat JSON body:
+`status` (Sent, Opened, Clicked, Error, AbuseReport, Unsubscribed), `to`, `from`, `transaction`,
+`messageid`, `category`, `target`, ... (`to`, `from`, `channel`, `subject` and `messageid` may be
+null). Each request is signed: `X-ElasticEmail-Signature: v1=<hex>` is the HMAC-SHA256, keyed with
+the webhook's signing secret, of `{X-ElasticEmail-Timestamp}\n{METHOD}\n{path and query as received}\n{raw body}`.
+The `SigningSecret` (`whsec_...`) is returned only when the webhook is created or its secret
+rotated; store it as `ELASTICEMAIL_WEBHOOK_SECRET`. With it set, the handlers verify the signature
+over the raw body (the handler reads `req.text()` before parsing JSON and takes the request target from `new URL(req.url)` (`pathname + search`)), reject timestamps more than 5 minutes
+off and answer 401 otherwise, so Elastic Email retries. Signing and delivery method can't be changed
+after creation, and signed or POST webhooks don't follow redirects.
+
+Unsigned webhooks still work: leave `ELASTICEMAIL_WEBHOOK_SECRET` empty and append
+`?token=ELASTICEMAIL_WEBHOOK_TOKEN` to the webhook URL; the handlers then check the token with a
+constant-time compare. Unsigned events arrive as a GET with the same fields in the query string.
 
 Inbound email arrives as a POST with form fields (`from_email`, `subject`, `body_text`, `body_html`,
 `att1_name`, `att1_content`, ...), which the handler reads with `req.formData()`. The domain's MX record must point at `mx.inbound.elasticemail.com`.
 
 For local development expose the server with a tunnel such as ngrok and set `PUBLIC_URL` to it.
 When you save a webhook, Elastic Email sends one test event to the URL and saves the webhook only
-if it gets a 2xx response. The test event carries sample values (`to=test@test.com`,
+if it gets a 2xx response. A signed webhook's test event arrives before your server knows the
+secret, so a 401 or 403 answer to it is accepted as well. The test event carries sample values (`to=test@test.com`,
 `messageid=abc1234`). The handlers accept it like any other event; in your own app, skip it before
 it reaches your data.
 

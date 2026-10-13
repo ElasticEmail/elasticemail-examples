@@ -17,6 +17,7 @@ import com.elasticemail.model.EmailTransactionalMessageData;
 import com.elasticemail.model.EmailsPayload;
 import com.elasticemail.model.MessageAttachment;
 import com.elasticemail.model.TransactionalRecipient;
+import com.elasticemail.examples.Ee;
 import io.github.cdimascio.dotenv.Dotenv;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
@@ -43,6 +44,7 @@ public class App {
     private static String listName;
     private static String publicUrl;
     private static String secret;
+    private static String webhookSecret;
     private static String confirmRedirectUrl;
 
     public static void main(String[] args) {
@@ -66,6 +68,7 @@ public class App {
         listName = dotenv.get("ELASTICEMAIL_LIST_NAME", "Newsletter");
         publicUrl = dotenv.get("PUBLIC_URL", "http://localhost:3000");
         secret = dotenv.get("ELASTICEMAIL_WEBHOOK_TOKEN", "change_me");
+        webhookSecret = dotenv.get("ELASTICEMAIL_WEBHOOK_SECRET", "");
         confirmRedirectUrl = dotenv.get("CONFIRM_REDIRECT_URL");
 
         int port = Integer.parseInt(dotenv.get("PORT", "3000"));
@@ -80,6 +83,7 @@ public class App {
         app.post("/inbound", App::inboundHandler);
         app.post("/double-optin/subscribe", App::doubleOptinSubscribeHandler);
         app.get("/double-optin/confirm", App::doubleOptinConfirmHandler);
+        app.get("/double-optin/webhook", App::doubleOptinWebhookHandler);
         app.post("/double-optin/webhook", App::doubleOptinWebhookHandler);
 
         System.out.println("Javalin server running on http://localhost:" + port);
@@ -109,17 +113,20 @@ public class App {
         }
     }
 
-    // Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-    // form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-    // channel, target (clicked URL), IP, Useragent, Country, City.
-    // Elastic Email sends a GET to validate the URL when the webhook is saved.
+    // Elastic Email event notifications. Fields: transaction, messageid, to, from, subject, date,
+    // status, category, channel, target (clicked URL), ip, useragent, country, city.
+    // Signed webhooks (EnableSigning + DeliveryMethod PostJson, recommended) POST them as a JSON
+    // body and are verified with ELASTICEMAIL_WEBHOOK_SECRET. Unsigned webhooks send a GET with the
+    // fields in the query string and are checked with ?token=ELASTICEMAIL_WEBHOOK_TOKEN instead.
+    // Elastic Email sends a test request when the webhook is saved.
     private static void webhookHandler(Context ctx) {
-        if (!tokenOk(ctx.queryParam("token"))) {
-            ctx.status(401).json(Map.of("error", "Invalid token"));
+        Ee.WebhookRequest webhook = readWebhook(ctx);
+        if (!webhook.ok()) {
+            ctx.status(webhook.status()).json(Map.of("error", webhook.error()));
             return;
         }
 
-        Map<String, String> event = params(ctx);
+        Map<String, String> event = webhook.event();
         String status = sanitize(event.get("status"));
 
         if (status.isEmpty()) {
@@ -133,7 +140,7 @@ public class App {
 
         switch (status) {
             case "Sent" -> System.out.println("Email sent, message id: " + sanitize(event.get("messageid")));
-            case "Opened" -> System.out.println("Email opened from " + sanitize(event.get("Country")) + " " + sanitize(event.get("City")));
+            case "Opened" -> System.out.println("Email opened from " + sanitize(event.get("country")) + " " + sanitize(event.get("city")));
             case "Clicked" -> System.out.println("Link clicked: " + sanitize(event.get("target")));
             case "Error" -> System.out.println("Bounce/error, category: " + sanitize(event.get("category")));
             case "AbuseReport" -> System.out.println("Complaint received");
@@ -265,12 +272,13 @@ public class App {
 
     // Click-tracking based confirmation: create a webhook for Clicked events pointing here.
     private static void doubleOptinWebhookHandler(Context ctx) {
-        if (!tokenOk(ctx.queryParam("token"))) {
-            ctx.status(401).json(Map.of("error", "Invalid token"));
+        Ee.WebhookRequest webhook = readWebhook(ctx);
+        if (!webhook.ok()) {
+            ctx.status(webhook.status()).json(Map.of("error", webhook.error()));
             return;
         }
 
-        Map<String, String> event = params(ctx);
+        Map<String, String> event = webhook.event();
         String status = sanitize(event.get("status"));
         String target = event.get("target") == null ? "" : event.get("target");
         String to = sanitize(event.get("to"));
@@ -298,7 +306,18 @@ public class App {
         }
     }
 
-    /** Query string parameters first, form fields override (Elastic Email posts form-encoded). */
+    /**
+     * Verifies an event notification (signature with ELASTICEMAIL_WEBHOOK_SECRET, otherwise ?token=).
+     * The signature covers the raw request target - getRequestURI() is not URL-decoded, plus the raw
+     * query string - and the raw body bytes, read before anything parses them.
+     */
+    private static Ee.WebhookRequest readWebhook(Context ctx) {
+        String query = ctx.req().getQueryString();
+        String target = ctx.req().getRequestURI() + (query == null ? "" : "?" + query);
+        return Ee.readWebhook(webhookSecret, secret, ctx.method().name(), target, ctx::header, ctx.bodyAsBytes());
+    }
+
+    /** Query string parameters first, form fields override (inbound posts form-encoded). */
     private static Map<String, String> params(Context ctx) {
         Map<String, String> merged = new HashMap<>();
         ctx.queryParamMap().forEach((k, v) -> merged.put(k, v.isEmpty() ? "" : v.get(0)));

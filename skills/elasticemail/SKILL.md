@@ -37,7 +37,9 @@ instead of writing API calls from memory. The examples target REST API v4 with t
 - Add to the project's env files and `.env.example`, never to source code:
   - `ELASTICEMAIL_API_KEY` - created in the Elastic Email dashboard, shown once
   - `EMAIL_FROM` - must be on a domain verified in Elastic Email
-  - `ELASTICEMAIL_WEBHOOK_TOKEN` - only if you add webhook or inbound handlers
+  - `ELASTICEMAIL_WEBHOOK_SECRET` - the signing secret returned once when a webhook is created with
+    `EnableSigning: true` (only if you add webhook handlers)
+  - `ELASTICEMAIL_WEBHOOK_TOKEN` - only if you add inbound handlers or unsigned webhooks
 - Keep the key server-side. In Next.js, Nuxt, SvelteKit, Remix, Astro and similar, call the SDK only
   from server code (route handlers, server actions, `+server` files, `.server.ts` modules).
 
@@ -47,9 +49,13 @@ instead of writing API calls from memory. The examples target REST API v4 with t
   UI pages.
 - Transactional (one message) uses `emailsTransactionalPost`; bulk with per-recipient merge fields
   uses `emailsPost`. Keep both an HTML and a plain-text body.
-- Webhook handlers: Elastic Email sends **unsigned GET** requests with the event in the query string.
-  Verify `?token=` with a constant-time compare, respond 2xx fast, and skip the test event sent on
-  save (`to=test@test.com`, `messageid=abc1234`).
+- Webhook handlers: create webhooks with `EnableSigning: true` and `DeliveryMethod: "PostJson"`
+  (SDKs 4.3.0+). Verify `X-ElasticEmail-Signature: v1=<hex>` = HMAC-SHA256 of
+  `{X-ElasticEmail-Timestamp}\n{METHOD}\n{raw path+query}\n{raw body}` with the signing secret, against
+  the raw body, within 5 minutes, in constant time; 401 on mismatch. Webhooks created without
+  signing send **unsigned GET** requests with the event in the query string: verify `?token=` with a
+  constant-time compare. Respond 2xx fast, and skip the test event sent on save
+  (`to=test@test.com`, `messageid=abc1234`).
 - Inbound handlers receive a **form POST** (`from_email`, `subject`, `body_text`, `body_html`,
   `att1_name`, `att1_content`, ...), protected with the same token check.
 

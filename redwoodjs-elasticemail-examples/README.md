@@ -5,7 +5,7 @@ Send transactional and bulk email from RedwoodJS 8 with the [Elastic Email](http
 > **First time here?** The [RedwoodJS quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20, Yarn 4 · RedwoodJS 8
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20, Yarn 4 · RedwoodJS 8
 
 ## Prerequisites
 
@@ -34,7 +34,7 @@ yarn rw dev
 
 Open http://localhost:8910. Every example has a page with a form and a result box. In development the web side proxies `/.redwood/functions/*` to the API server on port 8911, so the same URLs work from curl.
 
-Functions receive an API Gateway style `event`. JSON bodies are parsed from `event.body`; webhook and inbound notifications arrive form-encoded and are parsed with `URLSearchParams` (see `api/src/lib/elasticemail.ts`).
+Functions receive an API Gateway style `event`. JSON bodies are parsed from `event.body`; signed webhooks arrive as JSON and are verified against the raw body; inbound notifications and unsigned webhooks arrive form-encoded or in the query string and are parsed with `URLSearchParams` (see `api/src/lib/elasticemail.ts`).
 
 Examples:
 
@@ -51,7 +51,11 @@ curl -X POST http://localhost:8910/.redwood/functions/send \
   -d '{"to":"you@yourdomain.com","subject":"Hello","message":"Sent from RedwoodJS"}'
 ```
 
-Webhook and inbound handlers need a public URL. Run `ngrok http 8910`, set `PUBLIC_URL` to the HTTPS URL and use `PUBLIC_URL/.redwood/functions/webhook?token=<ELASTICEMAIL_WEBHOOK_TOKEN>` (or `/.redwood/functions/inbound?token=...`) when creating the webhook or inbound route in Elastic Email. Elastic Email does not sign these requests; the token in the query string is what the handlers verify.
+Webhook and inbound handlers need a public URL. Run `ngrok http 8910` and set `PUBLIC_URL` to the HTTPS URL.
+
+Webhooks: create the webhook with `EnableSigning: true` and `DeliveryMethod: PostJson` (see the webhooks page) and URL `PUBLIC_URL/.redwood/functions/webhook`, then store the returned `SigningSecret` (`whsec_...`, shown only once) as `ELASTICEMAIL_WEBHOOK_SECRET`. Elastic Email then POSTs each event as JSON with `X-ElasticEmail-Timestamp` and `X-ElasticEmail-Signature` headers; the handlers read the raw body, check the HMAC-SHA256 signature and the 5-minute timestamp window, and answer 401 otherwise (Elastic Email accepts that 401 for the test event sent when the webhook is created, before the app knows the secret). Rotate the secret with `webhookByPublicidSecretRotatePost`. Unsigned webhooks still work: leave `ELASTICEMAIL_WEBHOOK_SECRET` empty and use `PUBLIC_URL/.redwood/functions/webhook?token=<ELASTICEMAIL_WEBHOOK_TOKEN>`.
+
+Inbound routes are not signed: use `PUBLIC_URL/.redwood/functions/inbound?token=<ELASTICEMAIL_WEBHOOK_TOKEN>`; the token in the query string is what the inbound handler verifies.
 
 Production build: `yarn rw build && yarn rw serve`. Type check: `yarn rw type-check`.
 
@@ -71,11 +75,11 @@ Production build: `yarn rw build && yarn rw serve`. Type check: `yarn rw type-ch
 | GET | `/.redwood/functions/domains` | | `domainsGet` |
 | POST | `/.redwood/functions/domains` | `{ domain? }` | `domainsPost`, `domainsByDomainGet` |
 | GET | `/.redwood/functions/statistics` | `?days=30` | `statisticsGet(from, to)` |
-| GET, POST | `/.redwood/functions/webhook` | `?token=...` + event params | token check, log per `status` |
+| GET, POST | `/.redwood/functions/webhook` | JSON body + `X-ElasticEmail-Signature` (signed) or `?token=...` + event params | signature or token check, log per `status` |
 | POST | `/.redwood/functions/inbound` | `?token=...` + form fields | token check, forward to `CONTACT_EMAIL` |
 | POST | `/.redwood/functions/doubleOptinSubscribe` | `{ email, name? }` | `contactsPost` (Transactional), send confirm link |
 | GET | `/.redwood/functions/doubleOptinConfirm` | `?email=&token=` | HMAC check, `listsByNameContactsPost` |
-| GET, POST | `/.redwood/functions/doubleOptinWebhook` | `?token=...` + event params | on `Clicked` of the confirm URL, `listsByNameContactsPost` |
+| GET, POST | `/.redwood/functions/doubleOptinWebhook` | JSON body + `X-ElasticEmail-Signature` (signed) or `?token=...` + event params | on `Clicked` of the confirm URL, `listsByNameContactsPost` |
 
 Success responses for sends are `{ success: true, transactionId, messageId }`. Errors are `{ error }` with the status returned by the API.
 

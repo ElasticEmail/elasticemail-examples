@@ -126,7 +126,7 @@ ruby examples/batch_send.rb            # one call, personalized per recipient
 ruby examples/with_attachments.rb      # base64 file attachment
 ruby examples/with_cid_attachments.rb  # inline image via cid:
 ruby examples/with_template.rb         # hosted template + merge values
-ruby examples/webhooks.rb              # create, list, delete a webhook
+ruby examples/webhooks.rb              # create a signed webhook, list, rotate secret, delete
 ```
 
 | Do this | Read |

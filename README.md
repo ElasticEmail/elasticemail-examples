@@ -277,14 +277,18 @@ stack, come here when you need the detail.
 
 ## Notes on webhooks and inbound
 
-Elastic Email does not sign webhook requests. Every example appends a shared secret to the callback URL
-(`?token=ELASTICEMAIL_WEBHOOK_TOKEN`) and verifies it with a constant-time compare. Elastic Email sends each event
-as a GET request with the details in the query string (`status`, `to`, `transaction`, `messageid`, `category`,
-`target`). Inbound email is different: it arrives as a POST with form fields (`from_email`, `subject`,
-`body_text`, `body_html`, `att1_name`, `att1_content`, ...).
+Webhooks can be signed. The examples create webhooks with `EnableSigning: true` and `DeliveryMethod: "PostJson"`
+(SDKs 4.3.0+), store the `SigningSecret` returned once by the create call as `ELASTICEMAIL_WEBHOOK_SECRET`, and
+verify the HMAC-SHA256 `X-ElasticEmail-Signature` header on every request against the raw JSON body. Webhooks
+created without signing (the default, and all older ones) arrive as unsigned GET requests with the details in the
+query string (`status`, `to`, `transaction`, `messageid`, `category`, `target`); when
+`ELASTICEMAIL_WEBHOOK_SECRET` is empty the handlers fall back to a shared `?token=ELASTICEMAIL_WEBHOOK_TOKEN` secret
+checked with a constant-time compare. See [docs/webhooks.md](docs/webhooks.md). Inbound email is different: it is
+not signed and arrives as a POST with form fields (`from_email`, `subject`, `body_text`, `body_html`,
+`att1_name`, `att1_content`, ...), protected with the `?token=` check.
 
 When you save a webhook, Elastic Email sends one test event to the URL and saves the webhook only if it gets a
-2xx response, so the URL has to be publicly reachable at that moment. During local development, run a tunnel
+2xx response (a new signed webhook also accepts 401/403), so the URL has to be publicly reachable at that moment. During local development, run a tunnel
 such as ngrok and set `PUBLIC_URL` accordingly. The test event carries sample values (`to=test@test.com`,
 `messageid=abc1234`). The handlers accept it like any other event; in your own app, skip it before it reaches
 your data.

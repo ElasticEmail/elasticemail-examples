@@ -10,11 +10,11 @@
 # Routes:
 #   GET  /health
 #   POST /send
-#   GET|POST /webhook?token=...
+#   GET|POST /webhook                (signed, or ?token=... for unsigned webhooks)
 #   POST /inbound?token=...
 #   POST /double-optin/subscribe
 #   GET  /double-optin/confirm?email=&token=
-#   POST /double-optin/webhook?token=...
+#   GET|POST /double-optin/webhook   (signed, or ?token=... for unsigned webhooks)
 
 require "bundler/setup"
 require "sinatra"
@@ -41,6 +41,8 @@ CONTACT_EMAIL = ENV.fetch("CONTACT_EMAIL", FROM)
 LIST_NAME = ENV.fetch("ELASTICEMAIL_LIST_NAME", "Newsletter")
 PUBLIC_URL = ENV.fetch("PUBLIC_URL", "http://localhost:3000")
 SECRET = ENV.fetch("ELASTICEMAIL_WEBHOOK_TOKEN", "change_me")
+# Signing secret returned once when the webhook is created with EnableSigning ("" when unset)
+WEBHOOK_SECRET = ENV.fetch("ELASTICEMAIL_WEBHOOK_SECRET", "")
 CONFIRM_REDIRECT_URL = ENV["CONFIRM_REDIRECT_URL"]
 
 set :port, ENV.fetch("PORT", 3000).to_i
@@ -50,14 +52,15 @@ EMAILS_API = ElasticEmail::EmailsApi.new
 CONTACTS_API = ElasticEmail::ContactsApi.new
 LISTS_API = ElasticEmail::ListsApi.new
 
-# Elastic Email webhooks and inbound notifications are form-encoded; the other
-# routes take JSON. Parse JSON bodies into @json_body.
+# Inbound notifications and unsigned webhooks are form-encoded or query strings; the other
+# routes (and signed POST webhooks) send JSON. Keep the raw body in @raw_body (the webhook
+# signature is computed over it) and parse JSON bodies into @json_body.
 before do
   content_type :json
 
   if request.content_type&.include?("application/json")
-    body = request.body.read
-    @json_body = body.empty? ? {} : JSON.parse(body)
+    @raw_body = request.body.read
+    @json_body = @raw_body.empty? ? {} : JSON.parse(@raw_body)
   end
 end
 
@@ -74,6 +77,41 @@ helpers do
 
   def hmac(value)
     OpenSSL::HMAC.hexdigest("SHA256", SECRET, value)
+  end
+
+  # Verifies an Elastic Email webhook signature: lowercase hex HMAC-SHA256 of
+  # "{timestamp}\n{METHOD}\n{request target}\n{raw body}" keyed with the signing secret.
+  # The header may carry several comma-separated "v1=" entries; any match is accepted.
+  # Requests older than 5 minutes are rejected.
+  def verify_signature(secret, timestamp, signature_header, method, target, body, now: Time.now.to_i)
+    return false if signature_header.to_s.empty? || !timestamp.to_s.match?(/\A\d+\z/)
+    return false if (now - timestamp.to_i).abs > 300
+
+    message = "#{timestamp}\n#{method}\n#{target}\n".b + body.to_s.b
+    expected = OpenSSL::HMAC.hexdigest("SHA256", secret, message)
+    signature_header.split(",").map(&:strip).any? do |entry|
+      entry.start_with?("v1=") && OpenSSL.secure_compare(expected, entry.delete_prefix("v1="))
+    end
+  end
+
+  # Returns the webhook event fields (lowercase keys) or halts with 401.
+  # With ELASTICEMAIL_WEBHOOK_SECRET set the signature is required and the event comes
+  # from the JSON body (POST) or the query string (GET); otherwise ?token= is checked.
+  def webhook_event
+    if WEBHOOK_SECRET.empty?
+      halt 401, json(error: "Invalid token") unless token_ok?(params["token"])
+      return params.to_h.transform_keys { |k| k.to_s.downcase }
+    end
+
+    body = @raw_body || request.body.read.to_s
+    target = request.env["REQUEST_URI"] || request.fullpath # raw path + query as received
+    unless verify_signature(WEBHOOK_SECRET, request.env["HTTP_X_ELASTICEMAIL_TIMESTAMP"],
+                            request.env["HTTP_X_ELASTICEMAIL_SIGNATURE"], request.request_method, target, body)
+      halt 401, json(error: "Invalid signature")
+    end
+
+    event = request.get? ? request.GET : (JSON.parse(body) rescue {})
+    event.is_a?(Hash) ? event.transform_keys { |k| k.to_s.downcase } : {}
   end
 
   def api_error_response(e)
@@ -121,29 +159,31 @@ post "/send" do
   end
 end
 
-# Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-# form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-# channel, target (clicked URL), IP, Useragent, Country, City.
-# Elastic Email sends a GET to validate the URL when the webhook is saved.
+# Elastic Email event notifications: transaction, messageid, to, from, subject, date, status,
+# category, channel, target (clicked URL), ip, useragent, country, city.
+# Signed webhooks (recommended, ELASTICEMAIL_WEBHOOK_SECRET set) are verified with HMAC-SHA256
+# and usually arrive as POST with a JSON body. Unsigned webhooks carry ?token= and send the
+# fields in the query string (GET) or as form fields (POST).
+# Elastic Email sends a test event when the webhook is saved.
 def handle_webhook
-  halt 401, json(error: "Invalid token") unless token_ok?(params["token"])
+  event = webhook_event
 
-  status_value = sanitize(params["status"])
+  status_value = sanitize(event["status"])
 
   # Validation ping or empty request
   return json(ok: true) if status_value.empty?
 
-  puts "Webhook event: #{status_value} to: #{sanitize(params['to'])} transaction: #{sanitize(params['transaction'])}"
+  puts "Webhook event: #{status_value} to: #{sanitize(event['to'])} transaction: #{sanitize(event['transaction'])}"
 
   case status_value
   when "Sent"
-    puts "Email sent, message id: #{sanitize(params['messageid'])}"
+    puts "Email sent, message id: #{sanitize(event['messageid'])}"
   when "Opened"
-    puts "Email opened from #{sanitize(params['Country'])} #{sanitize(params['City'])}"
+    puts "Email opened from #{sanitize(event['country'])} #{sanitize(event['city'])}"
   when "Clicked"
-    puts "Link clicked: #{sanitize(params['target'])}"
+    puts "Link clicked: #{sanitize(event['target'])}"
   when "Error"
-    puts "Bounce/error, category: #{sanitize(params['category'])}"
+    puts "Bounce/error, category: #{sanitize(event['category'])}"
   when "AbuseReport"
     puts "Complaint received"
   when "Unsubscribed"
@@ -261,12 +301,13 @@ get "/double-optin/confirm" do
 end
 
 # Click-tracking based confirmation: create a webhook for Clicked events pointing here.
-post "/double-optin/webhook" do
-  halt 401, json(error: "Invalid token") unless token_ok?(params["token"])
+# Verified like /webhook: signature when ELASTICEMAIL_WEBHOOK_SECRET is set, else ?token=.
+def handle_double_optin_webhook
+  event = webhook_event
 
-  status_value = sanitize(params["status"])
-  target = params["target"].to_s
-  recipient = params["to"].to_s
+  status_value = sanitize(event["status"])
+  target = event["target"].to_s
+  recipient = event["to"].to_s
 
   unless status_value == "Clicked" && target.include?("/double-optin/confirm")
     return json(received: true, status: status_value, message: "Event ignored")
@@ -279,3 +320,6 @@ post "/double-optin/webhook" do
     api_error_response(e)
   end
 end
+
+get("/double-optin/webhook") { handle_double_optin_webhook }
+post("/double-optin/webhook") { handle_double_optin_webhook }

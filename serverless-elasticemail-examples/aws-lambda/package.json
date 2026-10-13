@@ -8,7 +8,7 @@
     "deploy": "sam build && sam deploy --guided"
   },
   "dependencies": {
-    "@elasticemail/elasticemail-client-ts-axios": "^4.2.0"
+    "@elasticemail/elasticemail-client-ts-axios": "^4.3.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.145",

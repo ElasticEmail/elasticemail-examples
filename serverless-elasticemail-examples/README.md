@@ -4,7 +4,7 @@ Send email with the [Elastic Email](https://elasticemail.com/email-api) email AP
 
 - `GET /health` -> `{ status: "ok" }`
 - `POST /send` body `{ to, subject, message }` -> transactional send -> `{ success, transactionId, messageId }`
-- `GET|POST /webhook?token=...` -> Elastic Email event handler (token check, logs `status`)
+- `POST|GET /webhook` -> Elastic Email event handler (HMAC signature check, or `?token=` for unsigned webhooks; logs `status`)
 
 All of them use the npm package `@elasticemail/elasticemail-client-ts-axios`. On runtimes without Node's `http` module (Cloudflare Workers, Vercel Edge, Netlify Edge, Deno, Supabase) the SDK is given an axios instance created with `axios.create({ adapter: "fetch" })`. Keep the top-level `axios` dependency on the same range the SDK uses (`~1.18.0`) so npm dedupes it and the types line up.
 
@@ -40,32 +40,59 @@ All of them use the npm package `@elasticemail/elasticemail-client-ts-axios`. On
 Every platform needs the same values; only the way you set them differs (see each README's Secrets section).
 
 ```
-ELASTICEMAIL_API_KEY      API key
-EMAIL_FROM                verified sender, e.g. Acme <hello@yourdomain.com>
-EMAIL_TO                  test recipient
-ELASTICEMAIL_WEBHOOK_TOKEN shared secret appended to the webhook URL as ?token=
+ELASTICEMAIL_API_KEY        API key
+EMAIL_FROM                  verified sender, e.g. Acme <hello@yourdomain.com>
+EMAIL_TO                    test recipient
+ELASTICEMAIL_WEBHOOK_SECRET signing secret (whsec_...) returned when the webhook is created with EnableSigning
+ELASTICEMAIL_WEBHOOK_TOKEN  shared secret appended to the webhook URL as ?token= (unsigned webhooks only)
 ```
 
 Copy `.env.example` to `.env` inside the folder you are working on for local development.
 
 ## Webhooks
 
-Elastic Email does not sign webhook requests. The handlers check a shared secret in the URL (`?token=ELASTICEMAIL_WEBHOOK_TOKEN`) with a constant-time compare and return 401 on mismatch. Elastic Email sends each event as a GET request with the details in the query string: `status` (Sent, Opened, Clicked, Error, AbuseReport, Unsubscribed), `to`, `transaction`, `messageid`, `category`, `target`.
+Create the webhook with `EnableSigning: true` and `DeliveryMethod: PostJson` (both are fixed at creation). Elastic Email then POSTs each event as a flat JSON object (`status`, `to`, `from`, `transaction`, `messageid`, `category`, `channel`, `subject`, `target`, `date`, `ip`, `country`, `city`, ...; `to`, `from`, `channel`, `subject` and `messageid` may be `null`) and signs it with three headers:
 
-When you save a webhook, Elastic Email sends one test event to the URL and saves the webhook only if it gets a 2xx response, so deploy before you register it. The test event carries sample values (`to=test@test.com`, `messageid=abc1234`). The handlers accept it like any other event; in your own app, skip it before it reaches your data.
+- `X-ElasticEmail-Timestamp`: unix seconds
+- `X-ElasticEmail-Signature`: `v1=<hex>`, a comma-separated list; accept the request if any `v1=` entry matches
+- `X-ElasticEmail-Webhook-Id`
 
-Register the webhook in the Elastic Email dashboard or with the SDK:
+The signature is the lowercase hex HMAC-SHA256, keyed with the signing secret, of `{timestamp}\n{METHOD}\n{path + query}\n{raw body}`. The path and query are taken exactly as they were requested, still URL-encoded, and the body is the raw bytes, so every handler reads the raw body before parsing JSON. Each platform folder has a small `verifySignature` helper: `node:crypto` where it is available, WebCrypto (`crypto.subtle`) on Workers, Deno, Supabase, Convex, Vercel and Netlify. It rejects timestamps more than 300 seconds old and compares in constant time. When `ELASTICEMAIL_WEBHOOK_SECRET` is set, `/webhook` requires a valid signature and answers 401 otherwise, which makes Elastic Email retry.
+
+Unsigned webhooks still work: leave `ELASTICEMAIL_WEBHOOK_SECRET` empty and the handlers fall back to a shared secret in the URL (`?token=ELASTICEMAIL_WEBHOOK_TOKEN`), compared in constant time. Unsigned webhooks send each event as a GET with the same fields in the query string.
+
+The create response contains `SigningSecret` (`whsec_...`) and it is shown only this once. Store it as `ELASTICEMAIL_WEBHOOK_SECRET`. If you lose it, rotate it with `webhookByPublicidSecretRotatePost(publicId)`; the old secret stops working immediately, with no grace period.
 
 ```typescript
-await new WebhookApi(config).webhookPost({
+import { Configuration, WebhookApi, WebhookDeliveryMethod } from "@elasticemail/elasticemail-client-ts-axios";
+
+const { data } = await new WebhookApi(config).webhookPost({
   Name: "serverless-example",
-  URL: `https://<your-deployment>/webhook?token=${process.env.ELASTICEMAIL_WEBHOOK_TOKEN}`,
+  URL: "https://<your-deployment>/webhook", // no ?token= needed
+  EnableSigning: true,
+  DeliveryMethod: WebhookDeliveryMethod.PostJson,
   NotificationForSent: true,
   NotificationForOpened: true,
   NotificationForClicked: true,
   NotificationForError: true,
 });
+console.log("Store as ELASTICEMAIL_WEBHOOK_SECRET (shown only once):", data.SigningSecret);
 ```
+
+Elastic Email sends one test event when you create the webhook. For a signed webhook it arrives before your endpoint has the secret, so the handler answers 401; Elastic Email accepts 401 or 403 for that test and still creates the webhook. Deploy first, create the webhook, then set `ELASTICEMAIL_WEBHOOK_SECRET` and redeploy (or restart). Unsigned webhooks are saved only if the test event gets a 2xx, which the `?token=` handlers return. The test event carries sample values (`to=test@test.com`, `messageid=abc1234`); in your own app, skip it before it reaches your data. Signed and POST webhooks do not follow redirects, so register the final URL.
+
+Send a signed test request yourself:
+
+```bash
+SECRET=whsec_...   # your ELASTICEMAIL_WEBHOOK_SECRET
+TS=$(date +%s)
+BODY='{"status":"Sent","to":"you@yourdomain.com","transaction":"abc","messageid":"xyz"}'
+SIG=$(printf '%s\nPOST\n/webhook\n%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$SECRET" -r | cut -d' ' -f1)
+curl -X POST "$URL/webhook" -H "Content-Type: application/json" \
+  -H "X-ElasticEmail-Timestamp: $TS" -H "X-ElasticEmail-Signature: v1=$SIG" -d "$BODY"
+```
+
+The path in the signed string is the path of the URL you call (for example `/functions/v1/webhook` on Supabase, `/api/webhook` on the Firebase `cloudfunctions.net` URL).
 
 ## Quick Usage
 

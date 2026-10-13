@@ -2,6 +2,6 @@ import type { Config, Context } from "@netlify/functions";
 import { webhookHandler } from "../shared";
 
 export default async (req: Request, _context: Context) =>
-  webhookHandler(req, process.env.ELASTICEMAIL_WEBHOOK_TOKEN);
+  webhookHandler(req, process.env.ELASTICEMAIL_WEBHOOK_TOKEN, process.env.ELASTICEMAIL_WEBHOOK_SECRET);
 
 export const config: Config = { path: "/webhook" };

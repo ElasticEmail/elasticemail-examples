@@ -13,6 +13,8 @@ cd spring_boot_app
 export ELASTICEMAIL_API_KEY=your_api_key
 export EMAIL_FROM="Acme <hello@yourdomain.com>"
 export CONTACT_EMAIL=team@yourdomain.com
+# Signing secret returned once when the webhook is created with EnableSigning; leave empty to use ELASTICEMAIL_WEBHOOK_TOKEN
+export ELASTICEMAIL_WEBHOOK_SECRET=
 export ELASTICEMAIL_WEBHOOK_TOKEN=change_me
 export ELASTICEMAIL_LIST_NAME=Newsletter
 export PUBLIC_URL=http://localhost:3000
@@ -25,11 +27,11 @@ mvn spring-boot:run
 
 - `GET /health` - health check
 - `POST /send` body `{"to", "subject", "message"}` - transactional send
-- `GET|POST /webhook?token=...` - Elastic Email event notifications
+- `GET|POST /webhook` - Elastic Email event notifications. Recommended: a signed webhook (`EnableSigning: true`, `DeliveryMethod: PostJson`) that POSTs JSON; with `ELASTICEMAIL_WEBHOOK_SECRET` set, the `X-ElasticEmail-Signature` HMAC over the raw body and request target is verified (401 when it doesn't match). Fallback for unsigned webhooks: leave the secret empty and append `?token=` matching `ELASTICEMAIL_WEBHOOK_TOKEN`
 - `POST /inbound?token=...` - inbound email pushed by an inbound route, forwarded to `CONTACT_EMAIL`
 - `POST /double-optin/subscribe` body `{"email", "name"}` - stores the contact and sends a confirmation link
 - `GET /double-optin/confirm?email=&token=` - verifies the HMAC token and adds the contact to the list
-- `POST /double-optin/webhook?token=...` - confirms on a `Clicked` event whose `target` is the confirm link
+- `GET|POST /double-optin/webhook` - confirms on a `Clicked` event whose `target` is the confirm link (signed like `/webhook`, or `?token=...` for unsigned webhooks)
 
 Failures return `{"error": "<message from the API>"}` with the API status code.
 

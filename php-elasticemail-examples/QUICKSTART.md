@@ -139,7 +139,7 @@ php src/send/batch.php             # one call, personalized per recipient
 php src/attachments/send.php       # base64 file attachment
 php src/attachments/send_cid.php   # inline image via cid:
 php src/templates/send.php         # hosted template + merge values
-php src/webhooks/manage.php        # create, list, delete a webhook
+php src/webhooks/manage.php        # create a signed webhook, rotate its secret, delete it
 ```
 
 | Do this | Read |

@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import type { HttpRequest } from "@azure/functions";
 import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
 
@@ -21,6 +21,33 @@ export const tokenOk = (token: unknown): boolean => {
   const b = Buffer.from(process.env.ELASTICEMAIL_WEBHOOK_TOKEN || "change_me");
   return a.length === b.length && timingSafeEqual(a, b);
 };
+
+/**
+ * Verify an Elastic Email webhook signature:
+ * X-ElasticEmail-Signature: v1=hex(HMAC-SHA256(secret, `${timestamp}\n${METHOD}\n${target}\n${rawBody}`)),
+ * where target is the path + query exactly as requested (still URL-encoded).
+ */
+export function verifySignature(
+  key: string,
+  timestamp: string | null,
+  signatureHeader: string | null,
+  method: string,
+  target: string,
+  body: string,
+): boolean {
+  if (!timestamp || !/^\d+$/.test(timestamp) || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
+  const expected = Buffer.from(
+    createHmac("sha256", key).update(`${timestamp}\n${method}\n${target}\n${body}`).digest("hex"),
+  );
+  return (signatureHeader ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith("v1="))
+    .some((part) => {
+      const candidate = Buffer.from(part.slice(3));
+      return candidate.length === expected.length && timingSafeEqual(candidate, expected);
+    });
+}
 
 export const apiError = (err: any) => ({
   status: err.response?.status ?? 500,

@@ -3,6 +3,7 @@
 package ee
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -11,14 +12,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	ElasticEmail "github.com/elasticemail/elasticemail-go/v4"
 	"github.com/joho/godotenv"
@@ -277,4 +281,95 @@ func CheckWebhookToken(webhookToken string) {
 		return
 	}
 	log.Fatalf("Refusing to start: set ELASTICEMAIL_WEBHOOK_TOKEN before exposing webhooks at %s", publicURL)
+}
+
+// SignatureTolerance is how far the X-ElasticEmail-Timestamp may be from the current time.
+const SignatureTolerance = 300 * time.Second
+
+// VerifySignature checks an Elastic Email webhook signature:
+// hex(HMAC-SHA256(secret, timestamp + "\n" + METHOD + "\n" + target + "\n" + body)),
+// where target is the path and query exactly as received on the request line.
+// The signature header is a comma-separated list; any matching v1= entry is accepted.
+func VerifySignature(secret, timestamp, signature, method, target string, body []byte, now time.Time) bool {
+	ts, err := strconv.ParseInt(timestamp, 10, 64)
+	if secret == "" || err != nil {
+		return false
+	}
+	if age := now.Sub(time.Unix(ts, 0)); age > SignatureTolerance || age < -SignatureTolerance {
+		return false
+	}
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(timestamp + "\n" + method + "\n" + target + "\n"))
+	mac.Write(body)
+	expected := []byte(hex.EncodeToString(mac.Sum(nil)))
+	for _, entry := range strings.Split(signature, ",") {
+		if value, ok := strings.CutPrefix(strings.TrimSpace(entry), "v1="); ok && hmac.Equal([]byte(value), expected) {
+			return true
+		}
+	}
+	return false
+}
+
+// WebhookEvent holds the fields of an event notification under lower-cased names.
+type WebhookEvent map[string]string
+
+// Get returns a field, matching the name case-insensitively.
+func (e WebhookEvent) Get(name string) string {
+	return e[strings.ToLower(name)]
+}
+
+// ReadWebhook authenticates an event notification and returns its fields.
+// With a signing secret (ELASTICEMAIL_WEBHOOK_SECRET) the request must carry a valid signature;
+// without one it must carry ?token= equal to token. Signed webhooks are usually POST with a JSON
+// body; GET webhooks carry the fields in the query string. On failure it returns the HTTP status
+// and message to answer with (401 makes Elastic Email retry).
+func ReadWebhook(r *http.Request, secret, token string) (WebhookEvent, int, string) {
+	// Read the raw body before parsing anything: the signature covers the exact bytes.
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		return nil, http.StatusBadRequest, "Could not read body"
+	}
+	if secret != "" {
+		// r.RequestURI is the request target as sent, still URL-encoded.
+		if !VerifySignature(secret, r.Header.Get("X-ElasticEmail-Timestamp"), r.Header.Get("X-ElasticEmail-Signature"),
+			r.Method, r.RequestURI, body, time.Now()) {
+			return nil, http.StatusUnauthorized, "Invalid signature"
+		}
+	} else if subtle.ConstantTimeCompare([]byte(r.URL.Query().Get("token")), []byte(token)) != 1 {
+		return nil, http.StatusUnauthorized, "Invalid token"
+	}
+
+	event := WebhookEvent{}
+	for key, values := range r.URL.Query() {
+		event[strings.ToLower(key)] = values[0]
+	}
+	trimmed := bytes.TrimSpace(body)
+	switch {
+	case len(trimmed) == 0:
+	case trimmed[0] == '{':
+		// PostJson: a flat object; to, from, channel, subject and messageid may be null.
+		var fields map[string]any
+		if json.Unmarshal(trimmed, &fields) != nil {
+			return nil, http.StatusBadRequest, "Invalid JSON body"
+		}
+		for key, value := range fields {
+			switch v := value.(type) {
+			case nil:
+				event[strings.ToLower(key)] = ""
+			case string:
+				event[strings.ToLower(key)] = v
+			default:
+				event[strings.ToLower(key)] = fmt.Sprint(v)
+			}
+		}
+	default:
+		form, err := url.ParseQuery(string(trimmed))
+		if err != nil {
+			return nil, http.StatusBadRequest, "Invalid form body"
+		}
+		for key, values := range form {
+			event[strings.ToLower(key)] = values[0]
+		}
+	}
+	return event, 0, ""
 }

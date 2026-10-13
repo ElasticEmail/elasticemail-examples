@@ -4,7 +4,7 @@ A small Hono server on Node.js that sends transactional email through the [Elast
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ (Hono) · Railway
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ (Hono) · Railway
 
 ## Prerequisites
 
@@ -28,7 +28,10 @@ railway init      # create a project, or `railway link` to an existing one
 railway variables set ELASTICEMAIL_API_KEY=your_api_key
 railway variables set ELASTICEMAIL_WEBHOOK_TOKEN=change_me
 railway variables set EMAIL_FROM="Acme <hello@yourdomain.com>"
+railway variables set ELASTICEMAIL_WEBHOOK_SECRET=whsec_...   # after creating a signed webhook
 ```
+
+`ELASTICEMAIL_WEBHOOK_SECRET` is the `SigningSecret` (`whsec_...`) returned once when you create the webhook with `EnableSigning: true` and `DeliveryMethod: PostJson` (see [Webhooks](../README.md#webhooks)). Set it after creating the webhook; while it is empty, `/webhook` falls back to the `?token=` check (`ELASTICEMAIL_WEBHOOK_TOKEN`) for unsigned webhooks.
 
 Railway sets `PORT` itself; the server binds to `0.0.0.0:$PORT`.
 
@@ -57,11 +60,14 @@ curl -X POST "$URL/webhook?token=change_me" \
   -d "status=Sent&to=you@yourdomain.com&transaction=abc&messageid=xyz"
 ```
 
+That last request only works while `ELASTICEMAIL_WEBHOOK_SECRET` is empty. With a signing secret set, send a signed request as shown in [Webhooks](../README.md#webhooks).
+
 Logs: `railway logs`.
 
 ## Notes on runtime quirks
 
-- Full Node.js, so the SDK works with its default axios adapter and `node:crypto` is available for the constant-time token compare.
+- Full Node.js, so the SDK works with its default axios adapter and `node:crypto` is available for the HMAC signature check and the constant-time token compare.
+- The webhook reads the raw body with `await c.req.text()` before parsing JSON, and takes the signed request target from `c.env.incoming.url` (Node's `IncomingMessage.url`, the path + query exactly as on the request line). The app is typed `new Hono<{ Bindings: HttpBindings }>()` so `c.env.incoming` is available.
 - The process exits at startup if `ELASTICEMAIL_API_KEY` is missing. Combined with `restartPolicyType: ON_FAILURE` this makes a misconfigured deploy visible immediately in the Railway dashboard.
 - `healthcheckPath: /health` in `railway.json` makes Railway wait for a 200 before routing traffic to a new deploy.
 - The compiled output in `dist/` uses ESM (`"type": "module"` + `NodeNext`), so `node dist/index.js` runs without a loader.
@@ -77,8 +83,12 @@ Routes: GET /health returns { status: "ok" }; POST /send takes { to, subject, me
 emailsApi.emailsTransactionalPost with Recipients.To = [to] and
 Content = { From, Subject, Body: [{ ContentType: "HTML", Content }] }. The From address must be a sender
 verified in Elastic Email. Return { success, transactionId, messageId } from response.data, and { error }
-with the API status on failure (err.response.data.Error). GET|POST /webhook checks ?token= against
-process.env.ELASTICEMAIL_WEBHOOK_TOKEN with crypto.timingSafeEqual and logs the status field.
+with the API status on failure (err.response.data.Error). POST|GET /webhook verifies the Elastic Email signature when ELASTICEMAIL_WEBHOOK_SECRET is set:
+X-ElasticEmail-Signature holds comma-separated v1=<hex> entries, each the hex HMAC-SHA256 (node:crypto, key = the
+secret) of `${X-ElasticEmail-Timestamp}\n${method}\n${c.env.incoming.url (HttpBindings from @hono/node-server)}\n${raw body}`, with the raw body read before
+parsing; reject timestamps older than 300 s, compare in constant time, answer 401 on failure, then read the event
+from the JSON body (POST) or the query (GET). Without the secret it checks ?token= against
+process.env.ELASTICEMAIL_WEBHOOK_TOKEN with crypto.timingSafeEqual. Log the status field.
 Listen on process.env.PORT bound to 0.0.0.0 and add railway.json with build/start commands and
 healthcheckPath "/health".
 ```

@@ -1,10 +1,10 @@
 use axum::body::Bytes;
-use axum::extract::{Query, State};
-use axum::http::StatusCode;
+use axum::extract::{OriginalUri, Query, State};
+use axum::http::{HeaderMap, Method, StatusCode};
 use axum::response::{IntoResponse, Json, Redirect, Response};
 use axum::routing::{get, post};
 use axum::Router;
-use rust_elasticemail_examples::{api_error_message, config, env_or, from, hmac_hex, sanitize, token_ok};
+use rust_elasticemail_examples::{api_error_message, config, env_or, from, hmac_hex, read_webhook, sanitize, token_ok};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -23,6 +23,7 @@ struct AppState {
     list_name: String,
     public_url: String,
     secret: String,
+    webhook_secret: String,
     confirm_redirect_url: Option<String>,
 }
 
@@ -52,8 +53,18 @@ fn html_part(content: String) -> BodyPart {
     BodyPart { content: Some(content), ..BodyPart::new(BodyContentType::Html) }
 }
 
-/// Elastic Email webhooks and inbound notifications are form-encoded. Parse the raw body
-/// so GET requests (empty body) and POSTs share one handler.
+/// Verifies an event notification (signature with ELASTICEMAIL_WEBHOOK_SECRET, otherwise ?token=)
+/// and returns its fields with lower-cased names. The signature covers the raw request target
+/// (OriginalUri keeps the path and query as sent, still URL-encoded) and the raw body bytes.
+fn read_event(state: &AppState, method: &Method, uri: &OriginalUri, headers: &HeaderMap, body: &Bytes) -> Result<HashMap<String, String>, ApiError> {
+    let target = uri.path_and_query().map(|p| p.as_str()).unwrap_or("/");
+    let header = |name: &str| headers.get(name).and_then(|v| v.to_str().ok()).map(String::from);
+    read_webhook(&state.webhook_secret, &state.secret, method.as_str(), target, header, body).map_err(|(status, message)| {
+        (StatusCode::from_u16(status).unwrap_or(StatusCode::UNAUTHORIZED), Json(json!({"error": message})))
+    })
+}
+
+/// Inbound notifications are form-encoded.
 fn parse_form(body: &Bytes) -> HashMap<String, String> {
     url::form_urlencoded::parse(body).into_owned().collect()
 }
@@ -69,6 +80,7 @@ async fn main() {
         list_name: env_or("ELASTICEMAIL_LIST_NAME", "Newsletter"),
         public_url: env_or("PUBLIC_URL", "http://localhost:3000"),
         secret: env_or("ELASTICEMAIL_WEBHOOK_TOKEN", "change_me"),
+        webhook_secret: env_or("ELASTICEMAIL_WEBHOOK_SECRET", ""),
         confirm_redirect_url: std::env::var("CONFIRM_REDIRECT_URL").ok().filter(|v| !v.is_empty()),
     });
 
@@ -79,7 +91,7 @@ async fn main() {
         .route("/inbound", post(inbound))
         .route("/double-optin/subscribe", post(double_optin_subscribe))
         .route("/double-optin/confirm", get(double_optin_confirm))
-        .route("/double-optin/webhook", post(double_optin_webhook))
+        .route("/double-optin/webhook", get(double_optin_webhook).post(double_optin_webhook))
         .with_state(state);
 
     let port = env_or("PORT", "3000");
@@ -125,21 +137,20 @@ async fn send(State(state): State<Arc<AppState>>, Json(body): Json<SendRequest>)
     })))
 }
 
-// Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-// form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-// channel, target (clicked URL), IP, Useragent, Country, City.
-// Elastic Email sends a GET to validate the URL when the webhook is saved.
+// Elastic Email event notifications. Fields: transaction, messageid, to, from, subject, date,
+// status, category, channel, target (clicked URL), ip, useragent, country, city.
+// Signed webhooks (EnableSigning + DeliveryMethod PostJson, recommended) POST them as a JSON
+// body and are verified with ELASTICEMAIL_WEBHOOK_SECRET. Unsigned webhooks send a GET with the
+// fields in the query string and are checked with ?token=ELASTICEMAIL_WEBHOOK_TOKEN instead.
+// Elastic Email sends a test request when the webhook is saved.
 async fn webhook(
     State(state): State<Arc<AppState>>,
-    Query(query): Query<HashMap<String, String>>,
+    method: Method,
+    uri: OriginalUri,
+    headers: HeaderMap,
     body: Bytes,
 ) -> ApiResult {
-    if !token_ok(query.get("token").map(String::as_str).unwrap_or(""), &state.secret) {
-        return Err(unauthorized());
-    }
-
-    let mut event = query;
-    event.extend(parse_form(&body));
+    let event = read_event(&state, &method, &uri, &headers, &body)?;
     let status = get_str(&event, "status");
 
     if status.is_empty() {
@@ -156,7 +167,7 @@ async fn webhook(
 
     match status.as_str() {
         "Sent" => println!("Email sent, message id: {}", get_str(&event, "messageid")),
-        "Opened" => println!("Email opened from {} {}", get_str(&event, "Country"), get_str(&event, "City")),
+        "Opened" => println!("Email opened from {} {}", get_str(&event, "country"), get_str(&event, "city")),
         "Clicked" => println!("Link clicked: {}", get_str(&event, "target")),
         "Error" => println!("Bounce/error, category: {}", get_str(&event, "category")),
         "AbuseReport" => println!("Complaint received"),
@@ -304,15 +315,12 @@ async fn double_optin_confirm(
 // Click-tracking based confirmation: create a webhook for Clicked events pointing here.
 async fn double_optin_webhook(
     State(state): State<Arc<AppState>>,
-    Query(query): Query<HashMap<String, String>>,
+    method: Method,
+    uri: OriginalUri,
+    headers: HeaderMap,
     body: Bytes,
 ) -> ApiResult {
-    if !token_ok(query.get("token").map(String::as_str).unwrap_or(""), &state.secret) {
-        return Err(unauthorized());
-    }
-
-    let mut event = query;
-    event.extend(parse_form(&body));
+    let event = read_event(&state, &method, &uri, &headers, &body)?;
     let status = get_str(&event, "status");
     let target = get_str(&event, "target");
     let recipient = get_str(&event, "to");

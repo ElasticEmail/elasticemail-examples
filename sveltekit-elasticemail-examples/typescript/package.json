@@ -11,7 +11,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
-    "@elasticemail/elasticemail-client-ts-axios": "^4.2.0"
+    "@elasticemail/elasticemail-client-ts-axios": "^4.3.0"
   },
   "devDependencies": {
     "@sveltejs/adapter-auto": "^6.0.0",

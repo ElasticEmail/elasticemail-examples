@@ -128,7 +128,7 @@ php artisan email:send-test you@yourdomain.com --name="Ann"
 | `POST /api/send/template` | Hosted template, created on first use |
 | `POST /api/send/batch` | Bulk send with per-recipient merge fields |
 | `POST /api/contact` | Contact form: confirmation to the visitor, notification to the team |
-| `GET|POST /api/webhook?token=` | Event notifications |
+| `GET|POST /api/webhook` | Event notifications (signed with `ELASTICEMAIL_WEBHOOK_SECRET`, or `?token=` for unsigned webhooks) |
 | `POST /api/inbound?token=` | Inbound mail, forwarded to `CONTACT_EMAIL` |
 | `/api/contacts`, `/api/domains`, `/api/double-optin/*` | Full CRUD, see the README |
 

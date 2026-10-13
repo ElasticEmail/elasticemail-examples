@@ -90,6 +90,8 @@ mix run examples/email_status.exs <transactionId> [messageId]
 mix run examples/webhooks.exs
 ```
 
+Creates a signed webhook (`"EnableSigning" => true`, `"DeliveryMethod" => "PostJson"`), prints its `SigningSecret` once, rotates the secret, then deletes the webhook. Store the secret as `ELASTICEMAIL_WEBHOOK_SECRET` so the `/webhook` handlers verify each request (`ElasticEmail.Webhook`).
+
 ### Inbound Routes
 ```bash
 mix run examples/inbound.exs
@@ -145,11 +147,11 @@ The app reads `../.env`, so one `.env` file serves both the scripts and the serv
 
 - `GET /health` -> `{"status": "ok"}`
 - `POST /send` body `{"to", "subject", "message"}` -> `{"success": true, "transactionId", "messageId"}`
-- `GET|POST /webhook?token=...` - Elastic Email event notifications. Elastic Email sends each event as a GET request with the details in the query string (`status`, `to`, `transaction`, `messageid`, `target`, ...). The `token` must match `ELASTICEMAIL_WEBHOOK_TOKEN`.
+- `GET|POST /webhook` - Elastic Email event notifications (`status`, `to`, `transaction`, `messageid`, `target`, ...). Recommended: create the webhook with `"EnableSigning" => true` and `"DeliveryMethod" => "PostJson"` and set `ELASTICEMAIL_WEBHOOK_SECRET`; each event then arrives as a POST with a JSON body and `X-ElasticEmail-Timestamp` / `X-ElasticEmail-Signature` headers, and the handler rejects requests with a missing, wrong or older-than-5-minutes signature with 401. Fallback for unsigned webhooks (secret not set): add `?token=...` matching `ELASTICEMAIL_WEBHOOK_TOKEN` to the URL; events then arrive as GET with the details in the query string.
 - `POST /inbound?token=...` - inbound email pushed by an inbound route (`from_email`, `subject`, `body_html`, `att1_name`, `att1_content`, ...). Forwards a copy to `CONTACT_EMAIL`.
 - `POST /double-optin/subscribe` body `{"email", "name"}` - stores the contact as Transactional and sends a confirmation link
 - `GET /double-optin/confirm?email=&token=` - verifies the HMAC token and adds the contact to `ELASTICEMAIL_LIST_NAME`
-- `POST /double-optin/webhook?token=...` - confirms on a `Clicked` event whose `target` is the confirm link
+- `GET|POST /double-optin/webhook` - confirms on a `Clicked` event whose `target` is the confirm link. Verified like `/webhook` (signature, or `?token=` for unsigned webhooks).
 
 Failures return `{"error": "<message from the API>"}` with the API status code.
 
@@ -180,7 +182,8 @@ turns the error tuple into `"400: <message>"`.
 elixir-elasticemail-examples/
 ├── lib/
 │   ├── elastic_email.ex             # Req client: get/post/put/patch/delete, send_transactional
-│   └── elastic_email/env.ex         # Env values (from, to, list name, ...)
+│   ├── elastic_email/env.ex         # Env values (from, to, list name, ...)
+│   └── elastic_email/webhook.ex     # Webhook signature / token verification
 ├── examples/
 │   ├── basic_send.exs               # Simple transactional email
 │   ├── batch_send.exs               # Bulk send with merge fields

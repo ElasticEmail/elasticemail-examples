@@ -4,7 +4,7 @@ One Lambda function behind an HTTP API (API Gateway v2) that sends transactional
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20 (AWS SAM) · AWS Lambda
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20 (AWS SAM) · AWS Lambda
 
 ## Prerequisites
 
@@ -25,12 +25,15 @@ cp env.example.json env.json   # local values for `sam local`
 
 The API key is a CloudFormation parameter with `NoEcho: true` and lands in the function's environment variables. `sam deploy --guided` prompts for it and stores the value in `samconfig.toml`; do not commit that file if you keep the key in it. For production consider moving the key to AWS Secrets Manager or SSM Parameter Store and resolving it with `{{resolve:ssm-secure:...}}` in `template.yaml`.
 
+`ElasticEmailWebhookSecret` is the `SigningSecret` (`whsec_...`) returned once when you create the webhook with `EnableSigning: true` and `DeliveryMethod: PostJson` (see [Webhooks](../README.md#webhooks)). Leave it empty on the first deploy, create the webhook, then run `sam deploy --parameter-overrides ElasticEmailWebhookSecret=whsec_...` (plus your other parameters). While it is empty, `/webhook` falls back to the `?token=` check (`ElasticEmailWebhookToken`) for unsigned webhooks.
+
 ## Deploy
 
 ```bash
 sam build
 sam deploy --guided
-# Stack name, region, then the parameters ElasticEmailApiKey, ElasticEmailWebhookToken, EmailFrom
+# Stack name, region, then the parameters ElasticEmailApiKey, ElasticEmailWebhookToken,
+# ElasticEmailWebhookSecret (empty until you create a signed webhook), EmailFrom
 ```
 
 The `ApiUrl` output is the base URL. Redeploy later with `sam build && sam deploy`.
@@ -57,14 +60,16 @@ curl -X POST "$URL/webhook?token=change_me" \
   -d "status=Sent&to=you@yourdomain.com&transaction=abc&messageid=xyz"
 ```
 
+That last request only works while `ELASTICEMAIL_WEBHOOK_SECRET` is empty. With a signing secret set, send a signed request as shown in [Webhooks](../README.md#webhooks).
+
 Logs: `sam logs -n EmailFunction --stack-name <stack> --tail`.
 
 ## Notes on runtime quirks
 
 - The handler receives an `APIGatewayProxyEventV2` and returns `{ statusCode, headers, body }`. Query parameters are in `event.queryStringParameters`, the method in `event.requestContext.http.method`.
-- HTTP API base64-encodes request bodies it does not recognise as text. `rawBody()` checks `event.isBase64Encoded` before parsing a form-encoded body with `URLSearchParams`. Elastic Email itself sends events as GETs, so this only runs for POSTs you send yourself, such as the curl tests.
+- HTTP API base64-encodes request bodies it does not recognise as text. `rawBytes()` checks `event.isBase64Encoded` and returns the body bytes as received, which is what the webhook signature covers. The signed request target is `event.rawPath` plus `?` and `event.rawQueryString` (still URL-encoded), not the decoded `queryStringParameters`. This assumes the `$default` stage, which SAM's implicit HTTP API uses; with a named stage, `rawPath` includes the stage name.
 - The `EmailsApi` instance is created lazily and cached in module scope so warm invocations reuse it.
-- `ANY /webhook` accepts every method. Elastic Email uses GET, both for events and for the test event it sends when you save the webhook.
+- `ANY /webhook` accepts every method. Signed webhooks with JSON delivery send POST; unsigned ones send GET with the event in the query string.
 - SAM's esbuild build (`Metadata.BuildMethod: esbuild`) bundles the SDK and axios into a single CommonJS file, so no `node_modules` is uploaded. `npm run build` does the same locally for inspection.
 
 ## AI assistant prompt
@@ -80,9 +85,12 @@ emailsApi.emailsTransactionalPost with Recipients.To = [to] and
 Content = { From, Subject, Body: [{ ContentType: "HTML", Content }] }. The From address must be a sender
 verified in Elastic Email. Return { statusCode, headers, body } with body JSON { success, transactionId, messageId }
 from response.data, or { error } with the API status on failure (err.response.data.Error).
-ANY /webhook checks queryStringParameters.token against process.env.ELASTICEMAIL_WEBHOOK_TOKEN with a
-constant-time compare, decodes base64 bodies when isBase64Encoded, parses form bodies with URLSearchParams,
-and logs the status field.
+ANY /webhook verifies the Elastic Email signature when process.env.ELASTICEMAIL_WEBHOOK_SECRET is set:
+X-ElasticEmail-Signature holds comma-separated v1=<hex> entries, each the hex HMAC-SHA256 (node:crypto, key = the
+secret) of `${X-ElasticEmail-Timestamp}\n${method}\n${rawPath}?${rawQueryString}\n${raw body}` (decode base64
+bodies when isBase64Encoded); reject timestamps older than 300 s, compare with crypto.timingSafeEqual, answer 401 on
+failure, then read the event from the JSON body (POST) or the query (GET). Without the secret it checks
+queryStringParameters.token against process.env.ELASTICEMAIL_WEBHOOK_TOKEN. Log the status field.
 ```
 
 ## Resources

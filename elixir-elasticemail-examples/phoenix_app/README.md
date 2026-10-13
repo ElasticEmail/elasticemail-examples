@@ -17,22 +17,33 @@ Reads `../.env` (or `./.env`). `PORT` defaults to 3000.
 
 - `GET /health`
 - `POST /send` body `{"to", "subject", "message"}`
-- `GET|POST /webhook?token=...`
+- `GET|POST /webhook` (signed, or `?token=...` for unsigned webhooks)
 - `POST /inbound?token=...`
 - `POST /double-optin/subscribe` body `{"email", "name"}`
 - `GET /double-optin/confirm?email=&token=`
-- `POST /double-optin/webhook?token=...`
+- `GET|POST /double-optin/webhook` (signed, or `?token=...` for unsigned webhooks)
 
 ```bash
 curl -X POST http://localhost:3000/send \
   -H "Content-Type: application/json" \
   -d '{"to": "you@yourdomain.com", "subject": "Hello", "message": "Hi from Phoenix!"}'
 
+# Unsigned webhook (ELASTICEMAIL_WEBHOOK_SECRET empty)
 curl "http://localhost:3000/webhook?token=change_me&status=Sent&to=you@yourdomain.com&transaction=abc"
 ```
 
-Webhook and inbound handlers compare `?token=` with `ELASTICEMAIL_WEBHOOK_TOKEN` using
-`Plug.Crypto.secure_compare/2`. Confirm links carry `HMAC-SHA256(token, email)` in hex.
+Signed webhooks (recommended) are created with `"EnableSigning" => true` and
+`"DeliveryMethod" => "PostJson"` (see `../examples/webhooks.exs`). Store the `SigningSecret`
+returned once at creation as `ELASTICEMAIL_WEBHOOK_SECRET`; the webhook handlers then require a
+valid `X-ElasticEmail-Signature` (HMAC-SHA256 over timestamp, method, request target and raw body,
+at most 5 minutes old) and read the event from the JSON body. The endpoint's `Plug.Parsers` uses
+`ElasticEmail.Webhook.read_body/2` as its body reader so the raw body is kept for the check.
+The test event sent when the webhook is created arrives before you have the secret; Elastic
+Email accepts the 401 for it.
+
+Without the secret, webhook and inbound handlers compare `?token=` with
+`ELASTICEMAIL_WEBHOOK_TOKEN` using `Plug.Crypto.secure_compare/2`. Confirm links carry
+`HMAC-SHA256(token, email)` in hex.
 
 ## Files
 

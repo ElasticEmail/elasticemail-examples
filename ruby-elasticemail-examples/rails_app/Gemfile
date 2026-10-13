@@ -7,7 +7,7 @@ gem "rails", "~> 7.2"
 gem "puma", "~> 6.4"
 
 # Elastic Email SDK
-gem "ElasticEmail", "~> 4.2"
+gem "ElasticEmail", "~> 4.3"
 
 # Environment variables
 gem "dotenv-rails", "~> 3.0"

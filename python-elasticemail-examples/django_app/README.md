@@ -22,11 +22,11 @@ python manage.py runserver 8001
 
 - `GET /health` - Health check
 - `POST /send` - Send a transactional email
-- `GET|POST /webhook?token=...` - Elastic Email event notifications
+- `GET|POST /webhook` - Elastic Email event notifications (signed with `ELASTICEMAIL_WEBHOOK_SECRET`, or `?token=...` for unsigned webhooks)
 - `POST /inbound?token=...` - Inbound email pushed by an inbound route
 - `POST /double-optin/subscribe` - Store contact and send confirmation email
 - `GET /double-optin/confirm?email=&token=` - Add the contact to the list
-- `POST /double-optin/webhook?token=...` - Confirm subscription on a Clicked event
+- `GET|POST /double-optin/webhook` - Confirm subscription on a Clicked event (signed, or `?token=...`)
 
 ## Test
 

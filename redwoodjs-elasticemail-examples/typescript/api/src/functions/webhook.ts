@@ -1,23 +1,25 @@
 // GET|POST /.redwood/functions/webhook
 //
-// Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-// form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-// channel, target (clicked URL), IP, Useragent, Country, City.
-// Elastic Email does not sign webhooks; the shared ?token= is checked instead.
-// Elastic Email sends a GET to validate the URL when the webhook is saved, so GET must answer 2xx.
+// Elastic Email event notifications: transaction, messageid, to, from, subject, date, status,
+// category, channel, target (clicked URL), ip, useragent, country, city, ...
+// Signed webhooks (created with EnableSigning + DeliveryMethod PostJson, ELASTICEMAIL_WEBHOOK_SECRET
+// set) arrive as a POST with a JSON body and an X-ElasticEmail-Signature header, verified in
+// readWebhook. Unsigned webhooks send the fields in the query string (GET) and are checked
+// with the shared ?token= (ELASTICEMAIL_WEBHOOK_TOKEN) instead.
+// Requests without a status (validation pings, test events) are answered 2xx.
 import type { APIGatewayEvent, Context } from "aws-lambda";
-import { json, query, readEvent, sanitize, tokenOk } from "src/lib/elasticemail";
+import { json, readWebhook, sanitize } from "src/lib/elasticemail";
 
 export const handler = async (event: APIGatewayEvent, _context: Context) => {
   if (event.httpMethod !== "GET" && event.httpMethod !== "POST") {
     return json({ error: "Method not allowed" }, 405);
   }
 
-  if (!tokenOk(query(event).get("token"))) {
-    return json({ error: "Invalid token" }, 401);
+  const fields = await readWebhook(event);
+  if (!fields) {
+    return json({ error: "Invalid signature or token" }, 401);
   }
 
-  const fields = await readEvent(event);
   const status = sanitize(fields.status);
 
   if (!status) {
@@ -32,7 +34,7 @@ export const handler = async (event: APIGatewayEvent, _context: Context) => {
       console.log("Email sent, message id:", sanitize(fields.messageid));
       break;
     case "Opened":
-      console.log("Email opened from", sanitize(fields.Country), sanitize(fields.City));
+      console.log("Email opened from", sanitize(fields.country), sanitize(fields.city));
       break;
     case "Clicked":
       console.log("Link clicked:", sanitize(fields.target));

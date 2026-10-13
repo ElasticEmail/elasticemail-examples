@@ -4,7 +4,7 @@ Netlify Functions 2.0 (`.mts`, Web `Request`/`Response`) that send transactional
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.2.0` · Node.js 20+ and Edge Functions · Netlify Functions
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ and Edge Functions · Netlify Functions
 
 ## Prerequisites
 
@@ -28,9 +28,12 @@ netlify init      # or netlify link
 netlify env:set ELASTICEMAIL_API_KEY your_api_key
 netlify env:set ELASTICEMAIL_WEBHOOK_TOKEN change_me
 netlify env:set EMAIL_FROM "Acme <hello@yourdomain.com>"
+netlify env:set ELASTICEMAIL_WEBHOOK_SECRET whsec_...   # after creating a signed webhook
 # or all at once from the local file
 netlify env:import .env
 ```
+
+`ELASTICEMAIL_WEBHOOK_SECRET` is the `SigningSecret` (`whsec_...`) returned once when you create the webhook with `EnableSigning: true` and `DeliveryMethod: PostJson` (see [Webhooks](../README.md#webhooks)). Set it after creating the webhook; while it is empty, `/webhook` falls back to the `?token=` check (`ELASTICEMAIL_WEBHOOK_TOKEN`) for unsigned webhooks.
 
 ## Deploy
 
@@ -59,6 +62,8 @@ curl -X POST "$URL/webhook?token=change_me" \
   -d "status=Sent&to=you@yourdomain.com&transaction=abc&messageid=xyz"
 ```
 
+That last request only works while `ELASTICEMAIL_WEBHOOK_SECRET` is empty. With a signing secret set, send a signed request as shown in [Webhooks](../README.md#webhooks).
+
 Logs: `netlify logs:function send` or the Functions tab in the dashboard.
 
 ## Notes on runtime quirks
@@ -67,6 +72,7 @@ Logs: `netlify logs:function send` or the Functions tab in the dashboard.
 - Files use the `.mts` extension so Netlify treats them as ESM regardless of `package.json`. The shared code in `netlify/shared.ts` is imported by both the Node functions and the Edge function.
 - Edge Functions run on Deno. They read env vars from `Netlify.env.get(...)` (not `process.env`) and need `axios.create({ adapter: "fetch" })` passed as the third argument of `EmailsApi`. npm packages resolve through Netlify's bundler; keep the `axios` dependency in `package.json`.
 - The Edge import uses the `.ts` extension (`../shared.ts`) because Deno requires explicit extensions. `tsconfig.json` sets `allowImportingTsExtensions` and excludes the edge folder from `tsc` since its `Netlify` global comes from the Deno types.
+- The webhook signature is checked with WebCrypto (`crypto.subtle`) so `netlify/shared.ts` stays usable from the Edge function too. The handler reads `await req.text()` before parsing JSON and signs `pathname + search` of `new URL(req.url)`, which keeps the percent-encoding. Register the webhook at `https://<site>/webhook` (the `config.path`), not the `/.netlify/functions/webhook` URL, or sign that path instead.
 - `netlify.toml` needs a `publish` directory even for an API-only site; `public/index.html` is a placeholder.
 
 ## AI assistant prompt
@@ -83,8 +89,12 @@ POST /send takes { to, subject, message } and calls emailsApi.emailsTransactiona
 Recipients.To = [to] and Content = { From, Subject, Body: [{ ContentType: "HTML", Content }] }.
 The From address must be a sender verified in Elastic Email. Return { success, transactionId, messageId }
 from response.data, and { error } with the API status on failure (err.response.data.Error).
-GET|POST /webhook checks ?token= against ELASTICEMAIL_WEBHOOK_TOKEN with a constant-time compare and logs
-the status field.
+POST|GET /webhook verifies the Elastic Email signature when ELASTICEMAIL_WEBHOOK_SECRET is set:
+X-ElasticEmail-Signature holds comma-separated v1=<hex> entries, each the hex HMAC-SHA256 (WebCrypto crypto.subtle, key = the
+secret) of `${X-ElasticEmail-Timestamp}\n${method}\n${pathname + search of new URL(req.url)}\n${raw body}`, with the raw body read before
+parsing; reject timestamps older than 300 s, compare in constant time, answer 401 on failure, then read the event
+from the JSON body (POST) or the query (GET). Without the secret it checks ?token= against
+ELASTICEMAIL_WEBHOOK_TOKEN with a constant-time compare. Log the status field.
 ```
 
 ## Resources

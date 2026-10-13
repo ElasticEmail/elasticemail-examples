@@ -8,22 +8,25 @@ use Illuminate\Support\Facades\Log;
 /**
  * Elastic Email event notifications.
  *
- * Elastic Email does not sign webhooks. The webhook URL carries a shared secret as
- * ?token=..., checked against ELASTICEMAIL_WEBHOOK_TOKEN with a constant-time compare.
- * Parameters arrive in the query string (GET) or as form fields (POST): transaction,
- * messageid, to, from, subject, date, status (Sent, Opened, Clicked, Error, AbuseReport,
- * Unsubscribed), category, channel, target (clicked URL), IP, Useragent, Country, City.
- * Elastic Email sends a GET to validate the URL when the webhook is saved.
+ * Signed webhooks (recommended): create the webhook with EnableSigning and DeliveryMethod
+ * PostJson and set ELASTICEMAIL_WEBHOOK_SECRET to the SigningSecret it returns. Every request
+ * must then carry a valid HMAC-SHA256 X-ElasticEmail-Signature, otherwise it gets 401 (Elastic
+ * Email retries). Unsigned webhooks: leave the secret empty; the URL carries ?token=..., checked
+ * against ELASTICEMAIL_WEBHOOK_TOKEN with a constant-time compare.
+ * Fields: transaction, messageid, to, from, subject, date, status (Sent, Opened, Clicked, Error,
+ * AbuseReport, Unsubscribed), category, channel, target (clicked URL), ip, useragent, country,
+ * city - a JSON body for PostJson webhooks, the query string for Get webhooks.
+ * Elastic Email sends a test request when the webhook is saved.
  */
 class WebhookController extends Controller
 {
     public function handle(Request $request)
     {
-        if (!$this->ee->tokenOk($request->query('token'))) {
-            return response()->json(['error' => 'Invalid token'], 401);
+        [$event, $error] = $this->webhookEvent($request);
+        if ($error !== null) {
+            return $error;
         }
 
-        $event = array_merge($request->query(), $request->post());
         $status = $this->sanitize($event['status'] ?? '');
 
         if ($status === '') {
@@ -42,7 +45,7 @@ class WebhookController extends Controller
                 Log::info('Email sent', ['messageid' => $this->sanitize($event['messageid'] ?? '')]);
                 break;
             case 'Opened':
-                Log::info('Email opened', ['country' => $this->sanitize($event['Country'] ?? ''), 'city' => $this->sanitize($event['City'] ?? '')]);
+                Log::info('Email opened', ['country' => $this->sanitize($event['country'] ?? ''), 'city' => $this->sanitize($event['city'] ?? '')]);
                 break;
             case 'Clicked':
                 Log::info('Link clicked', ['target' => $this->sanitize($event['target'] ?? '')]);

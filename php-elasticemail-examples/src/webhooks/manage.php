@@ -1,9 +1,12 @@
 <?php
 /**
- * Webhook management: create, list, delete.
+ * Webhook management: create, list, rotate the signing secret, delete.
  *
- * Elastic Email does not sign webhook requests. The examples append a shared secret
- * as a query parameter and the receiving handler checks it (see webhooks/handler.php).
+ * The webhook is created with signing (EnableSigning) and POST + JSON delivery (PostJson).
+ * Every request then carries an HMAC-SHA256 X-ElasticEmail-Signature that the handler
+ * verifies with ELASTICEMAIL_WEBHOOK_SECRET (see webhooks/handler.php). The signing secret is
+ * returned only when the webhook is created or its secret is rotated. Webhooks created without
+ * signing are protected with a ?token= in the URL instead (ELASTICEMAIL_WEBHOOK_TOKEN).
  *
  * Usage: php src/webhooks/manage.php
  */
@@ -12,15 +15,17 @@ require_once __DIR__ . '/../bootstrap.php';
 
 use ElasticEmail\Api\WebhookApi;
 use ElasticEmail\Model\WebhookCreatePayload;
+use ElasticEmail\Model\WebhookDeliveryMethod;
 
 $webhookApi = new WebhookApi(new GuzzleHttp\Client(), ee_config());
 
 $publicUrl = ee_env('PUBLIC_URL', 'http://localhost:3000');
-$token = ee_env('ELASTICEMAIL_WEBHOOK_TOKEN', 'change_me');
-$webhookUrl = $publicUrl . '/webhook?token=' . rawurlencode($token);
+$webhookUrl = $publicUrl . '/webhook';
 
-// 1. Create. Elastic Email sends a GET to the URL on save, so the handler must be reachable
-//    and answer 2xx (use a tunnel such as ngrok for local development).
+// 1. Create a signed webhook that POSTs JSON. Elastic Email sends a test request on save,
+//    so the URL must be reachable (use a tunnel such as ngrok for local development).
+//    The test arrives before your endpoint knows the secret; a 401/403 answer to it is
+//    accepted, so the create call still succeeds. Signed webhooks don't follow redirects.
 $webhookId = null;
 try {
     $webhook = $webhookApi->webhookPost(new WebhookCreatePayload([
@@ -33,9 +38,13 @@ try {
         'notification_for_unsubscribed' => true,
         'notification_for_abuse_report' => true,
         'notification_for_error' => true,
+        'enable_signing' => true,
+        'delivery_method' => WebhookDeliveryMethod::POST_JSON,
     ]));
     $webhookId = $webhook->getWebhookId();
     echo 'Webhook created: ' . $webhookId . ' ' . $webhook->getUrl() . "\n";
+    echo 'Signing secret: ' . $webhook->getSigningSecret() . "\n";
+    echo "Store it as ELASTICEMAIL_WEBHOOK_SECRET - it is shown only once.\n";
 } catch (Exception $e) {
     ee_error($e, 'Error (create webhook)');
 }
@@ -51,7 +60,18 @@ try {
     ee_error($e, 'Error (list webhooks)');
 }
 
-// 3. Delete the one we created (comment out to keep it)
+// 3. Rotate the signing secret. The old secret stops working at once (no grace period).
+if ($webhookId) {
+    try {
+        $rotated = $webhookApi->webhookByPublicidSecretRotatePost($webhookId);
+        echo "\nNew signing secret: " . $rotated->getSigningSecret() . "\n";
+        echo "Update ELASTICEMAIL_WEBHOOK_SECRET - it is shown only once.\n";
+    } catch (Exception $e) {
+        ee_error($e, 'Error (rotate webhook secret)');
+    }
+}
+
+// 4. Delete the one we created (comment out to keep it)
 if ($webhookId) {
     try {
         $webhookApi->webhookByPublicidDelete($webhookId);

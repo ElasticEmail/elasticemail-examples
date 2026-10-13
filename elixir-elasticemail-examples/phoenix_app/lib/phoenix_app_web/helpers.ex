@@ -27,7 +27,7 @@ defmodule PhoenixAppWeb.Helpers do
     |> json(%{error: ElasticEmail.error_message(error)})
   end
 
-  def unauthorized(conn) do
-    conn |> put_status(401) |> json(%{error: "Invalid token"})
+  def unauthorized(conn, message \\ "Invalid token") do
+    conn |> put_status(401) |> json(%{error: message})
   end
 end

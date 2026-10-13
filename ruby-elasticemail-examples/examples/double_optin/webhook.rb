@@ -5,7 +5,7 @@
 # Double Opt-In: Webhook Handler
 #
 # Alternative confirmation flow driven by Elastic Email click tracking.
-# Create a webhook (see examples/webhooks.rb) pointing at POST /double-optin/webhook.
+# Create a webhook (see examples/webhooks.rb) pointing at /double-optin/webhook.
 # When the recipient clicks the confirm link, Elastic Email reports status=Clicked
 # with the clicked URL in "target". The contact is then added to the list.
 #
@@ -29,20 +29,34 @@ helpers do
   def sanitize(value)
     value.to_s.delete("\r\n")
   end
+
+  # Returns the event fields (lowercase keys) or halts with 401.
+  # With ELASTICEMAIL_WEBHOOK_SECRET set the signature is required and the event comes
+  # from the JSON body (POST) or the query string (GET); otherwise ?token= is checked.
+  def webhook_event
+    if WEBHOOK_SECRET.empty?
+      halt 401, json(error: "Invalid token") unless token_ok?(params["token"])
+      return params.to_h.transform_keys { |k| k.to_s.downcase }
+    end
+
+    body = request.body.read.to_s
+    target = request.env["REQUEST_URI"] || request.fullpath # raw path + query as received
+    unless verify_signature(WEBHOOK_SECRET, request.env["HTTP_X_ELASTICEMAIL_TIMESTAMP"],
+                            request.env["HTTP_X_ELASTICEMAIL_SIGNATURE"], request.request_method, target, body)
+      halt 401, json(error: "Invalid signature")
+    end
+
+    event = request.get? ? request.GET : (JSON.parse(body) rescue {})
+    event.is_a?(Hash) ? event.transform_keys { |k| k.to_s.downcase } : {}
+  end
 end
 
-# Elastic Email validates the URL with a GET when the webhook is saved.
-get "/double-optin/webhook" do
-  halt 401, json(error: "Invalid token") unless token_ok?(params["token"])
-  json(ok: true)
-end
-
-post "/double-optin/webhook" do
-  halt 401, json(error: "Invalid token") unless token_ok?(params["token"])
-
-  status_value = sanitize(params["status"])
-  target = sanitize(params["target"])
-  recipient = sanitize(params["to"])
+# Elastic Email sends a test event when the webhook is saved; GET is accepted too.
+def handle_click(lists_api)
+  event = webhook_event
+  status_value = sanitize(event["status"])
+  target = sanitize(event["target"])
+  recipient = sanitize(event["to"])
 
   unless status_value == "Clicked" && target.include?("/double-optin/confirm")
     return json(received: true, status: status_value, message: "Event ignored")
@@ -57,5 +71,8 @@ post "/double-optin/webhook" do
     halt 500, json(error: e.response_body || e.message)
   end
 end
+
+get("/double-optin/webhook") { handle_click(lists_api) }
+post("/double-optin/webhook") { handle_click(lists_api) }
 
 puts "Double opt-in webhook listening on http://localhost:#{settings.port}/double-optin/webhook"

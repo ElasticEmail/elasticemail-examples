@@ -10,7 +10,7 @@ as the HTML body. Laravel's Mail transport is not used, so you get the `Transact
 > **First time here?** The [Laravel quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `elasticemail/elasticemail-php@4.2.0` · PHP 8.2+ · Laravel 11
+**Versions:** Elastic Email REST API v4 · SDK `elasticemail/elasticemail-php@4.3.0` · PHP 8.2+ · Laravel 11
 
 ## Prerequisites
 
@@ -48,6 +48,7 @@ php artisan serve
 ELASTICEMAIL_API_KEY=your_api_key
 EMAIL_FROM=Acme <hello@yourdomain.com>
 CONTACT_EMAIL=team@yourdomain.com
+ELASTICEMAIL_WEBHOOK_SECRET=
 ELASTICEMAIL_WEBHOOK_TOKEN=change_me
 ELASTICEMAIL_LIST_NAME=Newsletter
 ELASTICEMAIL_TEMPLATE_NAME=welcome-example
@@ -80,14 +81,27 @@ Sends return `{ success: true, transactionId, messageId }`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET, POST | `/api/webhook?token=` | Event notifications (status, to, transaction, target, ...) |
+| GET, POST | `/api/webhook` | Event notifications (status, to, transaction, target, ...): signed, or `?token=` for unsigned webhooks |
 | POST | `/api/inbound?token=` | Inbound email pushed by an inbound route, forwarded to `CONTACT_EMAIL` |
 
-Elastic Email does not sign webhooks. Both endpoints compare `?token=` with
-`ELASTICEMAIL_WEBHOOK_TOKEN` and return 401 on mismatch. When you save a webhook,
-Elastic Email sends one test event (a GET with `to=test@test.com` and `messageid=abc1234`) and
-saves the webhook only if it gets a 2xx response. The handler accepts it like any other event; in
-your own app, skip it before it reaches your data.
+Recommended: create the webhook with `EnableSigning: true` and `DeliveryMethod: PostJson`, so
+each event arrives as a POST with a JSON body and an HMAC-SHA256 signature. The create response
+contains `SigningSecret` (shown only once); put it in `ELASTICEMAIL_WEBHOOK_SECRET`. With it set,
+`/api/webhook` and `/api/double-optin/webhook` verify `X-ElasticEmail-Signature` over the timestamp,
+method, raw request URI and raw body (`$request->getContent()`), reject timestamps more than
+5 minutes off, and return 401 on mismatch, so Elastic Email retries.
+
+Fallback for unsigned webhooks: leave `ELASTICEMAIL_WEBHOOK_SECRET` empty and add
+`?token=ELASTICEMAIL_WEBHOOK_TOKEN` to the webhook URL; the events then arrive as GET requests with
+the details in the query string. Inbound email is never signed, so `/api/inbound` always checks
+`?token=` and returns 401 on mismatch.
+
+When you save a webhook, Elastic Email sends one test event (`to=test@test.com`,
+`messageid=abc1234`). For an unsigned webhook it saves the webhook only if it gets a 2xx response,
+and the handler accepts it like any other event; in your own app, skip it before it reaches your
+data. A signed webhook's test arrives before your app knows the secret; Elastic Email accepts a
+401/403 answer to it, so the webhook is still created. Signed and POST webhooks don't follow
+redirects.
 
 ### Contacts
 
@@ -115,7 +129,7 @@ your own app, skip it before it reaches your data.
 |--------|----------|-------------|
 | POST | `/api/double-optin/subscribe` | `{ email, name }`, stores the contact as Transactional and emails an HMAC confirm link |
 | GET | `/api/double-optin/confirm?email=&token=` | Validates the HMAC and adds the contact to `ELASTICEMAIL_LIST_NAME` |
-| GET, POST | `/api/double-optin/webhook?token=` | Confirms on a `Clicked` event whose `target` is the confirm link |
+| GET, POST | `/api/double-optin/webhook` | Confirms on a `Clicked` event whose `target` is the confirm link (signed, or `?token=`) |
 
 Failures return `{ error: "<message from the API>" }` with the API status code.
 

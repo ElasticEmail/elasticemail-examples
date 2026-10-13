@@ -1,20 +1,21 @@
-// GET|POST /api/webhook?token=...
+// GET|POST /api/webhook
 //
-// Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-// form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-// channel, target (clicked URL), IP, Useragent, Country, City.
-// Elastic Email does not sign webhooks; the shared ?token= is checked instead.
-// Elastic Email sends a GET to validate the URL when the webhook is saved, so GET must answer 2xx.
+// Elastic Email event notifications: transaction, messageid, to, from, subject, date, status,
+// category, channel, target (clicked URL), ip, useragent, country, city, ...
+// Signed webhooks (created with EnableSigning + DeliveryMethod PostJson, ELASTICEMAIL_WEBHOOK_SECRET
+// set) arrive as a POST with a JSON body and an X-ElasticEmail-Signature header, verified in
+// readWebhook. Unsigned webhooks send the fields in the query string (GET) and are checked
+// with the shared ?token= (ELASTICEMAIL_WEBHOOK_TOKEN) instead.
+// Requests without a status (validation pings, test events) are answered 2xx.
 import { NextResponse } from "next/server";
-import { readEvent, sanitize, tokenOk } from "@/lib/elasticemail";
+import { readWebhook, sanitize } from "@/lib/elasticemail";
 
 async function handle(request: Request) {
-  const url = new URL(request.url);
-  if (!tokenOk(url.searchParams.get("token"))) {
-    return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+  const event = await readWebhook(request);
+  if (!event) {
+    return NextResponse.json({ error: "Invalid signature or token" }, { status: 401 });
   }
 
-  const event = await readEvent(request);
   const status = sanitize(event.status);
 
   if (!status) {
@@ -29,7 +30,7 @@ async function handle(request: Request) {
       console.log("Email sent, message id:", sanitize(event.messageid));
       break;
     case "Opened":
-      console.log("Email opened from", sanitize(event.Country), sanitize(event.City));
+      console.log("Email opened from", sanitize(event.country), sanitize(event.city));
       break;
     case "Clicked":
       console.log("Link clicked:", sanitize(event.target));

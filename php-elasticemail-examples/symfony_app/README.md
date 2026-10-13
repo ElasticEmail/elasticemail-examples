@@ -31,11 +31,11 @@ php -S localhost:8081 -t public
 - `POST /send-template` - `{ to, templateName?, merge? }`, template created on first use
 - `GET /domains` / `POST /domains` - list domains, add a domain (`{ domain }`)
 - `GET /contacts?list=` / `POST /contacts` - list contacts on a list, add a contact (`{ email, firstName, lastName, list }`)
-- `GET|POST /webhook?token=` - event notifications
+- `GET|POST /webhook` - event notifications (signed with `ELASTICEMAIL_WEBHOOK_SECRET`, or `?token=` for unsigned webhooks)
 - `POST /inbound?token=` - inbound email, forwarded to `CONTACT_EMAIL`
 - `POST /double-optin/subscribe` - `{ email, name }`
 - `GET /double-optin/confirm?email=&token=` - HMAC check, adds the contact to the list
-- `POST /double-optin/webhook?token=` - confirm on a `Clicked` event
+- `GET|POST /double-optin/webhook` - confirm on a `Clicked` event (signed, or `?token=`)
 
 Failures return `{ "error": "<message from the API>" }` with the API status code.
 

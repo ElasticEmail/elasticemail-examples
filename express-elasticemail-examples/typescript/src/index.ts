@@ -18,10 +18,21 @@ const contactEmail = process.env.CONTACT_EMAIL || from;
 const listName = process.env.ELASTICEMAIL_LIST_NAME || "Newsletter";
 const publicUrl = process.env.PUBLIC_URL || "http://localhost:3000";
 const secret = process.env.ELASTICEMAIL_WEBHOOK_TOKEN || "change_me";
+// Signing secret returned once when the webhook is created with EnableSigning
+const webhookSecret = process.env.ELASTICEMAIL_WEBHOOK_SECRET;
 const confirmRedirectUrl = process.env.CONFIRM_REDIRECT_URL;
 
+type RawRequest = Request & { rawBody?: Buffer };
+
 const app = express();
-app.use(express.json());
+// Keep the raw bytes: webhook signatures are computed over the body exactly as sent
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      (req as RawRequest).rawBody = buf;
+    },
+  }),
+);
 // Elastic Email webhooks and inbound notifications are form-encoded
 app.use(express.urlencoded({ extended: false, limit: "25mb" }));
 
@@ -34,6 +45,64 @@ const tokenOk = (token: unknown): boolean => {
   const b = Buffer.from(secret);
   return a.length === b.length && timingSafeEqual(a, b);
 };
+
+/**
+ * Verify an Elastic Email webhook signature: lowercase hex HMAC-SHA256 (key = signing secret) of
+ * "{timestamp}\n{METHOD}\n{path + query as received}\n{raw body}", sent as "v1=<hex>" entries
+ * in X-ElasticEmail-Signature. Rejects timestamps more than 5 minutes off.
+ */
+const verifySignature = (
+  signingSecret: string,
+  method: string,
+  target: string,
+  rawBody: Buffer | string,
+  timestamp: string | undefined,
+  signature: string | undefined,
+): boolean => {
+  const ts = Number(timestamp);
+  if (!timestamp || !Number.isInteger(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false;
+  const expected = Buffer.from(
+    createHmac("sha256", signingSecret)
+      .update(`${timestamp}\n${method}\n${target}\n`)
+      .update(rawBody)
+      .digest("hex"),
+  );
+  return String(signature ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith("v1="))
+    .some((part) => {
+      const given = Buffer.from(part.slice(3));
+      return given.length === expected.length && timingSafeEqual(given, expected);
+    });
+};
+
+/**
+ * Authenticate an Elastic Email webhook request and return its event fields (keys lowercased),
+ * or null. With ELASTICEMAIL_WEBHOOK_SECRET set, the signature is required and the event is the
+ * JSON body (POST) or the query string (GET); otherwise the ?token= shared secret is checked.
+ */
+const webhookEvent = (req: RawRequest): Record<string, unknown> | null => {
+  let event: Record<string, unknown>;
+  if (webhookSecret) {
+    const ok = verifySignature(
+      webhookSecret,
+      req.method,
+      req.originalUrl,
+      req.rawBody ?? "",
+      req.get("X-ElasticEmail-Timestamp"),
+      req.get("X-ElasticEmail-Signature"),
+    );
+    if (!ok) return null;
+    event = req.method === "POST" ? (req.body ?? {}) : req.query;
+  } else {
+    if (!tokenOk(req.query.token)) return null;
+    event = { ...req.query, ...(req.body ?? {}) };
+  }
+  return Object.fromEntries(Object.entries(event).map(([k, v]) => [k.toLowerCase(), v]));
+};
+
+const unauthorized = { error: webhookSecret ? "Invalid signature" : "Invalid token" };
 
 const hmac = (value: string) => createHmac("sha256", secret).update(value).digest("hex");
 
@@ -70,17 +139,18 @@ app.post("/send", async (req: Request, res: Response) => {
   }
 });
 
-// Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-// form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-// channel, target (clicked URL), IP, Useragent, Country, City.
-// Elastic Email sends a GET to validate the URL when the webhook is saved.
+// Elastic Email event notifications: transaction, messageid, to, from, subject, date, status,
+// category, channel, target (clicked URL), ip, useragent, country, city.
+// Signed webhooks (EnableSigning + DeliveryMethod PostJson) arrive as POST with a JSON body and
+// X-ElasticEmail-* signature headers; unsigned ones as GET with the fields in the query string.
+// Elastic Email sends a test event when the webhook is saved.
 app.all("/webhook", (req: Request, res: Response) => {
-  if (!tokenOk(req.query.token)) {
-    res.status(401).json({ error: "Invalid token" });
+  const event = webhookEvent(req);
+  if (!event) {
+    res.status(401).json(unauthorized);
     return;
   }
 
-  const event = { ...req.query, ...(req.body ?? {}) } as Record<string, string>;
   const status = sanitize(event.status);
 
   if (!status) {
@@ -96,7 +166,7 @@ app.all("/webhook", (req: Request, res: Response) => {
       console.log("Email sent, message id:", sanitize(event.messageid));
       break;
     case "Opened":
-      console.log("Email opened from", sanitize(event.Country), sanitize(event.City));
+      console.log("Email opened from", sanitize(event.country), sanitize(event.city));
       break;
     case "Clicked":
       console.log("Link clicked:", sanitize(event.target));
@@ -227,20 +297,20 @@ app.get("/double-optin/confirm", async (req: Request, res: Response) => {
 });
 
 // Click-tracking based confirmation: create a webhook for Clicked events pointing here.
-app.post("/double-optin/webhook", async (req: Request, res: Response) => {
-  if (!tokenOk(req.query.token)) {
-    res.status(401).json({ error: "Invalid token" });
+app.all("/double-optin/webhook", async (req: Request, res: Response) => {
+  const event = webhookEvent(req);
+  if (!event) {
+    res.status(401).json(unauthorized);
     return;
   }
 
-  const event = { ...req.query, ...(req.body ?? {}) } as Record<string, string>;
   if (event.status !== "Clicked" || !String(event.target ?? "").includes("/double-optin/confirm")) {
     res.json({ received: true, status: sanitize(event.status), message: "Event ignored" });
     return;
   }
 
   try {
-    await listsApi.listsByNameContactsPost(listName, { Emails: [event.to] });
+    await listsApi.listsByNameContactsPost(listName, { Emails: [String(event.to)] });
     res.json({ received: true, confirmed: true, email: sanitize(event.to) });
   } catch (err) {
     const { status, message } = apiError(err);

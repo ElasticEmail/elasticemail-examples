@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import Fastify from "fastify";
 import formbody from "@fastify/formbody";
 import { Configuration, ListsApi } from "@elasticemail/elasticemail-client-ts-axios";
@@ -14,6 +14,8 @@ const listsApi = new ListsApi(config);
 
 const listName = process.env.ELASTICEMAIL_LIST_NAME || "Newsletter";
 const expectedToken = process.env.ELASTICEMAIL_WEBHOOK_TOKEN || "change_me";
+// Signing secret returned once when the webhook is created with EnableSigning
+const webhookSecret = process.env.ELASTICEMAIL_WEBHOOK_SECRET;
 
 const tokenOk = (token) => {
   const a = Buffer.from(String(token ?? ""));
@@ -21,20 +23,69 @@ const tokenOk = (token) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 
+/**
+ * Verify an Elastic Email webhook signature: lowercase hex HMAC-SHA256 (key = signing secret) of
+ * "{timestamp}\n{METHOD}\n{path + query as received}\n{raw body}", sent as "v1=<hex>" entries
+ * in X-ElasticEmail-Signature. Rejects timestamps more than 5 minutes off.
+ */
+const verifySignature = (signingSecret, method, target, rawBody, timestamp, signature) => {
+  const ts = Number(timestamp);
+  if (!timestamp || !Number.isInteger(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false;
+  const expected = Buffer.from(
+    createHmac("sha256", signingSecret)
+      .update(`${timestamp}\n${method}\n${target}\n${rawBody}`)
+      .digest("hex"),
+  );
+  return String(signature ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith("v1="))
+    .some((part) => {
+      const given = Buffer.from(part.slice(3));
+      return given.length === expected.length && timingSafeEqual(given, expected);
+    });
+};
+
 const sanitize = (value) => String(value ?? "").replace(/[\r\n]/g, "");
 
 const app = Fastify();
 app.register(formbody);
+// Keep the raw JSON text: webhook signatures are computed over the body exactly as sent
+app.addContentTypeParser("application/json", { parseAs: "string" }, (req, body, done) => {
+  req.rawBody = body;
+  try {
+    done(null, body === "" ? undefined : JSON.parse(body));
+  } catch (err) {
+    err.statusCode = 400;
+    done(err, undefined);
+  }
+});
 
-// Events arrive as GET with the data in the query string, or as a form POST
+// Signed webhooks (EnableSigning + DeliveryMethod PostJson) arrive as POST with a JSON body;
+// unsigned ones as GET with the data in the query string and the shared ?token=.
 app.route({
   method: ["GET", "POST"],
   url: "/double-optin/webhook",
   handler: async (req, reply) => {
-    const event = { ...(req.body ?? {}), ...req.query };
-
-    if (!tokenOk(event.token)) {
-      return reply.status(401).send({ error: "Invalid token" });
+    let event;
+    if (webhookSecret) {
+      const ok = verifySignature(
+        webhookSecret,
+        req.method,
+        req.url,
+        req.rawBody ?? "",
+        req.headers["x-elasticemail-timestamp"],
+        req.headers["x-elasticemail-signature"],
+      );
+      if (!ok) {
+        return reply.status(401).send({ error: "Invalid signature" });
+      }
+      event = req.method === "POST" ? (req.body ?? {}) : req.query;
+    } else {
+      event = { ...(req.body ?? {}), ...req.query };
+      if (!tokenOk(event.token)) {
+        return reply.status(401).send({ error: "Invalid token" });
+      }
     }
 
     const status = sanitize(event.status);

@@ -117,7 +117,7 @@ http://localhost:5173 has a page per feature, each calling one of the `+server` 
 
 ## One SvelteKit-specific setting
 
-Elastic Email posts webhooks form-encoded and without an `Origin` header. SvelteKit's built-in CSRF
+Elastic Email posts inbound email (and unsigned webhooks) form-encoded and without an `Origin` header. SvelteKit's built-in CSRF
 check would answer 403 before the handler runs, so `kit.csrf.checkOrigin` is set to `false` in
 `svelte.config.js`. Turn it back on if you add form actions that need it, and exempt the webhook
 routes instead.

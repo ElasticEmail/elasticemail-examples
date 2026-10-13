@@ -1,8 +1,8 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { Configuration, ListsApi } from "@elasticemail/elasticemail-client-ts-axios";
 
 // Alternative confirmation flow driven by Elastic Email click tracking.
-// Create a webhook (see webhooks.js) pointing at POST /double-optin/webhook.
+// Create a webhook (see webhooks.js) pointing at /double-optin/webhook.
 // When the recipient clicks the confirm link, Elastic Email reports status=Clicked
 // with the clicked URL in "target". The contact is then added to the list.
 
@@ -11,11 +11,36 @@ const listsApi = new ListsApi(config);
 
 const listName = process.env.ELASTICEMAIL_LIST_NAME || "Newsletter";
 const expectedToken = process.env.ELASTICEMAIL_WEBHOOK_TOKEN || "change_me";
+// Signing secret returned once when the webhook is created with EnableSigning
+const webhookSecret = process.env.ELASTICEMAIL_WEBHOOK_SECRET;
 
 const tokenOk = (token) => {
   const a = Buffer.from(String(token ?? ""));
   const b = Buffer.from(expectedToken);
   return a.length === b.length && timingSafeEqual(a, b);
+};
+
+/**
+ * Verify an Elastic Email webhook signature: lowercase hex HMAC-SHA256 (key = signing secret) of
+ * "{timestamp}\n{METHOD}\n{path + query as received}\n{raw body}", sent as "v1=<hex>" entries
+ * in X-ElasticEmail-Signature. Rejects timestamps more than 5 minutes off.
+ */
+const verifySignature = (signingSecret, method, target, rawBody, timestamp, signature) => {
+  const ts = Number(timestamp);
+  if (!timestamp || !Number.isInteger(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false;
+  const expected = Buffer.from(
+    createHmac("sha256", signingSecret)
+      .update(`${timestamp}\n${method}\n${target}\n${rawBody}`)
+      .digest("hex"),
+  );
+  return String(signature ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith("v1="))
+    .some((part) => {
+      const given = Buffer.from(part.slice(3));
+      return given.length === expected.length && timingSafeEqual(given, expected);
+    });
 };
 
 const sanitize = (value) => String(value ?? "").replace(/[\r\n]/g, "");
@@ -38,30 +63,48 @@ Bun.serve({
       return json({ error: "Not found" }, 404);
     }
 
-    if (!tokenOk(url.searchParams.get("token"))) {
-      return json({ error: "Invalid token" }, 401);
-    }
-
-    // Elastic Email validates the URL with a GET when the webhook is saved.
-    if (req.method === "GET") {
-      return json({ ok: true });
-    }
-
-    if (req.method !== "POST") {
+    if (req.method !== "GET" && req.method !== "POST") {
       return json({ error: "Method not allowed" }, 405);
     }
 
-    // Elastic Email posts form-encoded fields
-    const event = Object.fromEntries(url.searchParams);
-    const form = await req.formData();
-    form.forEach((v, k) => {
-      if (typeof v === "string") event[k] = v;
-    });
+    // Signed webhooks (EnableSigning + DeliveryMethod PostJson) arrive as POST with a JSON body;
+    // unsigned ones as GET with the data in the query string and the shared ?token=.
+    let event;
+    if (webhookSecret) {
+      // Raw body and request target exactly as received (new URL keeps the percent-encoding)
+      const rawBody = req.method === "POST" ? await req.text() : "";
+      const ok = verifySignature(
+        webhookSecret,
+        req.method,
+        url.pathname + url.search,
+        rawBody,
+        req.headers.get("X-ElasticEmail-Timestamp") ?? undefined,
+        req.headers.get("X-ElasticEmail-Signature") ?? undefined,
+      );
+      if (!ok) {
+        return json({ error: "Invalid signature" }, 401);
+      }
+      event = req.method === "POST" ? (rawBody ? JSON.parse(rawBody) : {}) : Object.fromEntries(url.searchParams);
+    } else {
+      if (!tokenOk(url.searchParams.get("token"))) {
+        return json({ error: "Invalid token" }, 401);
+      }
+      // Unsigned POSTs carry form-encoded fields
+      const fields = Object.fromEntries(url.searchParams);
+      if (req.method === "POST") {
+        const form = await req.formData();
+        form.forEach((v, k) => {
+          if (typeof v === "string") fields[k] = v;
+        });
+      }
+      event = fields;
+    }
 
     const status = sanitize(event.status);
     const target = sanitize(event.target);
     const recipient = sanitize(event.to);
 
+    // Elastic Email validates the URL with a test event when the webhook is saved.
     if (status !== "Clicked" || !target.includes("/double-optin/confirm")) {
       return json({ received: true, status, message: "Event ignored" });
     }

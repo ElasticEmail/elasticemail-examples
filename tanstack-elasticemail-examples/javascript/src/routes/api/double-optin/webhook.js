@@ -2,16 +2,17 @@
 //
 // Click-tracking based confirmation. Create an Elastic Email webhook for Clicked events
 // pointing at this URL. When the clicked link is the confirmation link, the recipient
-// is added to the list. GET answers the URL validation ping.
+// is added to the list. Signed webhooks (ELASTICEMAIL_WEBHOOK_SECRET) are verified with
+// X-ElasticEmail-Signature, unsigned ones with ?token=. GET answers the URL validation ping.
 import { createFileRoute } from "@tanstack/react-router";
-import { apiError, json, listName, listsApi, query, readEvent, sanitize, tokenOk } from "../../../lib/elasticemail";
+import { apiError, json, listName, listsApi, readWebhook, sanitize } from "../../../lib/elasticemail";
 
 async function handle(request) {
-  if (!tokenOk(query(request).get("token"))) {
-    return json({ error: "Invalid token" }, 401);
+  const fields = await readWebhook(request);
+  if (!fields) {
+    return json({ error: "Invalid signature or token" }, 401);
   }
 
-  const fields = await readEvent(request);
   if (fields.status !== "Clicked" || !String(fields.target ?? "").includes("/api/double-optin/confirm")) {
     return json({ received: true, status: sanitize(fields.status), message: "Event ignored" });
   }

@@ -12,7 +12,9 @@ import com.elasticemail.model.MessageAttachment;
 import com.elasticemail.model.TransactionalRecipient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -31,6 +33,9 @@ public class WebhookController {
     @Value("${ELASTICEMAIL_WEBHOOK_TOKEN:change_me}")
     private String secret;
 
+    @Value("${ELASTICEMAIL_WEBHOOK_SECRET:}")
+    private String webhookSecret;
+
     @Value("${EMAIL_FROM:Acme <hello@yourdomain.com>}")
     private String from;
 
@@ -41,16 +46,21 @@ public class WebhookController {
         this.emailsApi = new EmailsApi(apiClient);
     }
 
-    // Elastic Email event notifications. Parameters arrive in the query string (GET) or as
-    // form fields (POST): transaction, messageid, to, from, subject, date, status, category,
-    // channel, target (clicked URL), IP, Useragent, Country, City.
-    // Elastic Email sends a GET to validate the URL when the webhook is saved.
-    // @RequestParam merges query string and form-encoded body parameters.
+    // Elastic Email event notifications. Fields: transaction, messageid, to, from, subject, date,
+    // status, category, channel, target (clicked URL), ip, useragent, country, city.
+    // Signed webhooks (EnableSigning + DeliveryMethod PostJson, recommended) POST them as a JSON
+    // body and are verified with ELASTICEMAIL_WEBHOOK_SECRET. Unsigned webhooks send a GET with the
+    // fields in the query string and are checked with ?token=ELASTICEMAIL_WEBHOOK_TOKEN instead.
+    // Elastic Email sends a test request when the webhook is saved.
+    // The raw body (@RequestBody byte[]) is read before any parsing, since the signature covers it.
     @RequestMapping(value = "/webhook", method = {RequestMethod.GET, RequestMethod.POST})
-    public ResponseEntity<Map<String, Object>> handleWebhook(@RequestParam Map<String, String> event) {
-        if (!Support.tokenOk(event.get("token"), secret)) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
+    public ResponseEntity<Map<String, Object>> handleWebhook(HttpServletRequest request,
+                                                             @RequestBody(required = false) byte[] body) {
+        Support.WebhookRequest webhook = Support.readWebhook(webhookSecret, secret, request, body);
+        if (!webhook.ok()) {
+            return ResponseEntity.status(webhook.status()).body(Map.of("error", webhook.error()));
         }
+        Map<String, String> event = webhook.event();
 
         String status = Support.sanitize(event.get("status"));
         if (status.isEmpty()) {
@@ -63,8 +73,8 @@ public class WebhookController {
 
         switch (status) {
             case "Sent" -> System.out.println("Email sent, message id: " + Support.sanitize(event.get("messageid")));
-            case "Opened" -> System.out.println("Email opened from " + Support.sanitize(event.get("Country"))
-                    + " " + Support.sanitize(event.get("City")));
+            case "Opened" -> System.out.println("Email opened from " + Support.sanitize(event.get("country"))
+                    + " " + Support.sanitize(event.get("city")));
             case "Clicked" -> System.out.println("Link clicked: " + Support.sanitize(event.get("target")));
             case "Error" -> System.out.println("Bounce/error, category: " + Support.sanitize(event.get("category")));
             case "AbuseReport" -> System.out.println("Complaint received");
