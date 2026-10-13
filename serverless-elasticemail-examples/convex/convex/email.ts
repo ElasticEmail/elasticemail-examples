@@ -1,6 +1,7 @@
 "use node";
 // Runs in Convex's Node.js runtime, where the SDK's default axios adapter (node:http) works.
 // Files with "use node" may only export actions.
+import { randomUUID } from "node:crypto";
 import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
 import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
@@ -21,12 +22,12 @@ function getEmailsApi(): EmailsApi {
  * throwing so the caller gets the Elastic Email status code and message intact.
  */
 export const send = internalAction({
-  args: { to: v.string(), subject: v.string(), message: v.string() },
+  args: { to: v.string(), subject: v.string(), message: v.string(), idempotencyKey: v.optional(v.string()) },
   returns: v.union(
     v.object({ ok: v.literal(true), transactionId: v.union(v.string(), v.null()), messageId: v.union(v.string(), v.null()) }),
     v.object({ ok: v.literal(false), status: v.number(), error: v.string() }),
   ),
-  handler: async (_ctx, { to, subject, message }) => {
+  handler: async (_ctx, { to, subject, message, idempotencyKey }) => {
     try {
       const { data } = await getEmailsApi().emailsTransactionalPost({
         Recipients: { To: [to] },
@@ -38,7 +39,7 @@ export const send = internalAction({
             { ContentType: "PlainText", Content: message },
           ],
         },
-      });
+      }, idempotencyKey ?? randomUUID());
       return { ok: true as const, transactionId: data.TransactionID ?? null, messageId: data.MessageID ?? null };
     } catch (err: any) {
       return {

@@ -4,7 +4,7 @@ A function tool for the OpenAI Agents SDK for TypeScript (`@openai/agents`) that
 
 > Part of the [Elastic Email AI agent examples](../README.md). New to the API? Start with the [AI agent quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · OpenAI Agents SDK 0.18 (`@openai/agents@0.18`)
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20+ · OpenAI Agents SDK 0.18 (`@openai/agents@0.18`)
 
 ## Prerequisites
 
@@ -87,6 +87,7 @@ Give the agent its own Elastic Email API key with sending access only, so you ca
 - The tool schema sticks to keywords OpenAI strict mode accepts; `z.email()` becomes `format: "email"` with a pattern.
 - The SDK sends traces of each run to the OpenAI dashboard by default, including tool inputs such as the email body. Set `OPENAI_AGENTS_DISABLE_TRACING=1` to turn that off.
 - `npm run typecheck` checks the project with `tsc`. There are no unit tests; the demo calls live APIs.
+- The tool passes the function call's `callId` (`details.toolCall.callId`, the third `execute` argument) to Elastic Email as the `Idempotency-Key`, so running the same tool call again (a retried step, a resumed run) returns the first result instead of sending twice. A new tool call from the model is a new send.
 
 ## AI assistant prompt
 
@@ -103,6 +104,7 @@ EMAIL_TO). Return { transactionId, messageId } from response.data, or { error } 
 err.response.data.Error on failure; never throw. Add it to a new Agent and call run(). Strip { and } from subject and text, remove line breaks from the subject, and in the HTML
 body escape HTML and turn braces into &#123; and &#125;. Never
 hardcode keys.
+Pass details.toolCall.callId (third execute argument) as the second argument of emailsTransactionalPost (the Idempotency-Key).
 ```
 
 ## Resources

@@ -25,6 +25,7 @@ require "json"
 require "openssl"
 require "erb"
 require "rack/utils"
+require "securerandom"
 
 api_key = ENV["ELASTICEMAIL_API_KEY"]
 if api_key.nil? || api_key.empty?
@@ -142,6 +143,10 @@ post "/send" do
     halt 400, json(error: "Missing required fields: to, subject, message")
   end
 
+  # Forward the client's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+  idempotency_key = request.env["HTTP_IDEMPOTENCY_KEY"].to_s
+  idempotency_key = SecureRandom.uuid if idempotency_key.empty?
+
   begin
     result = EMAILS_API.emails_transactional_post(
       ElasticEmail::EmailTransactionalMessageData.new(
@@ -151,7 +156,8 @@ post "/send" do
           subject: subject,
           body: [html_part("<p>#{message}</p>")]
         )
-      )
+      ),
+      idempotency_key: idempotency_key
     )
     json(success: true, transactionId: result.transaction_id, messageId: result.message_id)
   rescue ElasticEmail::ApiError => e

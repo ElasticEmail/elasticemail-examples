@@ -4,7 +4,7 @@ Two 2nd gen Cloud Functions for Firebase, written in TypeScript on Node.js 20, t
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20 (firebase-functions 6) · Firebase Cloud Functions
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20 (firebase-functions 6) · Firebase Cloud Functions
 
 ## Prerequisites
 
@@ -84,6 +84,7 @@ The callable sends only to the signed-in user's own verified email address, so a
 
 ## Notes on runtime quirks
 
+- `POST /send` takes an optional `Idempotency-Key` request header: it is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key. The callable `sendEmailToMe` generates a new key per call.
 - 2nd gen functions run on Cloud Run with full Node.js 20, so the SDK uses its default axios adapter and `node:crypto` is available for the HMAC signature check and the constant-time token compare.
 - The three HTTP routes live in one function; `req.path` is the part of the URL after `/api`. Firebase parses JSON and form-encoded bodies before the handler runs, so `req.body` is already an object. The signature covers the raw bytes, which Firebase keeps in `req.rawBody`, and the request target, taken from `req.originalUrl` (still URL-encoded). Because the `cloudfunctions.net` URL strips the function name before the handler sees the request, the handler checks the signature against both `/api` + `req.originalUrl` and `req.originalUrl`.
 - `apiKey.value()` works only inside a function that lists the secret in `secrets`, and only at request time, not at module load. That is why the `EmailsApi` is created lazily and cached for warm invocations.
@@ -102,6 +103,7 @@ request time; never hardcode keys. Create `new Configuration({ apiKey })` and `n
 An onRequest function `api` routes on req.path: GET /health returns { status: "ok" }; POST /send takes
 { to, subject, message } and calls emailsApi.emailsTransactionalPost with Recipients.To = [to] and
 Content = { From, Subject, Body: [{ ContentType: "HTML", Content }, { ContentType: "PlainText", Content }] }.
+Forward an incoming Idempotency-Key header as the second argument of emailsTransactionalPost (a new UUID if absent).
 The From address must be a sender verified in Elastic Email. Return { success, transactionId, messageId } from
 response.data, and { error } with the API status on failure (err.response.data.Error). POST|GET /webhook verifies the
 Elastic Email signature when the secret ELASTICEMAIL_WEBHOOK_SECRET is set: X-ElasticEmail-Signature holds

@@ -13,10 +13,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 public class EmailController {
@@ -31,7 +33,9 @@ public class EmailController {
     }
 
     @PostMapping("/send")
-    public ResponseEntity<Map<String, Object>> sendEmail(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, Object>> sendEmail(
+            @RequestBody Map<String, String> body,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         String to = body.get("to");
         String subject = body.get("subject");
         String message = body.get("message");
@@ -41,13 +45,19 @@ public class EmailController {
                     .body(Map.of("error", "Missing required fields: to, subject, message"));
         }
 
+        // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+        if (idempotencyKey == null || idempotencyKey.isEmpty()) {
+            idempotencyKey = UUID.randomUUID().toString();
+        }
+
         try {
             EmailSend result = emailsApi.emailsTransactionalPost(new EmailTransactionalMessageData()
                     .recipients(new TransactionalRecipient().to(List.of(to)))
                     .content(new EmailContent()
                             .from(from)
                             .subject(subject)
-                            .body(List.of(new BodyPart().contentType(BodyContentType.HTML).content("<p>" + message + "</p>")))));
+                            .body(List.of(new BodyPart().contentType(BodyContentType.HTML).content("<p>" + message + "</p>")))),
+                    idempotencyKey);
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "transactionId", result.getTransactionID(),

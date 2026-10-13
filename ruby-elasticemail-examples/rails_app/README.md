@@ -35,7 +35,9 @@ curl -X POST http://localhost:3000/send \
   -d '{"to": "you@yourdomain.com", "subject": "Hello", "message": "Hi from Rails!"}'
 ```
 
-Response: `{"success": true, "transactionId": "...", "messageId": "..."}`
+Response: `{"success": true, "transactionId": "...", "messageId": "..."}`. An optional `Idempotency-Key`
+request header is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry
+safely with the same key.
 
 ### Webhook Handler
 ```

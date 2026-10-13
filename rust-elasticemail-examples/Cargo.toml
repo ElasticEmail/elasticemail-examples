@@ -9,7 +9,7 @@ path = "src/lib.rs"
 
 [dependencies]
 # Elastic Email Rust SDK: https://crates.io/crates/ElasticEmail
-ElasticEmail = "4.3"
+ElasticEmail = "4.4"
 tokio = { version = "1", features = ["full"] }
 dotenvy = "0.15"
 serde = { version = "1", features = ["derive"] }

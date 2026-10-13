@@ -8,9 +8,13 @@
 #
 # Usage: ruby examples/basic_send.rb
 
+require "securerandom"
 require_relative "ee"
 
 emails_api = ElasticEmail::EmailsApi.new
+
+# Reuse this key only to retry this same send.
+idempotency_key = SecureRandom.uuid
 
 begin
   # The From address must belong to a verified domain.
@@ -31,11 +35,13 @@ begin
           )
         ]
       )
-    )
+    ),
+    idempotency_key: idempotency_key
   )
 
   puts "Email sent successfully!"
   puts "Transaction ID: #{result.transaction_id}"
+  puts "Idempotency key: #{idempotency_key}"
   puts "Message ID: #{result.message_id}"
 rescue ElasticEmail::ApiError => e
   api_error("send email", e)

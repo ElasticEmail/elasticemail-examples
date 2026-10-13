@@ -4,7 +4,7 @@ Five minutes from a clean clone to a delivered email, on the platform of your ch
 here is a standalone project with the same three endpoints:
 
 - `GET /health` -> `{ status: "ok" }`
-- `POST /send` with `{ to, subject, message }` -> `{ success, transactionId, messageId }`
+- `POST /send` with `{ to, subject, message }` -> `{ success, transactionId, messageId }`; an optional `Idempotency-Key` request header is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key
 - `POST|GET /webhook` -> Elastic Email event handler (signed requests, or `?token=` for unsigned webhooks)
 
 ## Prerequisites

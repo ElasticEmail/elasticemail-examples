@@ -187,7 +187,7 @@ every example and route for that language.
 | **Background jobs** | [Send your first email from a background job](queues-elasticemail-examples/QUICKSTART.md) | [Queue examples](queues-elasticemail-examples/) | BullMQ, Inngest, Trigger.dev |
 
 JavaScript and TypeScript stacks use [`@elasticemail/elasticemail-client-ts-axios`](https://github.com/ElasticEmail/elasticemail-ts-axios). Other languages use the matching [Elastic Email SDK](https://elasticemail.com/developers/api-libraries). Elixir calls the REST API directly with Req.
-All stacks are pinned to the 4.2 SDK line and target REST API v4.
+All stacks are pinned to the 4.4 SDK line and target REST API v4.
 
 ## Send with SMTP
 
@@ -274,6 +274,16 @@ stack, come here when you need the detail.
 5. **Copy `.env.example` to `.env`** and fill in `ELASTICEMAIL_API_KEY`, `EMAIL_FROM` and `EMAIL_TO`
 
 6. **Run the examples**
+
+## Retrying a send safely
+
+A send that times out may still have gone through. Every basic send in this repository passes an
+`Idempotency-Key` header (SDKs 4.4.0+): retrying with the same key and the same body within 24 hours
+returns the first response (same `TransactionID`, `Idempotency-Replayed: true`) instead of sending
+a second copy. The server apps' `POST /send` routes forward an `Idempotency-Key` from their own
+clients and generate one when there is none, and the [queue examples](queues-elasticemail-examples/)
+derive the key from the job id so every retry of a job reuses it. See
+[Retrying safely](docs/sending-email.md#retrying-safely-idempotency-key).
 
 ## Notes on webhooks and inbound
 

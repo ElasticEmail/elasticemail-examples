@@ -42,6 +42,7 @@ import java.net.URLEncoder
 import java.security.MessageDigest
 import java.util.Base64
 import java.util.HexFormat
+import java.util.UUID
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import kotlin.system.exitProcess
@@ -114,6 +115,10 @@ private suspend fun send(call: ApplicationCall) {
         return
     }
 
+    // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+    val idempotencyKey = call.request.headers["Idempotency-Key"]?.takeIf { it.isNotEmpty() }
+        ?: UUID.randomUUID().toString()
+
     try {
         val result = emailsApi.emailsTransactionalPost(
             EmailTransactionalMessageData()
@@ -129,6 +134,7 @@ private suspend fun send(call: ApplicationCall) {
                             ),
                         ),
                 ),
+            idempotencyKey,
         )
         call.respond(mapOf("success" to true, "transactionId" to result.transactionID, "messageId" to result.messageID))
     } catch (e: ApiException) {

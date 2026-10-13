@@ -1,10 +1,10 @@
 # Send Email from BullMQ - Elastic Email API
 
-A BullMQ worker on Node.js that sends transactional email through the [Elastic Email](https://elasticemail.com/email-api) email API with the TypeScript SDK. Jobs live in your own Redis; the worker retries 429s, 5xx responses and network errors with exponential backoff, and moves any other 4xx straight to failed with `UnrecoverableError`.
+A BullMQ worker on Node.js that sends transactional email through the [Elastic Email](https://elasticemail.com/email-api) email API with the TypeScript SDK. Jobs live in your own Redis; the worker sends with an `Idempotency-Key` derived from the job, retries 409s, 429s, 5xx responses and network errors with exponential backoff (or after `Retry-After`), and moves any other 4xx straight to failed with `UnrecoverableError`.
 
 > Part of the [Elastic Email background job examples](../README.md). New here? Start with the [background job quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · BullMQ 6 (ioredis 6, Redis 7)
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20+ · BullMQ 6 (ioredis 6, Redis 7)
 
 ## Prerequisites
 
@@ -29,7 +29,7 @@ If 6379 is taken, `REDIS_PORT=6380 docker compose up -d` and set `REDIS_URL=redi
 |---|---|
 | `src/email.ts` | `sendEmail()` (one `emailsTransactionalPost` with HTML and plain-text parts) and `classifyError()` |
 | `src/queue.ts` | The `email` queue, its Redis connection from `REDIS_URL`, and the default retry policy |
-| `src/worker.ts` | The worker: sends, then throws `UnrecoverableError` for permanent failures and a plain `Error` for retryable ones |
+| `src/worker.ts` | The worker: sends with the job's idempotency key, throws `UnrecoverableError` for permanent failures and a retryable error otherwise; the backoff strategy |
 | `src/enqueue.ts` | Adds one job, or with `--fanout` one job per recipient via `addBulk` |
 | `docker-compose.yml` | Redis for local development |
 
@@ -54,23 +54,37 @@ res.status(202).json({ queued: true });
 
 ## Retries and permanent failures
 
-The queue's `defaultJobOptions` give every job 5 attempts with exponential backoff starting at 10 seconds, with jitter so a burst of failures does not retry in lockstep:
+The queue's `defaultJobOptions` give every job 5 attempts with a custom backoff, and the worker's `settings.backoffStrategy` computes it: exponential from 10 seconds with jitter (so a burst of failures does not retry in lockstep), but never sooner than the `Retry-After` the API sent with a 503:
 
 ```typescript
+// queue.ts
 attempts: 5,
-backoff: { type: "exponential", delay: 10_000, jitter: 0.5 },
+backoff: { type: "custom" },
+
+// worker.ts
+settings: { backoffStrategy }, // ~10s, 20s, 40s, 80s, or Retry-After if longer
 ```
 
 The worker decides per error:
 
-- **429, 5xx, no response:** rethrow as a normal `Error`. BullMQ schedules the next attempt after the backoff delay.
-- **Any other 4xx:** throw `UnrecoverableError`. BullMQ moves the job to failed immediately, whatever attempts are left.
+- **409, 429, 5xx, no response:** throw a retryable error. BullMQ schedules the next attempt after the backoff delay.
+- **422 and any other 4xx:** throw `UnrecoverableError`. BullMQ moves the job to failed immediately, whatever attempts are left.
 
 An unverified sender, a bad API key or an invalid payload will fail the same way on attempt five as on attempt one. Retrying those only delays the failure and keeps a slot busy. The message from `err.response.data.Error` ends up in the job's `failedReason`, so you can see why it failed. See [Which failures to retry](../README.md#which-failures-to-retry).
 
+## Retries never send twice
+
+Every attempt of a job sends the same `Idempotency-Key`, built from the job:
+
+```typescript
+const idempotencyKey = `email-${job.id}-${job.timestamp}`;
+```
+
+`job.id` is the same on every attempt. Auto-generated ids are a per-queue counter that starts over if Redis is wiped, so `job.timestamp` (when the job was added, also unchanged across attempts) keeps the key unique. If an attempt times out after Elastic Email accepted the send, the next attempt gets the stored response, logs `already sent by an earlier attempt`, and no second email goes out. The message body is built from the job data alone, so every attempt sends identical bytes; a `422` means that stopped being true. See [Retries without duplicate emails](../README.md#retries-without-duplicate-emails).
+
 ## Fan-out and idempotency
 
-`npm run fanout` adds one job per recipient in one Redis round trip with `addBulk`. Each job gets a `jobId` built from a campaign name and a user id, for example `welcome-2026-09-user-1`. BullMQ does not add a job whose id already exists, so running the fan-out twice, or retrying the request that triggered it, does not queue duplicates. Custom job ids cannot contain `:`.
+`npm run fanout` adds one job per recipient in one Redis round trip with `addBulk`. Each job gets a `jobId` built from a campaign name and a user id, for example `welcome-2026-09-user-1`. BullMQ does not add a job whose id already exists, so running the fan-out twice, or retrying the request that triggered it, does not queue duplicates. Custom job ids cannot contain `:`. That is the enqueue side; the `Idempotency-Key` above is the send side.
 
 A job id stays taken while the job is kept in Redis, including failed jobs (`removeOnFail: 5000` keeps the last 5000). To resend a failed job, retry it (`job.retry()` or from a dashboard such as Bull Board) rather than adding it again.
 
@@ -92,11 +106,14 @@ Write a BullMQ 6 queue and worker in TypeScript (Node.js 20, ESM) that sends ema
 Use the npm package @elasticemail/elasticemail-client-ts-axios (version 4.x): new EmailsApi(new
 Configuration({ apiKey: process.env.ELASTICEMAIL_API_KEY })) and emailsApi.emailsTransactionalPost with
 Recipients.To = [to] and Content = { From: process.env.EMAIL_FROM, Subject, Body: [{ ContentType: "HTML",
-Content }, { ContentType: "PlainText", Content }] }. Return TransactionID and MessageID from response.data.
-Connect with new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null }) from ioredis and pass the
-instance as `connection`. Default job options: attempts 5, backoff { type: "exponential", delay: 10000,
-jitter: 0.5 }. In the worker, classify errors: err.response?.status 429 or >= 500, or an axios error with
-no response, is retryable (rethrow); any other 4xx is permanent - throw UnrecoverableError with
+Content }, { ContentType: "PlainText", Content }] }, passing an idempotency key as the second argument
+(SDK 4.4.0+): `email-${job.id}-${job.timestamp}`, the same on every attempt of the job, never the attempt
+number. Return TransactionID and MessageID from response.data. Connect with new Redis(process.env.REDIS_URL,
+{ maxRetriesPerRequest: null }) from ioredis and pass the instance as `connection`. Default job options:
+attempts 5, backoff { type: "custom" } with a worker settings.backoffStrategy that is exponential from 10s
+with jitter but at least the Retry-After header of a 503. In the worker, classify errors:
+err.response?.status 409, 429 or >= 500, or an axios error with no response, is retryable; any other 4xx
+(including 422, a key reused with a different body) is permanent - throw UnrecoverableError with
 err.response.data.Error. Never log the raw axios error (it contains the API key header). Add a fan-out
 script using queue.addBulk with a stable jobId per recipient (no ":" in the id). Never hardcode keys.
 ```

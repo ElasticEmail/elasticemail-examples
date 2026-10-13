@@ -1,8 +1,8 @@
 # Elastic Email Examples
 
-> Runnable code samples for the Elastic Email email API (REST API v4, official SDKs 4.3.0): transactional and bulk sending, templates, attachments, webhooks, inbound email routing, contacts, double opt-in, suppressions, sending domains and account statistics - in 24 languages, frameworks and serverless platforms.
+> Runnable code samples for the Elastic Email email API (REST API v4, official SDKs 4.4.0): transactional and bulk sending, templates, attachments, webhooks, inbound email routing, contacts, double opt-in, suppressions, sending domains and account statistics - in 24 languages, frameworks and serverless platforms.
 
-Every example reads `ELASTICEMAIL_API_KEY`, `EMAIL_FROM` and `EMAIL_TO` from `.env`. `EMAIL_FROM` must belong to a domain verified in Elastic Email. The API base URL is `https://api.elasticemail.com/v4` and authentication is the `X-ElasticEmail-ApiKey` header. Webhooks created with `EnableSigning: true` and `DeliveryMethod: "PostJson"` (SDKs 4.3.0+) are signed JSON POSTs: the examples verify the HMAC-SHA256 `X-ElasticEmail-Signature` header with `ELASTICEMAIL_WEBHOOK_SECRET`; unsigned webhooks (the default) are GET requests with event data in the query string, verified with a shared `?token=` secret and a constant-time compare. Inbound email arrives as a form POST.
+Every example reads `ELASTICEMAIL_API_KEY`, `EMAIL_FROM` and `EMAIL_TO` from `.env`. `EMAIL_FROM` must belong to a domain verified in Elastic Email. The API base URL is `https://api.elasticemail.com/v4` and authentication is the `X-ElasticEmail-ApiKey` header. Webhooks created with `EnableSigning: true` and `DeliveryMethod: "PostJson"` (SDKs 4.3.0+) are signed JSON POSTs: the examples verify the HMAC-SHA256 `X-ElasticEmail-Signature` header with `ELASTICEMAIL_WEBHOOK_SECRET`; unsigned webhooks (the default) are GET requests with event data in the query string, verified with a shared `?token=` secret and a constant-time compare. Inbound email arrives as a form POST. Sends take an optional `Idempotency-Key` header (SDKs 4.4.0+): a retry with the same key and body within 24 hours returns the first response instead of sending twice; the basic sends, `POST /send` routes and queue jobs in the examples all use one.
 
 A machine-readable map from use case to source file for every stack is in [examples.json](https://github.com/ElasticEmail/elasticemail-examples/blob/main/examples.json). All guides and quickstarts in one file: [llms-full.txt](https://github.com/ElasticEmail/elasticemail-examples/blob/main/llms-full.txt).
 
@@ -10,7 +10,7 @@ A machine-readable map from use case to source file for every stack is in [examp
 
 - [Overview](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/README.md): the API in one paragraph and the conventions every stack follows
 - [Environment variables](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/environment-variables.md): every variable, where it is used, what breaks without it
-- [Sending email](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/sending-email.md): transactional vs bulk, merge fields, scheduling, threading, delivery lookup
+- [Sending email](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/sending-email.md): transactional vs bulk, merge fields, safe retries with Idempotency-Key, scheduling, threading, delivery lookup
 - [Attachments](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/attachments.md): file attachments and inline (CID) images
 - [Templates](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/templates.md): hosted templates, merge values, creating one from code
 - [Contacts and lists](https://github.com/ElasticEmail/elasticemail-examples/blob/main/docs/contacts-and-lists.md): lists, contact CRUD, statuses, custom fields
@@ -54,7 +54,7 @@ A machine-readable map from use case to source file for every stack is in [examp
 
 - [Send your first templated email with React Email](https://github.com/ElasticEmail/elasticemail-examples/blob/main/email-templates-elasticemail-examples/QUICKSTART.md): render HTML and plain text in code with React Email or MJML, send with the TypeScript SDK
 - [Send your first email from an AI agent](https://github.com/ElasticEmail/elasticemail-examples/blob/main/ai-agents-elasticemail-examples/QUICKSTART.md): a send_email tool for the Vercel AI SDK, LangChain.js and the OpenAI Agents SDK, restricted by a recipient-domain allowlist
-- [Send your first email from a background job](https://github.com/ElasticEmail/elasticemail-examples/blob/main/queues-elasticemail-examples/QUICKSTART.md): BullMQ, Inngest and Trigger.dev jobs with retries, permanent 4xx vs retryable 429/5xx
+- [Send your first email from a background job](https://github.com/ElasticEmail/elasticemail-examples/blob/main/queues-elasticemail-examples/QUICKSTART.md): BullMQ, Inngest and Trigger.dev jobs with retries, an Idempotency-Key per job so retries cannot send twice, permanent 4xx vs retryable 409/429/5xx
 
 ## For coding agents
 

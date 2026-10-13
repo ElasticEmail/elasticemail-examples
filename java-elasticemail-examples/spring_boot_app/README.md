@@ -26,7 +26,7 @@ mvn spring-boot:run
 ## Endpoints
 
 - `GET /health` - health check
-- `POST /send` body `{"to", "subject", "message"}` - transactional send
+- `POST /send` body `{"to", "subject", "message"}` - transactional send; an optional `Idempotency-Key` request header is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key
 - `GET|POST /webhook` - Elastic Email event notifications. Recommended: a signed webhook (`EnableSigning: true`, `DeliveryMethod: PostJson`) that POSTs JSON; with `ELASTICEMAIL_WEBHOOK_SECRET` set, the `X-ElasticEmail-Signature` HMAC over the raw body and request target is verified (401 when it doesn't match). Fallback for unsigned webhooks: leave the secret empty and append `?token=` matching `ELASTICEMAIL_WEBHOOK_TOKEN`
 - `POST /inbound?token=...` - inbound email pushed by an inbound route, forwarded to `CONTACT_EMAIL`
 - `POST /double-optin/subscribe` body `{"email", "name"}` - stores the contact and sends a confirmation link

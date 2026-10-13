@@ -4,7 +4,7 @@ Send transactional email and receive webhooks from Vercel Functions using the [E
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ and Edge runtime · Vercel Functions
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20+ and Edge runtime · Vercel Functions
 
 ## Prerequisites
 
@@ -68,6 +68,7 @@ That last request only works while `ELASTICEMAIL_WEBHOOK_SECRET` is empty. With 
 
 ## Notes on runtime quirks
 
+- `POST /send` takes an optional `Idempotency-Key` request header: it is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key, on both `/send` and `/send-edge`.
 - Files in `api/` starting with `_` (like `api/_lib.ts`) are not deployed as functions; that is where the shared logic lives.
 - The Node functions use the Web `Request`/`Response` signature (`export default async function handler(req: Request)`), which requires Node.js 20+ on Vercel. `export const config = { runtime: "nodejs" }` pins the runtime.
 - The Edge function (`export const runtime = "edge"`) has no `node:http`, so `createEmailsApi(true)` passes `axios.create({ adapter: "fetch" })` as the third argument of `EmailsApi`.
@@ -86,6 +87,7 @@ because the Edge runtime has no node:http.
 Use the Web signature `export default async function handler(req: Request): Promise<Response>`.
 POST /send takes { to, subject, message } and calls emailsApi.emailsTransactionalPost with
 Recipients.To = [to] and Content = { From, Subject, Body: [{ ContentType: "HTML", Content }] }.
+Forward an incoming Idempotency-Key header as the second argument of emailsTransactionalPost (a new UUID if absent).
 The From address must be a sender verified in Elastic Email. Return { success, transactionId, messageId }
 from response.data, and { error } with the API status on failure (err.response.data.Error).
 POST|GET /webhook verifies the Elastic Email signature when ELASTICEMAIL_WEBHOOK_SECRET is set:

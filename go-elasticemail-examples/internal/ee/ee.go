@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
@@ -62,6 +63,16 @@ func NewClient() (*ElasticEmail.APIClient, context.Context) {
 
 	client := ElasticEmail.NewAPIClient(ElasticEmail.NewConfiguration())
 	return client, ctx
+}
+
+// NewIdempotencyKey returns a random key (32 hex characters) for the
+// Idempotency-Key header: one per logical send, reused only for its retries.
+func NewIdempotencyKey() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		log.Fatal(err)
+	}
+	return hex.EncodeToString(b)
 }
 
 // From is the verified sender address.

@@ -6,7 +6,7 @@
     "require": {
         "php": "^8.2",
         "laravel/framework": "^11.0",
-        "elasticemail/elasticemail-php": "^4.3"
+        "elasticemail/elasticemail-php": "^4.4"
     },
     "require-dev": {
         "laravel/pint": "^1.13",

@@ -4,7 +4,7 @@ A single-file `Deno.serve` app that sends transactional email through the [Elast
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Deno 2 · Deno Deploy
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Deno 2 · Deno Deploy
 
 ## Prerequisites
 
@@ -64,6 +64,8 @@ That last request only works while `ELASTICEMAIL_WEBHOOK_SECRET` is empty. With 
 
 ## Notes on runtime quirks
 
+- `POST /send` takes an optional `Idempotency-Key` request header: it is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key; the fallback key comes from the global `crypto.randomUUID()`.
+- Deno skips npm versions published less than 24 hours ago (its minimum dependency age, on by default). Right after an SDK release, `@4.4.0` may not resolve yet: wait a day, or pass `--min-dep-age 0` once if you need it sooner.
 - axios' default Node adapter does not work under Deno's npm compatibility, so the code passes `axios.create({ adapter: "fetch" })` as the third argument of `new EmailsApi(configuration, basePath, axios)`.
 - Dependencies are `npm:` specifiers pinned in `main.ts`; there is no `package.json`. `"nodeModulesDir": "none"` keeps the folder free of `node_modules`.
 - The webhook signature is checked with WebCrypto (`crypto.subtle`), built into Deno. The handler reads `await req.text()` before parsing JSON and signs `pathname + search` of `new URL(req.url)`, which keeps the percent-encoding.
@@ -74,13 +76,14 @@ That last request only works while `ELASTICEMAIL_WEBHOOK_SECRET` is empty. With 
 
 ```
 Write a Deno Deploy app (Deno.serve, single main.ts) in TypeScript that sends email with Elastic Email.
-Import { Configuration, EmailsApi } from "npm:@elasticemail/elasticemail-client-ts-axios@4.3.0" and
+Import { Configuration, EmailsApi } from "npm:@elasticemail/elasticemail-client-ts-axios@4.4.0" and
 axios from "npm:axios@1.18.1". Read the key with Deno.env.get("ELASTICEMAIL_API_KEY") and fail fast if missing;
 never hardcode keys. Create `new Configuration({ apiKey })` and
 `new EmailsApi(configuration, undefined, axios.create({ adapter: "fetch" }))` because axios' Node adapter
 does not work under Deno. Route on new URL(req.url).pathname: GET /health returns { status: "ok" };
 POST /send takes { to, subject, message } and calls emailsApi.emailsTransactionalPost with
 Recipients.To = [to] and Content = { From, Subject, Body: [{ ContentType: "HTML", Content }] }.
+Forward an incoming Idempotency-Key header as the second argument of emailsTransactionalPost (a new UUID if absent).
 The From address must be a sender verified in Elastic Email. Return { success, transactionId, messageId }
 from response.data and { error } with the API status on failure (err.response.data.Error).
 POST|GET /webhook verifies the Elastic Email signature when ELASTICEMAIL_WEBHOOK_SECRET is set:

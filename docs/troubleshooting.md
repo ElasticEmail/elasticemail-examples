@@ -27,6 +27,22 @@ An account or plan limit, for example `Too many contacts for current billing pla
 Too many items in one call: more than 50 transactional recipients (use `POST /emails` for bulk),
 or more than 1000 contacts or suppressions per upload.
 
+**422 `Idempotency-Key was already used with a different request`**
+A send reused an `Idempotency-Key` from the last 24 hours with a different body or on a different
+endpoint. Either the retry rebuilt the message differently (a timestamp, a random id or a re-rendered
+template inside the body), or two different sends got the same key (a key derived from the attempt
+number, or from an id that isn't unique). Build the body once, or deterministically, and create one
+key per logical send. See [Retrying safely](sending-email.md#retrying-safely-idempotency-key).
+
+**409 `Request with this Idempotency-Key is in progress`**
+A retry arrived while the first request with that key was still running, usually because the client
+timed out too early. Wait a moment and retry with the same key and body; you get the first
+request's response once it has finished. A longer client timeout makes this rarer.
+
+**A retry returned the old `TransactionID` and no new email arrived**
+That is the `Idempotency-Key` working: the response carries `Idempotency-Replayed: true` and the
+first request had already sent the email. To send a new email, use a new key.
+
 **The call succeeds but no email arrives**
 In order of likelihood: it is in spam; the address is suppressed (`suppressionsByEmailGet` tells you
 in one call); you scheduled it with `TimeOffset` and forgot; it bounced. Look up the transaction with

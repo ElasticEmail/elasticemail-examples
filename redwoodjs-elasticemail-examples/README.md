@@ -5,7 +5,7 @@ Send transactional and bulk email from RedwoodJS 8 with the [Elastic Email](http
 > **First time here?** The [RedwoodJS quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20, Yarn 4 · RedwoodJS 8
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20, Yarn 4 · RedwoodJS 8
 
 ## Prerequisites
 
@@ -63,7 +63,7 @@ Production build: `yarn rw build && yarn rw serve`. Type check: `yarn rw type-ch
 
 | Method | Path | Body / query | Elastic Email call |
 |---|---|---|---|
-| POST | `/.redwood/functions/send` | `{ to, subject, message }` | `emailsTransactionalPost` |
+| POST | `/.redwood/functions/send` | `{ to, subject, message }` | `emailsTransactionalPost`; forwards an optional `Idempotency-Key` request header (a new key otherwise), so clients can retry safely |
 | POST | `/.redwood/functions/sendBatch` | `{ to }` | `emailsPost` with per-recipient `Fields` |
 | POST | `/.redwood/functions/sendAttachment` | `{ to }` | `emailsTransactionalPost` with `Attachments` |
 | POST | `/.redwood/functions/sendCid` | `{ to }` | `emailsTransactionalPost`, `<img src="cid:logo.png">` |

@@ -15,6 +15,9 @@ class EmailsController < ApplicationController
       return render json: { error: "Missing required fields: to, subject, message" }, status: :bad_request
     end
 
+    # Forward the client's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+    idempotency_key = request.headers["Idempotency-Key"].presence || SecureRandom.uuid
+
     result = ElasticEmail::EmailsApi.new.emails_transactional_post(
       ElasticEmail::EmailTransactionalMessageData.new(
         recipients: ElasticEmail::TransactionalRecipient.new(to: [to]),
@@ -23,7 +26,8 @@ class EmailsController < ApplicationController
           subject: subject,
           body: [html_part("<p>#{message}</p>")]
         )
-      )
+      ),
+      idempotency_key: idempotency_key
     )
 
     render json: { success: true, transactionId: result.transaction_id, messageId: result.message_id }

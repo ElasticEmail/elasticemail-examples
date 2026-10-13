@@ -5,7 +5,7 @@ Send transactional and bulk email from Kotlin with the [Elastic Email](https://e
 > **First time here?** The [Kotlin quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `com.github.ElasticEmail:elasticemail-java:4.3.0 (JitPack)` · Java 17+, Maven 3.8+ · Kotlin 2.4, Ktor 3.6
+**Versions:** Elastic Email REST API v4 · SDK `com.github.ElasticEmail:elasticemail-java:4.4.0 (JitPack)` · Java 17+, Maven 3.8+ · Kotlin 2.4, Ktor 3.6
 
 ## Prerequisites
 
@@ -17,7 +17,7 @@ Send transactional and bulk email from Kotlin with the [Elastic Email](https://e
 ## Installation
 
 There is no Kotlin-specific SDK. Kotlin calls the Elastic Email Java SDK, which is not on Maven
-Central: the `pom.xml` pulls it from JitPack (`com.github.ElasticEmail:elasticemail-java:4.3.0`), so
+Central: the `pom.xml` pulls it from JitPack (`com.github.ElasticEmail:elasticemail-java:4.4.0`), so
 the first build downloads it from there.
 
 ```bash
@@ -148,7 +148,7 @@ curl -X POST http://localhost:3000/send \
 The Ktor app exposes the same routes and JSON shapes as every other stack in this repository.
 
 - `GET /health` -> `{"status": "ok"}`
-- `POST /send` body `{"to", "subject", "message"}` -> `{"success": true, "transactionId", "messageId"}`
+- `POST /send` body `{"to", "subject", "message"}` -> `{"success": true, "transactionId", "messageId"}`; an optional `Idempotency-Key` request header is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key
 - `GET|POST /webhook` - Elastic Email event notifications (`status`, `to`, `transaction`, `messageid`, `target`, ...). Recommended: a signed webhook (`EnableSigning: true`, `DeliveryMethod: PostJson`) that POSTs each event as JSON; with `ELASTICEMAIL_WEBHOOK_SECRET` set, the handler verifies the `X-ElasticEmail-Signature` HMAC over the raw body and request target and answers 401 when it doesn't match (Elastic Email then retries). Fallback for unsigned webhooks (GET with the details in the query string): leave the secret empty and append `?token=` matching `ELASTICEMAIL_WEBHOOK_TOKEN` to the URL.
 - `POST /inbound?token=...` - inbound email pushed by an inbound route (`from_email`, `subject`, `body_html`, `att1_name`, `att1_content`, ...). Forwards a copy to `CONTACT_EMAIL`.
 - `POST /double-optin/subscribe` body `{"email", "name"}` - stores the contact as Transactional and sends a confirmation link signed with HMAC-SHA256

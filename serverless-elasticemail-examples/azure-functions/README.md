@@ -4,7 +4,7 @@ Three HTTP-triggered Azure Functions on the Node.js v4 programming model (`app.h
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20 (Azure Functions v4) · Azure Functions
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20 (Azure Functions v4) · Azure Functions
 
 ## Prerequisites
 
@@ -85,6 +85,7 @@ Logs: `func azure functionapp logstream <app-name>`, or Application Insights in 
 
 ## Notes on runtime quirks
 
+- `POST /send` takes an optional `Idempotency-Key` request header: it is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key.
 - Full Node.js, so the SDK uses its default axios adapter and `node:crypto` is available for the HMAC signature check and the constant-time token compare.
 - The v4 programming model has no `function.json` files. Functions register themselves with `app.http(...)` when their file loads, and `"main": "dist/src/functions/*.js"` in `package.json` tells the host which compiled files to load. If `func start` finds no functions, run `npm run build` first.
 - HTTP routes get an `/api` prefix by default. `host.json` sets `"routePrefix": ""` so the paths match the other platforms; remove it if you prefer `/api/send`.
@@ -103,6 +104,7 @@ and `new EmailsApi(configuration)`, cached in module scope. Set "routePrefix": "
 Functions: GET /health returns { jsonBody: { status: "ok" } }; POST /send takes { to, subject, message } from
 await req.json() and calls emailsApi.emailsTransactionalPost with Recipients.To = [to] and
 Content = { From, Subject, Body: [{ ContentType: "HTML", Content }, { ContentType: "PlainText", Content }] }.
+Forward an incoming Idempotency-Key header as the second argument of emailsTransactionalPost (a new UUID if absent).
 The From address must be a sender verified in Elastic Email. Return { success, transactionId, messageId } from
 response.data, and { status, jsonBody: { error } } with the API status on failure (err.response.data.Error).
 POST|GET /webhook (authLevel "anonymous") verifies the Elastic Email signature when ELASTICEMAIL_WEBHOOK_SECRET is set:

@@ -36,6 +36,20 @@ defmodule ElasticEmail do
   @doc "POST /emails/transactional. Returns `{:ok, %{\"TransactionID\" => _, \"MessageID\" => _}}`."
   def send_transactional(data), do: post("/emails/transactional", data)
 
+  @doc """
+  POST /emails/transactional with an `Idempotency-Key` header. Retrying with the same key and
+  the same `data` within 24 hours returns the first response instead of sending again.
+  """
+  def send_transactional(data, idempotency_key) do
+    request(:post, "/emails/transactional",
+      json: data,
+      headers: [{"idempotency-key", idempotency_key}]
+    )
+  end
+
+  @doc "A new random idempotency key: 32 hex characters. Use one per logical send."
+  def new_idempotency_key, do: :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
+
   @doc "Percent-encode a value used as a path segment (emails, template names, list names)."
   def path_segment(value), do: URI.encode(to_string(value), &URI.char_unreserved?/1)
 

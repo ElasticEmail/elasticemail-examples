@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import express from "express";
 import {
   Configuration,
@@ -114,6 +114,9 @@ app.post("/send", async (req, res) => {
     return;
   }
 
+  // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new key.
+  const idempotencyKey = req.get("Idempotency-Key") || randomUUID();
+
   try {
     const { data } = await emailsApi.emailsTransactionalPost({
       Recipients: { To: [to] },
@@ -122,7 +125,7 @@ app.post("/send", async (req, res) => {
         Subject: subject,
         Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
       },
-    });
+    }, idempotencyKey);
     res.json({ success: true, transactionId: data.TransactionID, messageId: data.MessageID });
   } catch (err) {
     const { status, message: error } = apiError(err);

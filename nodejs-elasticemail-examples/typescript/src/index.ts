@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import {
   Configuration,
@@ -144,13 +144,16 @@ const webhookEvent = (
 
 const unauthorized = { error: webhookSecret ? "Invalid signature" : "Invalid token" };
 
-const send = async (res: ServerResponse, body: Fields) => {
+const send = async (res: ServerResponse, body: Fields, clientKey?: string) => {
   const { to, subject, message } = body;
 
   if (!to || !subject || !message) {
     sendJson(res, 400, { error: "Missing required fields: to, subject, message" });
     return;
   }
+
+  // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new key.
+  const idempotencyKey = clientKey || randomUUID();
 
   try {
     const { data } = await emailsApi.emailsTransactionalPost({
@@ -160,7 +163,7 @@ const send = async (res: ServerResponse, body: Fields) => {
         Subject: subject,
         Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
       },
-    });
+    }, idempotencyKey);
     sendJson(res, 200, { success: true, transactionId: data.TransactionID, messageId: data.MessageID });
   } catch (err) {
     const { status, message: error } = apiError(err);
@@ -358,7 +361,7 @@ const server = createServer(async (req, res) => {
       case "GET /health":
         return sendJson(res, 200, { status: "ok" });
       case "POST /send":
-        return await send(res, body);
+        return await send(res, body, req.headers["idempotency-key"]?.toString());
       case "GET /webhook":
       case "POST /webhook":
         return webhook(res, webhookEvent(req, rawBody, query, body));

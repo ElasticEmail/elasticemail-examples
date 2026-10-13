@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import {
@@ -118,6 +118,9 @@ app.post("/send", async (c) => {
     return c.json({ error: "Missing required fields: to, subject, message" }, 400);
   }
 
+  // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new key.
+  const idempotencyKey = c.req.header("Idempotency-Key") || randomUUID();
+
   try {
     const { data } = await emailsApi.emailsTransactionalPost({
       Recipients: { To: [to] },
@@ -126,7 +129,7 @@ app.post("/send", async (c) => {
         Subject: subject,
         Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
       },
-    });
+    }, idempotencyKey);
     return c.json({ success: true, transactionId: data.TransactionID, messageId: data.MessageID });
   } catch (err) {
     const { status, message: error } = apiError(err);

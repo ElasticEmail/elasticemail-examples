@@ -78,7 +78,9 @@ http.route({
       return json({ error: "Missing required fields: to, subject, message" }, 400);
     }
 
-    const result = await ctx.runAction(internal.email.send, { to, subject, message });
+    // Forward the caller's Idempotency-Key so its retries can't send twice; email.ts generates one otherwise.
+    const idempotencyKey = request.headers.get("idempotency-key") || undefined;
+    const result = await ctx.runAction(internal.email.send, { to, subject, message, idempotencyKey });
     if (!result.ok) {
       return json({ error: result.error }, result.status);
     }

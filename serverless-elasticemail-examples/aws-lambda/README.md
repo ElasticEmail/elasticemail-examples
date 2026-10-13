@@ -4,7 +4,7 @@ One Lambda function behind an HTTP API (API Gateway v2) that sends transactional
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20 (AWS SAM) · AWS Lambda
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20 (AWS SAM) · AWS Lambda
 
 ## Prerequisites
 
@@ -66,6 +66,7 @@ Logs: `sam logs -n EmailFunction --stack-name <stack> --tail`.
 
 ## Notes on runtime quirks
 
+- `POST /send` takes an optional `Idempotency-Key` request header: it is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key (API Gateway HTTP APIs lowercase header names, so it is read as `event.headers["idempotency-key"]`).
 - The handler receives an `APIGatewayProxyEventV2` and returns `{ statusCode, headers, body }`. Query parameters are in `event.queryStringParameters`, the method in `event.requestContext.http.method`.
 - HTTP API base64-encodes request bodies it does not recognise as text. `rawBytes()` checks `event.isBase64Encoded` and returns the body bytes as received, which is what the webhook signature covers. The signed request target is `event.rawPath` plus `?` and `event.rawQueryString` (still URL-encoded), not the decoded `queryStringParameters`. This assumes the `$default` stage, which SAM's implicit HTTP API uses; with a named stage, `rawPath` includes the stage name.
 - The `EmailsApi` instance is created lazily and cached in module scope so warm invocations reuse it.
@@ -83,6 +84,7 @@ Create `new Configuration({ apiKey })` and `new EmailsApi(configuration)`, cache
 Routes: GET /health returns { status: "ok" }; POST /send takes { to, subject, message } and calls
 emailsApi.emailsTransactionalPost with Recipients.To = [to] and
 Content = { From, Subject, Body: [{ ContentType: "HTML", Content }] }. The From address must be a sender
+Forward an incoming Idempotency-Key header as the second argument of emailsTransactionalPost (a new UUID if absent).
 verified in Elastic Email. Return { statusCode, headers, body } with body JSON { success, transactionId, messageId }
 from response.data, or { error } with the API status on failure (err.response.data.Error).
 ANY /webhook verifies the Elastic Email signature when process.env.ELASTICEMAIL_WEBHOOK_SECRET is set:

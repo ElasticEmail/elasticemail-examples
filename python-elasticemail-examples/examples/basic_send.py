@@ -8,6 +8,7 @@ Usage: python examples/basic_send.py
 
 import os
 import sys
+import uuid
 
 import ElasticEmail
 
@@ -39,10 +40,14 @@ def main():
             ),
         )
 
+        # Reuse this key only to retry this same send.
+        idempotency_key = str(uuid.uuid4())
+
         try:
-            result = emails_api.emails_transactional_post(message)
+            result = emails_api.emails_transactional_post(message, idempotency_key=idempotency_key)
             print("Email sent successfully!")
             print("Transaction ID:", result.transaction_id)
+            print("Idempotency key:", idempotency_key)
             print("Message ID:", result.message_id)
         except ElasticEmail.ApiException as e:
             print_api_error("send email", e)

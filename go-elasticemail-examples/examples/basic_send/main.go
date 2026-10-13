@@ -23,7 +23,13 @@ func main() {
 	recipients := ElasticEmail.NewTransactionalRecipient([]string{ee.To()})
 	data := ElasticEmail.NewEmailTransactionalMessageData(*recipients, *content)
 
-	result, resp, err := client.EmailsAPI.EmailsTransactionalPost(ctx).EmailTransactionalMessageData(*data).Execute()
+	// Reuse this key only to retry this same send.
+	idempotencyKey := ee.NewIdempotencyKey()
+
+	result, resp, err := client.EmailsAPI.EmailsTransactionalPost(ctx).
+		EmailTransactionalMessageData(*data).
+		IdempotencyKey(idempotencyKey).
+		Execute()
 	if err != nil {
 		ee.Fail("send email", resp, err)
 	}
@@ -31,4 +37,5 @@ func main() {
 	fmt.Println("Email sent successfully!")
 	fmt.Println("Transaction ID:", result.GetTransactionID())
 	fmt.Println("Message ID:", result.GetMessageID())
+	fmt.Println("Idempotency key:", idempotencyKey)
 }

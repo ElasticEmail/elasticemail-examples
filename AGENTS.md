@@ -60,6 +60,15 @@ Each stack is self-contained. There is no root package, workspace or shared buil
 - **Transactional vs bulk:** `POST /emails/transactional` for one message to personal recipients,
   `POST /emails` for one bulk job with per-recipient merge fields. Both return `TransactionID` and
   `MessageID`.
+- **Retried sends need an `Idempotency-Key`.** A send that timed out may have gone through, so a
+  plain retry can deliver twice. Pass a key (SDKs 4.4.0+; TS: `emailsTransactionalPost(message, key)`,
+  every language in [docs/api-map.md](docs/api-map.md#idempotency-key)): one key per logical send,
+  created before the first attempt (a UUID, or a job/event/run id in a background job), reused only
+  for that send's retries with a byte-identical body, never derived from the attempt number. Same
+  key + same body within 24 h returns the stored response with `Idempotency-Replayed: true`; a
+  different body is a 422 (a bug, don't retry); 409 means the first request is still running and
+  503 means retry after `Retry-After` with the same key. Details:
+  [docs/sending-email.md](docs/sending-email.md#retrying-safely-idempotency-key).
 - **Errors** come back as `{"Error": "message"}` with a 4xx/5xx status. Server examples answer
   `{ "error": "<message>" }` with the same status. See [docs/error-handling.md](docs/error-handling.md).
 - **SMTP uses its own credentials.** Host `smtp.elasticemail.com`, port 2525 (or 587/25) with
@@ -73,12 +82,16 @@ Each stack is self-contained. There is no root package, workspace or shared buil
 ## Conventions every stack follows
 
 - Server apps expose the same routes: `POST /send` takes `{ to, subject, message }` and answers
-  `{ success, transactionId, messageId }`. Most server apps also expose `GET /health`, which answers
+  `{ success, transactionId, messageId }`. It forwards an incoming `Idempotency-Key` request header
+  to Elastic Email (checked only for being non-empty) and generates a new key when there is none, so
+  the app's own clients can retry safely.
+- Every standalone basic send creates an idempotency key with the language's standard library,
+  passes it, and prints it next to the `TransactionID`. Most server apps also expose `GET /health`, which answers
   `{ status: "ok" }`.
 - Sends set both an HTML and a plain-text body.
 - JS-family stacks ship `typescript/` and `javascript/`, except NestJS, which is TypeScript only
   (it depends on decorators).
-- SDK versions are pinned to the 4.2 line across all stacks. JS/TS stacks use
+- SDK versions are pinned to the 4.4 line across all stacks. JS/TS stacks use
   `@elasticemail/elasticemail-client-ts-axios`; Elixir has no SDK and calls the REST API with Req.
 - SDK method names follow the OpenAPI spec, spelled per language (`emailsTransactionalPost`,
   `emails_transactional_post`, `EmailsTransactionalPostAsync`, ...). Look them up in

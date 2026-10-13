@@ -19,9 +19,10 @@ export const queueConnection = createConnection();
 export const emailQueue = new Queue<EmailMessage, SendResult>(QUEUE_NAME, {
   connection: queueConnection,
   defaultJobOptions: {
-    // 1 try + 4 retries, waiting ~10s, 20s, 40s, 80s (with jitter) between them.
+    // 1 try + 4 retries, waiting ~10s, 20s, 40s, 80s (with jitter) between them, or
+    // longer when the API asks for it with Retry-After: see backoffStrategy in worker.ts.
     attempts: 5,
-    backoff: { type: "exponential", delay: 10_000, jitter: 0.5 },
+    backoff: { type: "custom" },
     // Keep a bounded history in Redis for inspection.
     removeOnComplete: 1000,
     removeOnFail: 5000,

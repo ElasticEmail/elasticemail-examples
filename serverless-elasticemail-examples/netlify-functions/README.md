@@ -4,7 +4,7 @@ Netlify Functions 2.0 (`.mts`, Web `Request`/`Response`) that send transactional
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ and Edge Functions · Netlify Functions
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20+ and Edge Functions · Netlify Functions
 
 ## Prerequisites
 
@@ -68,6 +68,7 @@ Logs: `netlify logs:function send` or the Functions tab in the dashboard.
 
 ## Notes on runtime quirks
 
+- `POST /send` takes an optional `Idempotency-Key` request header: it is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key, on both `/send` and `/send-edge`.
 - Functions 2.0 use `export default async (req: Request, context: Context)` and `export const config = { path: "/send" }` for custom routes; the old `/.netlify/functions/<name>` URL still works.
 - Files use the `.mts` extension so Netlify treats them as ESM regardless of `package.json`. The shared code in `netlify/shared.ts` is imported by both the Node functions and the Edge function.
 - Edge Functions run on Deno. They read env vars from `Netlify.env.get(...)` (not `process.env`) and need `axios.create({ adapter: "fetch" })` passed as the third argument of `EmailsApi`. npm packages resolve through Netlify's bundler; keep the `axios` dependency in `package.json`.
@@ -87,6 +88,7 @@ Create `new Configuration({ apiKey })` and `new EmailsApi(configuration)`. For a
 Use `export default async (req: Request, context: Context)` and `export const config = { path: "/send" }`.
 POST /send takes { to, subject, message } and calls emailsApi.emailsTransactionalPost with
 Recipients.To = [to] and Content = { From, Subject, Body: [{ ContentType: "HTML", Content }] }.
+Forward an incoming Idempotency-Key header as the second argument of emailsTransactionalPost (a new UUID if absent).
 The From address must be a sender verified in Elastic Email. Return { success, transactionId, messageId }
 from response.data, and { error } with the API status on failure (err.response.data.Error).
 POST|GET /webhook verifies the Elastic Email signature when ELASTICEMAIL_WEBHOOK_SECRET is set:

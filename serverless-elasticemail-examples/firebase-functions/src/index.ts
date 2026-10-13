@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { defineSecret, defineString } from "firebase-functions/params";
@@ -70,7 +70,8 @@ const apiError = (err: any) => ({
   message: err.response?.data?.Error ?? err.message ?? "Unknown error",
 });
 
-async function sendEmail(to: string, subject: string, message: string) {
+// Pass the same idempotencyKey only to retry the same send; a new key is generated otherwise.
+async function sendEmail(to: string, subject: string, message: string, idempotencyKey: string = randomUUID()) {
   const { data } = await getEmailsApi().emailsTransactionalPost({
     Recipients: { To: [to] },
     Content: {
@@ -81,7 +82,7 @@ async function sendEmail(to: string, subject: string, message: string) {
         { ContentType: "PlainText", Content: message },
       ],
     },
-  });
+  }, idempotencyKey);
   return { transactionId: data.TransactionID, messageId: data.MessageID };
 }
 
@@ -105,8 +106,11 @@ export const api = onRequest({ secrets: [apiKey, webhookToken, webhookSecret] },
       return;
     }
 
+    // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+    const idempotencyKey = req.get("idempotency-key") || randomUUID();
+
     try {
-      res.json({ success: true, ...(await sendEmail(to, subject, message)) });
+      res.json({ success: true, ...(await sendEmail(to, subject, message, idempotencyKey)) });
     } catch (err) {
       const { status, message: error } = apiError(err);
       res.status(status).json({ error });

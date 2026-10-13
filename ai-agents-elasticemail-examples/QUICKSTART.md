@@ -62,7 +62,8 @@ export const sendEmailTool = tool({
     text: z.string().min(1),
     html: z.string().optional(),
   }),
-  execute: sendEmail, // allowlist check, strip braces, then emailsApi.emailsTransactionalPost(...)
+  // allowlist check, strip braces, then emailsApi.emailsTransactionalPost(message, toolCallId)
+  execute: (input, { toolCallId }) => sendEmail(input, toolCallId),
 });
 ```
 
@@ -78,6 +79,7 @@ const result = await generateText({
 ```
 
 `stopWhen` lets the loop run past the first step, so Claude sees the tool result and can answer.
+The tool call id doubles as the `Idempotency-Key`, so if the same tool call runs twice, Elastic Email sends the email once.
 
 ## 5. Run it
 

@@ -4,14 +4,24 @@ defmodule PhoenixAppWeb.EmailController do
 
   def send_email(conn, %{"to" => to, "subject" => subject, "message" => message})
       when to != "" and subject != "" and message != "" do
-    case ElasticEmail.send_transactional(%{
-           "Recipients" => %{"To" => [to]},
-           "Content" => %{
-             "From" => ElasticEmail.Env.from(),
-             "Subject" => subject,
-             "Body" => [%{"ContentType" => "HTML", "Content" => "<p>#{message}</p>"}]
-           }
-         }) do
+    # Forward the client's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+    idempotency_key =
+      case get_req_header(conn, "idempotency-key") do
+        [key | _] when key != "" -> key
+        _ -> ElasticEmail.new_idempotency_key()
+      end
+
+    case ElasticEmail.send_transactional(
+           %{
+             "Recipients" => %{"To" => [to]},
+             "Content" => %{
+               "From" => ElasticEmail.Env.from(),
+               "Subject" => subject,
+               "Body" => [%{"ContentType" => "HTML", "Content" => "<p>#{message}</p>"}]
+             }
+           },
+           idempotency_key
+         ) do
       {:ok, data} ->
         json(conn, %{
           success: true,

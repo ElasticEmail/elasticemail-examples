@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@astrojs/node": "^9.4.0",
-    "@elasticemail/elasticemail-client-ts-axios": "^4.3.0",
+    "@elasticemail/elasticemail-client-ts-axios": "^4.4.0",
     "astro": "^5.13.0"
   },
   "devDependencies": {

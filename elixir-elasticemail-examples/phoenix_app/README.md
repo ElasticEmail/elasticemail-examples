@@ -16,7 +16,7 @@ Reads `../.env` (or `./.env`). `PORT` defaults to 3000.
 ## Routes
 
 - `GET /health`
-- `POST /send` body `{"to", "subject", "message"}`
+- `POST /send` body `{"to", "subject", "message"}`; an optional `Idempotency-Key` request header is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key
 - `GET|POST /webhook` (signed, or `?token=...` for unsigned webhooks)
 - `POST /inbound?token=...`
 - `POST /double-optin/subscribe` body `{"email", "name"}`

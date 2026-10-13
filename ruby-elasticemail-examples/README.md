@@ -5,7 +5,7 @@ Send transactional and bulk email from Ruby with the [Elastic Email](https://ela
 > **First time here?** The [Ruby quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `ElasticEmail ~> 4.2 (RubyGems)` · Ruby 3.1+ · Sinatra 4, Rails 7.2
+**Versions:** Elastic Email REST API v4 · SDK `ElasticEmail ~> 4.4 (RubyGems)` · Ruby 3.1+ · Sinatra 4, Rails 7.2
 
 ## Prerequisites
 
@@ -154,7 +154,7 @@ See [rails_app/README.md](rails_app/README.md) for details.
 Both server apps expose the same routes and JSON shapes.
 
 - `GET /health` -> `{"status": "ok"}`
-- `POST /send` body `{"to", "subject", "message"}` -> `{"success": true, "transactionId", "messageId"}`
+- `POST /send` body `{"to", "subject", "message"}` -> `{"success": true, "transactionId", "messageId"}`; an optional `Idempotency-Key` request header is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key
 - `GET|POST /webhook` - Elastic Email event notifications (`status`, `to`, `transaction`, `messageid`, `target`, ...). Recommended: create the webhook with `EnableSigning: true` and `DeliveryMethod: "PostJson"` and set `ELASTICEMAIL_WEBHOOK_SECRET`; each event then arrives as a POST with a JSON body and `X-ElasticEmail-Timestamp` / `X-ElasticEmail-Signature` headers, and the handler rejects requests with a missing, wrong or older-than-5-minutes signature with 401. Fallback for unsigned webhooks (secret not set): add `?token=...` matching `ELASTICEMAIL_WEBHOOK_TOKEN` to the URL; events then arrive as GET with the details in the query string.
 - `POST /inbound?token=...` - inbound email pushed by an inbound route (`from_email`, `subject`, `body_html`, `att1_name`, `att1_content`, ...). Forwards a copy to `CONTACT_EMAIL`.
 - `POST /double-optin/subscribe` body `{"email", "name"}` - stores the contact as Transactional and sends a confirmation link

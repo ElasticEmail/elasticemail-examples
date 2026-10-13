@@ -3,7 +3,7 @@
 Send email with the [Elastic Email](https://elasticemail.com/email-api) email API from serverless and edge platforms - Cloudflare Workers, Vercel, Netlify, AWS Lambda, Supabase Edge Functions, Deno Deploy, Encore.ts, Railway, Firebase Cloud Functions, Azure Functions, Google Cloud Run and Convex. Each folder is a standalone deployable project with three endpoints:
 
 - `GET /health` -> `{ status: "ok" }`
-- `POST /send` body `{ to, subject, message }` -> transactional send -> `{ success, transactionId, messageId }`
+- `POST /send` body `{ to, subject, message }` -> transactional send -> `{ success, transactionId, messageId }`; an optional `Idempotency-Key` request header is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key
 - `POST|GET /webhook` -> Elastic Email event handler (HMAC signature check, or `?token=` for unsigned webhooks; logs `status`)
 
 All of them use the npm package `@elasticemail/elasticemail-client-ts-axios`. On runtimes without Node's `http` module (Cloudflare Workers, Vercel Edge, Netlify Edge, Deno, Supabase) the SDK is given an axios instance created with `axios.create({ adapter: "fetch" })`. Keep the top-level `axios` dependency on the same range the SDK uses (`~1.18.0`) so npm dedupes it and the types line up.

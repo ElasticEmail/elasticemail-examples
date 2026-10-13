@@ -23,11 +23,15 @@ async fn main() {
 
     let data = EmailTransactionalMessageData::new(TransactionalRecipient::new(vec![to()]), content);
 
-    match emails_api::emails_transactional_post(&config, data).await {
+    // Reuse this key only to retry this same send.
+    let idempotency_key = uuid::Uuid::new_v4().to_string();
+
+    match emails_api::emails_transactional_post_with_idempotency_key(&config, data, Some(&idempotency_key)).await {
         Ok(result) => {
             println!("Email sent successfully!");
             println!("Transaction ID: {}", result.transaction_id.unwrap_or_default());
             println!("Message ID: {}", result.message_id.unwrap_or_default());
+            println!("Idempotency key: {}", idempotency_key);
         }
         Err(e) => {
             print_api_error("sending email", &e);

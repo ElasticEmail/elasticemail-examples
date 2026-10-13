@@ -81,6 +81,9 @@ export async function sendHandler(req: Request, emailsApi: EmailsApi, from: stri
     return json({ error: "Missing required fields: to, subject, message" }, 400);
   }
 
+  // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+  const idempotencyKey = req.headers.get("idempotency-key") || crypto.randomUUID();
+
   try {
     const { data } = await emailsApi.emailsTransactionalPost({
       Recipients: { To: [to] },
@@ -89,7 +92,7 @@ export async function sendHandler(req: Request, emailsApi: EmailsApi, from: stri
         Subject: subject,
         Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
       },
-    });
+    }, idempotencyKey);
     return json({ success: true, transactionId: data.TransactionID, messageId: data.MessageID });
   } catch (err) {
     const { status, message: error } = apiError(err);

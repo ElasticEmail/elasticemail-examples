@@ -4,7 +4,7 @@ A LangChain.js tool that lets an agent send transactional email through the [Ela
 
 > Part of the [Elastic Email AI agent examples](../README.md). New to the API? Start with the [AI agent quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · LangChain.js 1 (`langchain@1`, `@langchain/core@1`, `@langchain/anthropic@1`)
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20+ · LangChain.js 1 (`langchain@1`, `@langchain/core@1`, `@langchain/anthropic@1`)
 
 ## Prerequisites
 
@@ -95,6 +95,7 @@ Give the agent its own Elastic Email API key with sending access only, so you ca
 - `EMAIL_FROM` must be on a domain verified in your Elastic Email account, or the send fails.
 - `@langchain/langgraph` is installed as a dependency of `langchain`; add it to `package.json` yourself if you import from it directly, as in the approval snippet.
 - `npm run typecheck` checks the project with `tsc`. There are no unit tests; the demo calls live APIs.
+- The tool passes the tool call id (`config.toolCall.id`, set when the tool is invoked with a tool call, as `createAgent` does) to Elastic Email as the `Idempotency-Key`, so running the same tool call again (a retried step, a resumed run) returns the first result instead of sending twice. Invoked with plain arguments, it uses a new UUID per call.
 
 ## AI assistant prompt
 
@@ -111,6 +112,7 @@ Return JSON text: { transactionId, messageId } on success, or { error } with
 err.response.data.Error on failure; never throw. Run it with createAgent from "langchain" and
 new ChatAnthropic({ model: process.env.ANTHROPIC_MODEL }). Strip { and } from subject and text, remove line breaks from the subject, and in the HTML
 body escape HTML and turn braces into &#123; and &#125;. Never hardcode keys.
+Pass config.toolCall.id (second tool function argument) as the second argument of emailsTransactionalPost (the Idempotency-Key), or a new UUID when it is missing.
 ```
 
 ## Resources

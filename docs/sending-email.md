@@ -76,6 +76,51 @@ const { data } = await emailsApi.emailsPost({
 Placeholders are single braces, not double. A placeholder with no matching field is left in the
 message as literal text, so proofread the field names.
 
+## Retrying safely: Idempotency-Key
+
+A send that times out may still have gone through, and a plain retry can then deliver the same email
+twice. Send an `Idempotency-Key` header and you can retry without that risk: if Elastic Email
+already processed the key, it returns the first response instead of sending again. The header
+works on `POST /emails/transactional`, `POST /emails` and `POST /emails/mergefile`, and it is
+optional. Sends without it behave as before.
+
+```typescript
+import { randomUUID } from "node:crypto";
+
+// One key per logical send. Reuse it only to retry this same send.
+const idempotencyKey = randomUUID();
+
+// After a timeout, a network error, a 409 or a 503, call this again with the same message and key.
+const { data, headers } = await emailsApi.emailsTransactionalPost(message, idempotencyKey);
+const replayed = headers["idempotency-replayed"] === "true"; // an earlier attempt already sent it
+```
+
+In the TypeScript SDK (4.4.0+) the key is the optional second argument of `emailsTransactionalPost`,
+`emailsPost` and `emailsMergefilePost`. Other languages: [API map](api-map.md#idempotency-key).
+
+| You send | You get |
+|---|---|
+| A new key | A normal send. The response is stored under the key for 24 hours. |
+| The same key, same endpoint, byte-identical body, within 24 hours | The stored response (same status, same `TransactionID` and `MessageID`) with an `Idempotency-Replayed: true` header. Nothing is sent or charged again. |
+| The same key with a different body or endpoint | `422` `Idempotency-Key was already used with a different request` |
+| The same key while the first request is still running | `409` `Request with this Idempotency-Key is in progress`. Retry a moment later. |
+| A key that is empty, longer than 255 characters or not printable ASCII | `400` |
+| A key Elastic Email can't confirm right now | `503` with `Retry-After` (seconds). Nothing was sent: wait that long and retry with the same key. |
+| The same key after the first request failed with a 4xx or 5xx | The key was released, so a corrected retry with the same key runs normally. |
+
+Rules of thumb:
+
+- **One key per logical send**, created before the first attempt (a UUID v4 is the usual choice)
+  and reused only for that send's retries. Never derive it from the attempt number.
+- **Retry with the exact same body.** Build the message once, or deterministically from the same
+  input. A timestamp or random value inside the body turns the retry into a `422`.
+- **Keys are scoped per account.** Sub-accounts have their own keys.
+- **In a background job**, use something that stays the same across the job's attempts: the job
+  id, event id or run id. See the [queue examples](../queues-elasticemail-examples/README.md).
+- **In a server that sends on behalf of its own clients**, accept an `Idempotency-Key` header from
+  the client and pass it through. Every `POST /send` route in this repository does that, and
+  generates a new key when the client sends none.
+
 ## Scheduling
 
 `Options.TimeOffset` delays delivery by N minutes from now. Maximum 50400 minutes (35 days).

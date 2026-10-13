@@ -5,7 +5,7 @@ Send transactional and bulk email from Remix 2 (Vite) with the [Elastic Email](h
 > **First time here?** The [Remix quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · Remix 2
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20+ · Remix 2
 
 ## Prerequisites
 
@@ -61,7 +61,7 @@ Production build: `npm run build && npm start` (serves on port 3000 by default).
 
 | Method | Path | Body / query | Elastic Email call |
 |---|---|---|---|
-| POST | `/api/send` | `{ to, subject, message }` | `emailsTransactionalPost` |
+| POST | `/api/send` | `{ to, subject, message }` | `emailsTransactionalPost`; forwards an optional `Idempotency-Key` request header (a new key otherwise), so clients can retry safely |
 | POST | `/api/send-batch` | `{ to }` | `emailsPost` with per-recipient `Fields` |
 | POST | `/api/send-attachment` | `{ to }` | `emailsTransactionalPost` with `Attachments` |
 | POST | `/api/send-cid` | `{ to }` | `emailsTransactionalPost`, `<img src="cid:logo.png">` |

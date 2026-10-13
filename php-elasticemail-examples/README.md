@@ -5,7 +5,7 @@ Send transactional and bulk email from PHP with the [Elastic Email](https://elas
 > **First time here?** The [PHP quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `elasticemail/elasticemail-php@4.3.0` · PHP 8.1+ · Slim 4, Symfony 6.4/7
+**Versions:** Elastic Email REST API v4 · SDK `elasticemail/elasticemail-php@4.4.0` · PHP 8.1+ · Slim 4, Symfony 6.4/7
 
 ## Prerequisites
 
@@ -163,7 +163,7 @@ See `symfony_app/README.md` for the extra routes it exposes.
 Both server apps expose these routes with the same JSON shapes.
 
 - `GET /health` -> `{"status": "ok"}`
-- `POST /send` body `{"to", "subject", "message"}` -> `{"success": true, "transactionId", "messageId"}`
+- `POST /send` body `{"to", "subject", "message"}` -> `{"success": true, "transactionId", "messageId"}`; an optional `Idempotency-Key` request header is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key
 - `GET|POST /webhook` - Elastic Email event notifications (`status`, `to`, `transaction`, `messageid`, `target`, ...). Recommended: a signed webhook with `DeliveryMethod: PostJson`, which sends each event as a POST with a JSON body; set `ELASTICEMAIL_WEBHOOK_SECRET` and the route verifies the signature (`401` if it is missing or wrong). Fallback for unsigned webhooks: leave the secret empty, add `?token=...` matching `ELASTICEMAIL_WEBHOOK_TOKEN` to the URL, and the details arrive in the query string of a GET.
 - `POST /inbound?token=...` - inbound email pushed by an inbound route (`from_email`, `subject`, `body_html`, `att1_name`, `att1_content`, ...). Forwards a copy to `CONTACT_EMAIL`.
 - `POST /double-optin/subscribe` body `{"email", "name"}` - stores the contact as Transactional and sends a confirmation link

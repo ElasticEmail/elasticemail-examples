@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
 
@@ -104,6 +104,9 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<Result> {
       return json({ error: "Missing required fields: to, subject, message" }, 400);
     }
 
+    // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+    const idempotencyKey = event.headers?.["idempotency-key"] || randomUUID();
+
     try {
       const { data } = await getEmailsApi().emailsTransactionalPost({
         Recipients: { To: [to] },
@@ -112,7 +115,7 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<Result> {
           Subject: subject,
           Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
         },
-      });
+      }, idempotencyKey);
       return json({ success: true, transactionId: data.TransactionID, messageId: data.MessageID });
     } catch (err) {
       const { status, message: error } = apiError(err);

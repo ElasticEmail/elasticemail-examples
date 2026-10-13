@@ -54,8 +54,11 @@ class EmailController extends Controller
             'message' => 'required|string',
         ]);
 
+        // Forward the client's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+        $idempotencyKey = $request->header('Idempotency-Key') ?: bin2hex(random_bytes(16));
+
         try {
-            return $this->sent($this->ee->sendHtml($request->email, $request->subject, "<p>{$request->message}</p>"));
+            return $this->sent($this->ee->sendHtml($request->email, $request->subject, "<p>{$request->message}</p>", [], null, $idempotencyKey));
         } catch (\Exception $e) {
             return $this->fail($e);
         }

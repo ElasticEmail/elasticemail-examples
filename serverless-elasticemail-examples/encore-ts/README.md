@@ -4,7 +4,7 @@ An Encore.ts service that sends transactional email through the [Elastic Email](
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ (Encore 1.45) · Encore.ts
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20+ (Encore 1.45) · Encore.ts
 
 ## Prerequisites
 
@@ -67,6 +67,7 @@ The local dashboard at http://localhost:9400 shows traces, including the outgoin
 
 ## Notes on runtime quirks
 
+- `POST /send` takes an optional `Idempotency-Key` request header: it is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key. It is declared as `idempotencyKey?: Header<"Idempotency-Key">` in the request type, so Encore reads it from the header rather than the JSON body.
 - `api()` endpoints take and return typed JSON. Errors must be thrown as `APIError` (`invalidArgument`, `permissionDenied`, `internal`, ...); the code maps the Elastic Email HTTP status onto those codes, so the response shape is Encore's `{ code, message }` rather than `{ error }`.
 - The webhook is an `api.raw` endpoint that receives Node's `IncomingMessage`/`ServerResponse`, because the signature covers the raw body and the raw request target, which the typed `api()` does not expose. It reads the body stream into a `Buffer` before parsing and signs `req.url`, the path + query exactly as it appeared on the request line. Signed webhooks with JSON delivery send POST; unsigned ones send GET with the event in the query string.
 - Reading a secret that is not set throws, so the optional `ElasticEmailWebhookSecret` is read through a small `optionalSecret()` wrapper.
@@ -83,6 +84,7 @@ time; set it with `encore secret set`. Never hardcode keys. Create `new Configur
 `new EmailsApi(configuration)`. Define `api({ method: "POST", path: "/send", expose: true }, ...)` taking
 { to, subject, message } and calling emailsApi.emailsTransactionalPost with Recipients.To = [to] and
 Content = { From, Subject, Body: [{ ContentType: "HTML", Content }] }. The From address must be a sender
+Forward an incoming Idempotency-Key header as the second argument of emailsTransactionalPost (a new UUID if absent).
 verified in Elastic Email. Return { success, transactionId, messageId } from response.data and throw
 APIError with the mapped code on failure (err.response.data.Error). Add GET /health and an `api.raw`
 endpoint for POST|GET /webhook that verifies the Elastic Email signature when the optional secret("ElasticEmailWebhookSecret") is set:

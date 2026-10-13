@@ -10,7 +10,7 @@ as the HTML body. Laravel's Mail transport is not used, so you get the `Transact
 > **First time here?** The [Laravel quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `elasticemail/elasticemail-php@4.3.0` · PHP 8.2+ · Laravel 11
+**Versions:** Elastic Email REST API v4 · SDK `elasticemail/elasticemail-php@4.4.0` · PHP 8.2+ · Laravel 11
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ Copy `app/`, `config/`, `routes/api.php` and `resources/views/emails/` over the 
 
 ```bash
 # Install the SDK
-composer require elasticemail/elasticemail-php:^4.2
+composer require elasticemail/elasticemail-php:^4.4
 
 # Copy environment variables
 cp .env.example .env
@@ -64,7 +64,7 @@ CONFIRM_REDIRECT_URL=
 | Method | Endpoint | Body | Description |
 |--------|----------|------|-------------|
 | GET | `/api/health` | | Health check |
-| POST | `/api/send` | `{ to, subject, message }` | Plain send, same shape as the other stacks |
+| POST | `/api/send` | `{ to, subject, message }` | Plain send, same shape as the other stacks; an optional `Idempotency-Key` request header is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key |
 | POST | `/api/send/welcome` | `{ email, name }` | Welcome email rendered from a Blade view |
 | POST | `/api/send/direct` | `{ email, subject, message }` | Plain send |
 | POST | `/api/send/scheduled` | `{ email, time_offset }` | Delayed delivery, minutes from now (max 50400) |

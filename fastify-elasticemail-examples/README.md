@@ -5,7 +5,7 @@ Send transactional and bulk email from a Fastify 5 server on Node.js 20+ with th
 > **First time here?** The [Fastify quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · Fastify 5
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20+ · Fastify 5
 
 ## Prerequisites
 
@@ -100,7 +100,7 @@ npm run dev
 ## API Endpoints
 
 - `GET /health` - Health check
-- `POST /send` - Send a transactional email
+- `POST /send` - Send a transactional email. An optional `Idempotency-Key` request header is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key
 - `GET|POST /webhook` - Handle Elastic Email event notifications (signed, or `?token=...`)
 - `POST /inbound?token=...` - Receive inbound email pushed by an inbound route
 - `POST /double-optin/subscribe` - Store a contact and send a confirmation email

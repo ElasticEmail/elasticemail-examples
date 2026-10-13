@@ -1,4 +1,5 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Inject, Post } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
+import { BadRequestException, Body, Controller, Get, Headers, HttpCode, Inject, Post } from "@nestjs/common";
 import { ElasticEmailService } from "../elasticemail/elasticemail.service";
 
 interface SendDto {
@@ -20,11 +21,14 @@ export class EmailController {
 
   @Post("send")
   @HttpCode(200)
-  async send(@Body() body: SendDto = {}) {
+  async send(@Body() body: SendDto = {}, @Headers("idempotency-key") clientKey?: string) {
     const { to, subject, message } = body ?? {};
     if (!to || !subject || !message) {
       throw new BadRequestException("Missing required fields: to, subject, message");
     }
+
+    // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new key.
+    const idempotencyKey = clientKey || randomUUID();
 
     const { data } = await this.ee.emails.emailsTransactionalPost({
       Recipients: { To: [to] },
@@ -33,7 +37,7 @@ export class EmailController {
         Subject: subject,
         Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
       },
-    });
+    }, idempotencyKey);
     return { success: true, transactionId: data.TransactionID, messageId: data.MessageID };
   }
 }

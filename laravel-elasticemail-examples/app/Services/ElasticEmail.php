@@ -68,7 +68,7 @@ class ElasticEmail
      * Send a single HTML email. Extra EmailContent keys (snake_case, e.g. attachments,
      * headers, reply_to) go in $extraContent; Options (e.g. time_offset) in $options.
      */
-    public function sendHtml(string $to, string $subject, string $html, array $extraContent = [], ?Options $options = null): EmailSend
+    public function sendHtml(string $to, string $subject, string $html, array $extraContent = [], ?Options $options = null, ?string $idempotencyKey = null): EmailSend
     {
         $content = array_merge([
             'from' => $this->from(),
@@ -84,7 +84,7 @@ class ElasticEmail
             $data['options'] = $options;
         }
 
-        return $this->emails()->emailsTransactionalPost(new EmailTransactionalMessageData($data));
+        return $this->emails()->emailsTransactionalPost(new EmailTransactionalMessageData($data), $idempotencyKey);
     }
 
     /**

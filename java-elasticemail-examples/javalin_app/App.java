@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class App {
     private static EmailsApi emailsApi;
@@ -100,13 +101,20 @@ public class App {
             return;
         }
 
+        // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+        String idempotencyKey = ctx.header("Idempotency-Key");
+        if (idempotencyKey == null || idempotencyKey.isEmpty()) {
+            idempotencyKey = UUID.randomUUID().toString();
+        }
+
         try {
             EmailSend result = emailsApi.emailsTransactionalPost(new EmailTransactionalMessageData()
                     .recipients(new TransactionalRecipient().to(List.of(to)))
                     .content(new EmailContent()
                             .from(from)
                             .subject(subject)
-                            .body(List.of(new BodyPart().contentType(BodyContentType.HTML).content("<p>" + message + "</p>")))));
+                            .body(List.of(new BodyPart().contentType(BodyContentType.HTML).content("<p>" + message + "</p>")))),
+                    idempotencyKey);
             ctx.json(Map.of("success", true, "transactionId", result.getTransactionID(), "messageId", result.getMessageID()));
         } catch (ApiException e) {
             apiError(ctx, e);

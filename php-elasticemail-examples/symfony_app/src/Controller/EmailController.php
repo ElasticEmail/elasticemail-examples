@@ -48,13 +48,13 @@ class EmailController
         ]);
     }
 
-    private function transactional(string $to, EmailContent $content, ?Options $options = null): JsonResponse
+    private function transactional(string $to, EmailContent $content, ?Options $options = null, ?string $idempotencyKey = null): JsonResponse
     {
         $data = ['recipients' => new TransactionalRecipient(['to' => [$to]]), 'content' => $content];
         if ($options) {
             $data['options'] = $options;
         }
-        return $this->sent($this->ee->emails()->emailsTransactionalPost(new EmailTransactionalMessageData($data)));
+        return $this->sent($this->ee->emails()->emailsTransactionalPost(new EmailTransactionalMessageData($data), $idempotencyKey));
     }
 
     public function send(Request $request): JsonResponse
@@ -68,12 +68,15 @@ class EmailController
             return new JsonResponse(['error' => 'Missing required fields: to, subject, message'], 400);
         }
 
+        // Forward the client's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+        $idempotencyKey = $request->headers->get('Idempotency-Key') ?: bin2hex(random_bytes(16));
+
         try {
             return $this->transactional($to, new EmailContent([
                 'from' => $this->ee->from(),
                 'subject' => $subject,
                 'body' => [new BodyPart(['content_type' => 'HTML', 'content' => "<p>{$message}</p>"])],
-            ]));
+            ]), null, $idempotencyKey);
         } catch (\Exception $e) {
             return $this->fail($e);
         }

@@ -5,6 +5,7 @@ import json
 import logging
 import re
 import time
+import uuid
 from urllib.parse import quote
 
 import ElasticEmail
@@ -130,7 +131,7 @@ def webhook_event(request):
     return lower_keys(event_params(request)), None
 
 
-def send_html(to, subject, html_body, reply_to=None, attachments=None):
+def send_html(to, subject, html_body, reply_to=None, attachments=None, idempotency_key=None):
     message = ElasticEmail.EmailTransactionalMessageData(
         Recipients=ElasticEmail.TransactionalRecipient(To=[to]),
         Content=ElasticEmail.EmailContent(
@@ -141,7 +142,7 @@ def send_html(to, subject, html_body, reply_to=None, attachments=None):
             Attachments=attachments,
         ),
     )
-    return emails_api.emails_transactional_post(message)
+    return emails_api.emails_transactional_post(message, idempotency_key=idempotency_key)
 
 
 @require_GET
@@ -163,8 +164,11 @@ def send_email(request):
     if not all([to, subject, message]):
         return JsonResponse({"error": "Missing required fields: to, subject, message"}, status=400)
 
+    # Forward the client's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+    idempotency_key = request.headers.get("Idempotency-Key") or str(uuid.uuid4())
+
     try:
-        result = send_html(to, subject, "<p>{}</p>".format(message))
+        result = send_html(to, subject, "<p>{}</p>".format(message), idempotency_key=idempotency_key)
         return JsonResponse({"success": True, "transactionId": result.transaction_id, "messageId": result.message_id})
     except ElasticEmail.ApiException as e:
         return api_error(e)

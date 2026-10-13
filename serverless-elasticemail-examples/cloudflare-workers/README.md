@@ -4,7 +4,7 @@ Send transactional email and receive webhooks from a Cloudflare Worker using the
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · workerd (Wrangler 3) · Cloudflare Workers
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · workerd (Wrangler 3) · Cloudflare Workers
 
 ## Prerequisites
 
@@ -62,6 +62,7 @@ Watch logs with `wrangler tail`.
 
 ## Notes on runtime quirks
 
+- `POST /send` takes an optional `Idempotency-Key` request header: it is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key; the fallback key comes from the global `crypto.randomUUID()`.
 - workerd does not ship `node:http`, which axios uses by default. The code passes `axios.create({ adapter: "fetch" })` as the third argument of `new EmailsApi(configuration, basePath, axios)` so requests go through `fetch`.
 - `nodejs_compat` is enabled so axios' Node-specific imports (`url`, `util`, `stream`) resolve during bundling.
 - Env vars are not globals. They arrive as the second argument of `fetch(request, env)`, so the `EmailsApi` instance is created per request.
@@ -78,6 +79,7 @@ Create `new Configuration({ apiKey: env.ELASTICEMAIL_API_KEY })` and
 `new EmailsApi(configuration, undefined, axios.create({ adapter: "fetch" }))` because workerd has no node:http.
 Expose POST /send that takes { to, subject, message } and calls emailsApi.emailsTransactionalPost with
 Recipients.To = [to] and Content = { From, Subject, Body: [{ ContentType: "HTML", Content }] }.
+Forward an incoming Idempotency-Key header as the second argument of emailsTransactionalPost (a new UUID if absent).
 The From address must be a sender verified in Elastic Email. Return { success, transactionId, messageId }
 from response.data.TransactionID and response.data.MessageID, and { error } with the API status on failure
 (err.response.data.Error). Add GET /health and a POST|GET /webhook handler that verifies the Elastic Email signature when ELASTICEMAIL_WEBHOOK_SECRET is set:

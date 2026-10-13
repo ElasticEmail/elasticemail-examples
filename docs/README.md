@@ -13,7 +13,7 @@ Each stack folder has its own `QUICKSTART.md` (five minutes to a first send) and
 | Guide | What it covers |
 |---|---|
 | [Environment variables](environment-variables.md) | Every variable the examples read, where it is used and what breaks without it |
-| [Sending email](sending-email.md) | Transactional vs bulk, merge fields, scheduling, threading, checking delivery |
+| [Sending email](sending-email.md) | Transactional vs bulk, merge fields, safe retries with Idempotency-Key, scheduling, threading, checking delivery |
 | [Attachments](attachments.md) | File attachments and inline (CID) images |
 | [Templates](templates.md) | Hosted templates, merge values, creating a template from code |
 | [Contacts and lists](contacts-and-lists.md) | Lists, contact CRUD, statuses, custom fields |
@@ -23,7 +23,7 @@ Each stack folder has its own `QUICKSTART.md` (five minutes to a first send) and
 | [Suppressions](suppressions.md) | Unsubscribes, bounces, complaints |
 | [Domains and deliverability](domains-and-deliverability.md) | SPF, DKIM, MX, DMARC, tracking CNAME |
 | [Account](account.md) | Statistics, email verification, sub-accounts |
-| [Error handling](error-handling.md) | The error body, and how each SDK surfaces it |
+| [Error handling](error-handling.md) | The error body, how each SDK surfaces it, and what to retry |
 | [API map](api-map.md) | One table: use case to SDK method, in every language in this repository |
 | [Troubleshooting](troubleshooting.md) | Symptom to cause, for the failures that actually happen |
 

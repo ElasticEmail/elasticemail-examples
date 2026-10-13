@@ -4,7 +4,7 @@ A Convex backend that sends transactional email through the [Elastic Email](http
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Convex (Node.js actions) · Convex
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Convex (Node.js actions) · Convex
 
 ## Prerequisites
 
@@ -66,6 +66,7 @@ Logs stream in the `npx convex dev` terminal, or run `npx convex logs`.
 
 ## Notes on runtime quirks
 
+- `POST /send` takes an optional `Idempotency-Key` request header: it is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key. `http.ts` passes it to the Node action as the optional `idempotencyKey` argument, and `email.ts` generates one when it is missing.
 - HTTP actions run in Convex's default JavaScript runtime, which has `fetch` but no `node:http` or `node:crypto`. The SDK call therefore lives in `convex/email.ts`, which starts with `"use node"` and runs in Convex's Node.js runtime, where the SDK's default axios adapter works. A `"use node"` file may export only actions.
 - `email.send` is an `internalAction`: other Convex functions can call it (an HTTP action, a mutation, a cron job), but clients cannot. To let your React or mobile app trigger an email, write a public action or mutation that checks `ctx.auth.getUserIdentity()` and decides the recipient on the server, then calls the internal action.
 - The internal action returns `{ ok: false, status, error }` instead of throwing, so the HTTP action can pass Elastic Email's status code and message through unchanged.
@@ -89,6 +90,7 @@ The From address must be a sender verified in Elastic Email. Return { ok: true, 
 from response.data, or { ok: false, status, error } from err.response on failure, with a `returns` validator.
 In convex/http.ts use httpRouter and httpAction: GET /health returns { status: "ok" }; POST /send validates
 { to, subject, message }, calls ctx.runAction(internal.email.send, ...) and returns
+Forward an incoming Idempotency-Key header as the second argument of emailsTransactionalPost (a new UUID if absent).
 { success, transactionId, messageId } or { error } with the API status; POST and GET /webhook verifies the Elastic Email signature when ELASTICEMAIL_WEBHOOK_SECRET is set:
 X-ElasticEmail-Signature holds comma-separated v1=<hex> entries, each the hex HMAC-SHA256 (WebCrypto crypto.subtle, no node:crypto in HTTP actions, key = the
 secret) of `${X-ElasticEmail-Timestamp}\n${method}\n${pathname + search of new URL(request.url)}\n${raw body}`, with the raw body read before

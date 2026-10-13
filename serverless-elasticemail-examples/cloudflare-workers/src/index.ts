@@ -94,6 +94,9 @@ export default {
         return json({ error: "Missing required fields: to, subject, message" }, 400);
       }
 
+      // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+      const idempotencyKey = request.headers.get("idempotency-key") || crypto.randomUUID();
+
       try {
         const { data } = await emailsApi(env).emailsTransactionalPost({
           Recipients: { To: [to] },
@@ -102,7 +105,7 @@ export default {
             Subject: subject,
             Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
           },
-        });
+        }, idempotencyKey);
         return json({ success: true, transactionId: data.TransactionID, messageId: data.MessageID });
       } catch (err) {
         const { status, message: error } = apiError(err);

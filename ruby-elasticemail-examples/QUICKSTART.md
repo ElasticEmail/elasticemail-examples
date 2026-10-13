@@ -37,7 +37,7 @@ In a project of your own:
 
 ```ruby
 # Gemfile
-gem "ElasticEmail", "~> 4.2"
+gem "ElasticEmail", "~> 4.4"
 gem "dotenv", "~> 3.0"
 ```
 

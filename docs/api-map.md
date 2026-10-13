@@ -44,8 +44,12 @@ is Go, and C# with `Async` appended.
 |---|---|---|---|---|
 | Transactional send | `POST /emails/transactional` | `emailsTransactionalPost` | `emails_transactional_post` | `EmailsTransactionalPost` |
 | Bulk send | `POST /emails` | `emailsPost` | `emails_post` | `EmailsPost` |
+| Bulk send from a CSV file | `POST /emails/mergefile` | `emailsMergefilePost` | `emails_mergefile_post` | `EmailsMergefilePost` |
 | Transaction status | `GET /emails/{transactionid}/status` | `emailsByTransactionidStatusGet` | `emails_by_transactionid_status_get` | `EmailsByTransactionidStatusGet` |
 | View a message | `GET /emails/{msgid}/view` | `emailsByMsgidViewGet` | `emails_by_msgid_view_get` | `EmailsByMsgidViewGet` |
+
+The three sends take an optional `Idempotency-Key` (SDKs 4.4.0+), which makes a retry safe: see
+[Idempotency-Key](#idempotency-key) below for the argument in each language.
 
 ### Templates
 
@@ -138,3 +142,25 @@ Header `X-ElasticEmail-ApiKey`, set once when you build the client.
 | C# | `config.AddApiKey("X-ElasticEmail-ApiKey", key)` |
 | Rust | `Configuration { api_key: Some(ApiKey { prefix: None, key }), ..Default::default() }` |
 | Elixir | `Req.new(headers: [{"X-ElasticEmail-ApiKey", key}])` |
+
+## Idempotency-Key
+
+An optional header on `POST /emails/transactional`, `POST /emails` and `POST /emails/mergefile`
+(SDKs 4.4.0+). Retrying with the same key and the same body returns the first response instead of
+sending again. Semantics and status codes: [Retrying safely](sending-email.md#retrying-safely-idempotency-key).
+
+| Language | Transactional send with a key | Bulk and mergefile sends |
+|---|---|---|
+| TypeScript (`ts-axios`) | `emailsApi.emailsTransactionalPost(message, key)` | `emailsPost(data, key)`, `emailsMergefilePost(data, key)`; request options move to the third argument |
+| JavaScript (`elasticemail-client`) | `emailsApi.emailsTransactionalPost(message, { idempotencyKey: key }, callback)` | same `opts` argument |
+| Python | `emails_api.emails_transactional_post(message, idempotency_key=key)` | same keyword; always pass it by name |
+| Ruby | `emails_api.emails_transactional_post(message, idempotency_key: key)` | same option |
+| PHP | `$emailsApi->emailsTransactionalPost($message, $key)` | second argument |
+| Go | `client.EmailsAPI.EmailsTransactionalPost(ctx).EmailTransactionalMessageData(*m).IdempotencyKey(key).Execute()` | `.IdempotencyKey(key)` on the builder |
+| Java, Kotlin | `emailsApi.emailsTransactionalPost(message, key)` | second argument |
+| C# | `await emailsApi.EmailsTransactionalPostAsync(message, idempotencyKey: key)` | same named argument. Returns `null`, not an exception, when no response came back at all |
+| Rust | `emails_api::emails_transactional_post_with_idempotency_key(&config, message, Some(&key))` | `emails_post_with_idempotency_key`, `emails_mergefile_post_with_idempotency_key`; the 2-argument functions are unchanged |
+| Elixir | `ElasticEmail.send_transactional(message, key)` (adds the `idempotency-key` header in Req) | `Req` option `headers: [{"idempotency-key", key}]` |
+
+The replay marker is the `Idempotency-Replayed: true` response header, and a `503` carries
+`Retry-After` in seconds.

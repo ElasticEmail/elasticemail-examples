@@ -1,5 +1,6 @@
 // POST /.redwood/functions/send
 // Body: { to, subject, message }
+import { randomUUID } from "node:crypto";
 import type { APIGatewayEvent, Context } from "aws-lambda";
 import { apiError, emailsApi, from, json, readJson } from "src/lib/elasticemail";
 
@@ -14,6 +15,9 @@ export const handler = async (event: APIGatewayEvent, _context: Context) => {
     return json({ error: "Missing required fields: to, subject, message" }, 400);
   }
 
+  // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new key.
+  const idempotencyKey = event.headers?.["idempotency-key"] || event.headers?.["Idempotency-Key"] || randomUUID();
+
   try {
     const { data } = await emailsApi.emailsTransactionalPost({
       Recipients: { To: [to] },
@@ -25,7 +29,7 @@ export const handler = async (event: APIGatewayEvent, _context: Context) => {
           { ContentType: "PlainText", Content: message },
         ],
       },
-    });
+    }, idempotencyKey);
     return json({ success: true, transactionId: data.TransactionID, messageId: data.MessageID });
   } catch (err) {
     const { status, message: error } = apiError(err);

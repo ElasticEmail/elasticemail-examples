@@ -15,6 +15,9 @@ use ElasticEmail\Model\TransactionalRecipient;
 
 $emailsApi = new EmailsApi(new GuzzleHttp\Client(), ee_config());
 
+// Reuse this key only to retry this same send.
+$idempotencyKey = bin2hex(random_bytes(16));
+
 try {
     // Up to 50 recipients per transactional call.
     $result = $emailsApi->emailsTransactionalPost(new EmailTransactionalMessageData([
@@ -33,10 +36,11 @@ try {
                 ]),
             ],
         ]),
-    ]));
+    ]), $idempotencyKey);
 
     echo "Email sent successfully!\n";
     echo 'Transaction ID: ' . $result->getTransactionId() . "\n";
+    echo 'Idempotency key: ' . $idempotencyKey . "\n";
     echo 'Message ID: ' . $result->getMessageId() . "\n";
 } catch (Exception $e) {
     ee_error($e, 'Error sending email');

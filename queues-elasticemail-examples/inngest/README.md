@@ -1,10 +1,10 @@
 # Send Email from Inngest - Elastic Email API
 
-Inngest functions that send transactional email through the [Elastic Email](https://elasticemail.com/email-api) email API with the TypeScript SDK. Your app sends an `email/send.requested` event and returns; Inngest runs the send as a step on your Node.js server, retries it with backoff on 429, 5xx and network errors, and stops at once on other 4xx responses via `NonRetriableError`. There is no queue or Redis to operate.
+Inngest functions that send transactional email through the [Elastic Email](https://elasticemail.com/email-api) email API with the TypeScript SDK. Your app sends an `email/send.requested` event and returns; Inngest runs the send as a step on your Node.js server with an `Idempotency-Key` taken from the event, retries it with backoff on 409, 429, 5xx and network errors, and stops at once on other 4xx responses via `NonRetriableError`. There is no queue or Redis to operate.
 
 > Part of the [Elastic Email background job examples](../README.md). New here? The [background job quickstart](../QUICKSTART.md) shows the same pattern with BullMQ.
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · Inngest TypeScript SDK 4 (`inngest/node` handler)
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20+ · Inngest TypeScript SDK 4 (`inngest/node` handler)
 
 ## Prerequisites
 
@@ -56,22 +56,32 @@ await inngest.send(sendRequested.create({ to, subject, html, text }));
 ```typescript
 inngest.createFunction(
   { id: "send-email", triggers: [sendRequested], retries: 4, concurrency: { limit: 5 } },
-  async ({ event, step }) => step.run("send", async () => { /* send, classify, throw */ }),
+  async ({ event, runId, step }) => step.run("send", async () => { /* send with a key, classify, throw */ }),
 );
 ```
 
 `retries: 4` means one try plus four retries, spaced out by Inngest's exponential backoff. Inside the step:
 
-- **429, 5xx, no response:** rethrow as a normal `Error`. Inngest retries the step.
-- **Any other 4xx:** throw `NonRetriableError`. The run fails immediately, whatever retries are left.
+- **409, 429, 5xx, no response:** rethrow as a normal `Error`. Inngest retries the step. When the API sent `Retry-After` (a 503 whose idempotency key couldn't be confirmed), throw `RetryAfterError` instead, and Inngest waits that long.
+- **422 and any other 4xx:** throw `NonRetriableError`. The run fails immediately, whatever retries are left.
 
 A bad key, an unverified sender or a suppressed recipient will not start working on the next attempt, so retrying it only delays the failure. The API's `err.response.data.Error` is in the error message, visible on the failed run. See [Which failures to retry](../README.md#which-failures-to-retry).
 
 `concurrency: { limit: 5 }` caps concurrent sends across every server running this function. If sends start failing with 429s or 5xx under load, lower it, or add a `throttle` to the function.
 
+## Retries never send twice
+
+Every attempt of the step sends the same `Idempotency-Key`:
+
+```typescript
+const idempotencyKey = `send-email-${event.id ?? runId}`;
+```
+
+The event id is fixed when the event is sent (the fan-out sets it explicitly; Inngest assigns one otherwise), so it is the same on every retry of the step and also when you replay the event within 24 hours. `runId`, shared by every retry of one run, is the fallback. If an attempt times out after Elastic Email accepted the send, the retry gets the stored response (`replayed: true` in the step output) instead of sending a second copy. The message body comes from `event.data` alone, so every attempt sends identical bytes. See [Retries without duplicate emails](../README.md#retries-without-duplicate-emails).
+
 ## Fan-out and idempotency
 
-`email-fanout` takes one event with a list of recipients and uses `step.sendEvent` to emit one `email/send.requested` event each. Every event carries an `id` built from the campaign and the user id, for example `welcome-2026-09-user-1`. Inngest ignores a second event with an id it has already seen within its deduplication window, so replaying the fan-out does not send twice. Each recipient gets its own run, its own retries and its own failure.
+`email-fanout` takes one event with a list of recipients and uses `step.sendEvent` to emit one `email/send.requested` event each. Every event carries an `id` built from the campaign and the user id, for example `welcome-2026-09-user-1`. Inngest ignores a second event with an id it has already seen within its deduplication window, so replaying the fan-out does not enqueue twice; the `Idempotency-Key` above keeps each send itself from going out twice. Each recipient gets its own run, its own retries and its own failure.
 
 When every recipient gets the same content, one bulk `emailsPost` call with merge fields is often simpler than N runs. See [Sending email](../../docs/sending-email.md#bulk-send-with-merge-fields).
 
@@ -99,9 +109,12 @@ Configuration({ apiKey: process.env.ELASTICEMAIL_API_KEY })) and emailsApi.email
 Recipients.To = [to] and Content = { From: process.env.EMAIL_FROM, Subject, Body: [{ ContentType: "HTML",
 Content }, { ContentType: "PlainText", Content }] }. Define the event with eventType("email/send.requested",
 { schema: staticSchema<...>() }) and a function inngest.createFunction({ id: "send-email", triggers: [event],
-retries: 4 }, async ({ event, step }) => step.run("send", ...)). Inside the step, err.response?.status 429
-or >= 500, or an axios error with no response, is retryable (rethrow); any other 4xx is permanent - throw
-NonRetriableError with err.response.data.Error, without passing the axios error as cause. Add a fan-out
+retries: 4 }, async ({ event, runId, step }) => step.run("send", ...)). Pass an idempotency key as the
+second argument of emailsTransactionalPost (SDK 4.4.0+): `send-email-${event.id ?? runId}`, the same on
+every retry, never the attempt number. Inside the step, err.response?.status 409, 429 or >= 500, or an
+axios error with no response, is retryable (rethrow; throw RetryAfterError when the response has a
+Retry-After header); any other 4xx (including 422, a key reused with a different body) is permanent -
+throw NonRetriableError with err.response.data.Error, without passing the axios error as cause. Add a fan-out
 function that calls step.sendEvent with one event per recipient and a stable event id. Serve with
 serve() from "inngest/node" at /api/inngest. Use INNGEST_DEV=1 locally. Never hardcode keys.
 ```

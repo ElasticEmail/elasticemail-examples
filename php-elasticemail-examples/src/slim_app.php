@@ -92,6 +92,9 @@ $app->post('/send', function (Request $request, Response $response) use ($emails
         return $json($response, ['error' => 'Missing required fields: to, subject, message'], 400);
     }
 
+    // Forward the client's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+    $idempotencyKey = $request->getHeaderLine('Idempotency-Key') ?: bin2hex(random_bytes(16));
+
     try {
         $result = $emailsApi->emailsTransactionalPost(new EmailTransactionalMessageData([
             'recipients' => new TransactionalRecipient(['to' => [$to]]),
@@ -100,7 +103,7 @@ $app->post('/send', function (Request $request, Response $response) use ($emails
                 'subject' => $subject,
                 'body' => [new BodyPart(['content_type' => 'HTML', 'content' => "<p>{$message}</p>"])],
             ]),
-        ]));
+        ]), $idempotencyKey);
 
         return $json($response, [
             'success' => true,

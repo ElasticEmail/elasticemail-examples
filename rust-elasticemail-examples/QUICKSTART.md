@@ -29,7 +29,7 @@ Add the [`ElasticEmail`](https://crates.io/crates/ElasticEmail) crate from crate
 
 ```toml
 [dependencies]
-ElasticEmail = "4.2"
+ElasticEmail = "4.4"
 tokio = { version = "1", features = ["full"] }
 dotenvy = "0.15"
 ```

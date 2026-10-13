@@ -114,7 +114,7 @@ struct SendRequest {
     message: Option<String>,
 }
 
-async fn send(State(state): State<Arc<AppState>>, Json(body): Json<SendRequest>) -> ApiResult {
+async fn send(State(state): State<Arc<AppState>>, headers: HeaderMap, Json(body): Json<SendRequest>) -> ApiResult {
     let (Some(to), Some(subject), Some(message)) = (body.to, body.subject, body.message) else {
         return Err(bad_request("Missing required fields: to, subject, message"));
     };
@@ -129,7 +129,17 @@ async fn send(State(state): State<Arc<AppState>>, Json(body): Json<SendRequest>)
     };
     let data = EmailTransactionalMessageData::new(TransactionalRecipient::new(vec![to]), content);
 
-    let result = emails_api::emails_transactional_post(&state.config, data).await.map_err(api_error)?;
+    // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+    let idempotency_key = headers
+        .get("idempotency-key")
+        .and_then(|v| v.to_str().ok())
+        .filter(|v| !v.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+    let result = emails_api::emails_transactional_post_with_idempotency_key(&state.config, data, Some(&idempotency_key))
+        .await
+        .map_err(api_error)?;
     Ok(Json(json!({
         "success": true,
         "transactionId": result.transaction_id,

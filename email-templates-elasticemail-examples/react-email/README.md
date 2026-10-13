@@ -8,7 +8,7 @@ package also runs the local preview server, so you can see the template in a bro
 > Part of the [Elastic Email email template examples](../README.md). New to the API? Start with the
 > [email templates quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · React Email 6 · React 19
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20+ · React Email 6 · React 19
 
 ## Prerequisites
 

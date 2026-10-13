@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { tool } from "ai";
 import { z } from "zod";
 import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
@@ -55,7 +56,13 @@ function textToHtml(text: string): string {
     .join("\n");
 }
 
-export async function sendEmail({ to, subject, text, html }: SendEmailInput): Promise<SendEmailResult> {
+// idempotencyKey: pass the framework's tool call id. If the same tool call is executed again (a retried
+// step, a resumed or replayed run), Elastic Email sees the same key and returns the first result instead
+// of sending a second email. A new call from the model gets a new id, so it is a new send.
+export async function sendEmail(
+  { to, subject, text, html }: SendEmailInput,
+  idempotencyKey: string = randomUUID(),
+): Promise<SendEmailResult> {
   if (!recipientAllowed(to)) {
     return { error: `Recipient not allowed: ${headerText(to)}. Allowed domains: ${allowedDomains().join(", ") || "(none)"}` };
   }
@@ -74,7 +81,7 @@ export async function sendEmail({ to, subject, text, html }: SendEmailInput): Pr
           { ContentType: "PlainText", Content: plainText(text) },
         ],
       },
-    });
+    }, idempotencyKey);
     return { transactionId: data.TransactionID, messageId: data.MessageID };
   } catch (err: any) {
     // Hand the model the API's own message ({"Error": "..."}), not a raw axios error.
@@ -94,5 +101,5 @@ export const sendEmailTool = tool({
     text: z.string().min(1).describe("Plain-text body"),
     html: z.string().optional().describe("Optional HTML body. Derived from text when omitted."),
   }),
-  execute: sendEmail,
+  execute: (input, { toolCallId }) => sendEmail(input, toolCallId),
 });

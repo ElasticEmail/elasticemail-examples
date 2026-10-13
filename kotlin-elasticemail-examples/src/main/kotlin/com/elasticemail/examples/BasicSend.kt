@@ -7,6 +7,7 @@ import com.elasticemail.model.BodyPart
 import com.elasticemail.model.EmailContent
 import com.elasticemail.model.EmailTransactionalMessageData
 import com.elasticemail.model.TransactionalRecipient
+import java.util.UUID
 
 fun main(args: Array<String>) {
     val emailsApi = EmailsApi(Ee.client())
@@ -29,11 +30,15 @@ fun main(args: Array<String>) {
                 ),
         )
 
+    // Reuse this key only to retry this same send.
+    val idempotencyKey = UUID.randomUUID().toString()
+
     try {
-        val result = emailsApi.emailsTransactionalPost(data)
+        val result = emailsApi.emailsTransactionalPost(data, idempotencyKey)
         println("Email sent successfully!")
         println("Transaction ID: ${result.transactionID}")
         println("Message ID: ${result.messageID}")
+        println("Idempotency key: $idempotencyKey")
     } catch (e: ApiException) {
         Ee.fail("send email", e)
     }

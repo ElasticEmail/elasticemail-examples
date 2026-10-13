@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@azure/functions": "^4.6.0",
-    "@elasticemail/elasticemail-client-ts-axios": "^4.3.0"
+    "@elasticemail/elasticemail-client-ts-axios": "^4.4.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

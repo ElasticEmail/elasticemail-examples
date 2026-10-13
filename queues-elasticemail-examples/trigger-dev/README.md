@@ -1,10 +1,10 @@
 # Send Email from Trigger.dev - Elastic Email API
 
-A Trigger.dev task that sends transactional email through the [Elastic Email](https://elasticemail.com/email-api) email API with the TypeScript SDK. Your app triggers `send-email` and returns; Trigger.dev queues the run, executes it on its own compute, retries 429s, 5xx responses and network errors with exponential backoff, and ends the run at once on other 4xx responses via `AbortTaskRunError`.
+A Trigger.dev task that sends transactional email through the [Elastic Email](https://elasticemail.com/email-api) email API with the TypeScript SDK. Your app triggers `send-email` and returns; Trigger.dev queues the run, executes it on its own compute with an `Idempotency-Key` taken from the run id, retries 409s, 429s, 5xx responses and network errors with exponential backoff, and ends the run at once on other 4xx responses via `AbortTaskRunError`.
 
 > Part of the [Elastic Email background job examples](../README.md). New here? The [background job quickstart](../QUICKSTART.md) shows the same pattern with BullMQ.
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · Trigger.dev 4 (`@trigger.dev/sdk`)
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20+ · Trigger.dev 4 (`@trigger.dev/sdk`)
 
 ## Prerequisites
 
@@ -62,22 +62,33 @@ task({
   id: "send-email",
   retry: { maxAttempts: 5, factor: 2, minTimeoutInMs: 10_000, maxTimeoutInMs: 120_000, randomize: true },
   queue: { concurrencyLimit: 5 },
-  run: async (payload) => { /* send, classify, throw */ },
+  run: async (payload, { ctx }) => { /* send with a key, classify, throw */ },
+  catchError: async ({ error, retryDelayInMs }) => { /* wait for Retry-After when the API sent one */ },
 });
 ```
 
 Five attempts in total, waiting roughly 10, 20, 40 and 80 seconds between them. In `run`:
 
-- **429, 5xx, no response:** rethrow as a normal `Error`. Trigger.dev schedules the next attempt.
-- **Any other 4xx:** throw `AbortTaskRunError`. The run fails immediately, whatever attempts are left.
+- **409, 429, 5xx, no response:** throw a retryable error. Trigger.dev schedules the next attempt. When the API sent `Retry-After` (a 503 whose idempotency key couldn't be confirmed), `catchError` returns `retryDelayInMs` so the next attempt waits at least that long.
+- **422 and any other 4xx:** throw `AbortTaskRunError`. The run fails immediately, whatever attempts are left.
 
 An unverified sender or a bad API key fails the same way on every attempt, so retrying it only burns attempts and delays the alert. The API's `err.response.data.Error` is in the error message on the failed run. See [Which failures to retry](../README.md#which-failures-to-retry).
 
 `trigger.config.ts` sets `retries.enabledInDev: true` so retries behave the same under `trigger dev` as in production.
 
+## Retries never send twice
+
+Every attempt of a run sends the same `Idempotency-Key`:
+
+```typescript
+const idempotencyKey = `send-email-${ctx.run.id}`;
+```
+
+`ctx.run.id` is shared by every attempt of the run (`ctx.attempt` is the part that changes, so never use it). If an attempt times out after Elastic Email accepted the send, the next attempt gets the stored response (`replayed: true` in the run output) instead of sending a second copy. The message body comes from the payload alone, so every attempt sends identical bytes. See [Retries without duplicate emails](../README.md#retries-without-duplicate-emails).
+
 ## Fan-out and idempotency
 
-`npm run fanout` calls `tasks.batchTrigger` with one item per recipient. Each item carries an `idempotencyKey` built from the campaign and the user id, for example `welcome-2026-09-user-1`, with a 7-day TTL. Triggering the same key again returns the existing run instead of starting a new one, so a retried request or a re-run script does not send twice.
+`npm run fanout` calls `tasks.batchTrigger` with one item per recipient. Each item carries an `idempotencyKey` built from the campaign and the user id, for example `welcome-2026-09-user-1`, with a 7-day TTL. Triggering the same key again returns the existing run instead of starting a new one, so a retried request or a re-run script does not start a second run. The trigger-level key covers enqueueing; the `Idempotency-Key` above covers the send itself.
 
 When every recipient gets the same content, one bulk `emailsPost` call with merge fields is often simpler than N runs. See [Sending email](../../docs/sending-email.md#bulk-send-with-merge-fields).
 
@@ -105,8 +116,11 @@ process.env.ELASTICEMAIL_API_KEY })) and emailsApi.emailsTransactionalPost with 
 Content = { From: process.env.EMAIL_FROM, Subject, Body: [{ ContentType: "HTML", Content },
 { ContentType: "PlainText", Content }] }. Define task({ id: "send-email", retry: { maxAttempts: 5,
 factor: 2, minTimeoutInMs: 10000, maxTimeoutInMs: 120000, randomize: true }, run }) from
-"@trigger.dev/sdk". In run, err.response?.status 429 or >= 500, or an axios error with no response, is
-retryable (rethrow); any other 4xx is permanent - throw AbortTaskRunError with err.response.data.Error.
+"@trigger.dev/sdk". Pass an idempotency key as the second argument of emailsTransactionalPost (SDK
+4.4.0+): `send-email-${ctx.run.id}`, the same on every attempt, never ctx.attempt. In run,
+err.response?.status 409, 429 or >= 500, or an axios error with no response, is retryable (rethrow; use
+catchError to return retryDelayInMs from a Retry-After header); any other 4xx (including 422, a key
+reused with a different body) is permanent - throw AbortTaskRunError with err.response.data.Error.
 Return { transactionId, messageId }. Add a trigger.config.ts with defineConfig({ project:
 process.env.TRIGGER_PROJECT_REF, dirs: ["./src/trigger"], maxDuration: 60 }) and a script that fans out
 with tasks.batchTrigger, one item per recipient with a stable idempotencyKey. Never hardcode keys.

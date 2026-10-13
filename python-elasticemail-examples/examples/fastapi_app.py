@@ -23,11 +23,12 @@ import logging
 import os
 import re
 import sys
+import uuid
 from typing import Optional
 from urllib.parse import parse_qs, quote
 
 import ElasticEmail
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
@@ -149,7 +150,7 @@ async def webhook_event(request):
     return lower_keys(await event_params(request)), None
 
 
-def send_html(to, subject, html_body, reply_to=None, attachments=None):
+def send_html(to, subject, html_body, reply_to=None, attachments=None, idempotency_key=None):
     message = ElasticEmail.EmailTransactionalMessageData(
         Recipients=ElasticEmail.TransactionalRecipient(To=[to]),
         Content=ElasticEmail.EmailContent(
@@ -160,7 +161,7 @@ def send_html(to, subject, html_body, reply_to=None, attachments=None):
             Attachments=attachments,
         ),
     )
-    return emails_api.emails_transactional_post(message)
+    return emails_api.emails_transactional_post(message, idempotency_key=idempotency_key)
 
 
 @app.get("/health")
@@ -169,9 +170,17 @@ async def health():
 
 
 @app.post("/send")
-async def send_email(email_request: EmailRequest):
+async def send_email(email_request: EmailRequest, idempotency_key: Optional[str] = Header(None)):
+    # Forward the client's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+    idempotency_key = idempotency_key or str(uuid.uuid4())
+
     try:
-        result = send_html(email_request.to, email_request.subject, "<p>{}</p>".format(email_request.message))
+        result = send_html(
+            email_request.to,
+            email_request.subject,
+            "<p>{}</p>".format(email_request.message),
+            idempotency_key=idempotency_key,
+        )
         return {"success": True, "transactionId": result.transaction_id, "messageId": result.message_id}
     except ElasticEmail.ApiException as e:
         return api_error(e)

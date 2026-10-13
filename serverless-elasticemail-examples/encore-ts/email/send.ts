@@ -1,5 +1,5 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
-import { api, APIError } from "encore.dev/api";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { api, APIError, type Header } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { Configuration, EmailsApi } from "@elasticemail/elasticemail-client-ts-axios";
 
@@ -73,6 +73,8 @@ interface SendRequest {
   to: string;
   subject: string;
   message: string;
+  // Optional request header, forwarded to Elastic Email so a caller's retries can't send twice.
+  idempotencyKey?: Header<"Idempotency-Key">;
 }
 
 interface SendResponse {
@@ -88,7 +90,7 @@ export const health = api(
 
 export const send = api(
   { method: "POST", path: "/send", expose: true },
-  async ({ to, subject, message }: SendRequest): Promise<SendResponse> => {
+  async ({ to, subject, message, idempotencyKey }: SendRequest): Promise<SendResponse> => {
     if (!to || !subject || !message) {
       throw APIError.invalidArgument("Missing required fields: to, subject, message");
     }
@@ -101,7 +103,7 @@ export const send = api(
           Subject: subject,
           Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
         },
-      });
+      }, idempotencyKey || randomUUID());
       return { success: true, transactionId: data.TransactionID, messageId: data.MessageID };
     } catch (err: any) {
       const status: number = err.response?.status ?? 500;

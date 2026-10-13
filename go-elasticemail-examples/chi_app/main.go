@@ -126,7 +126,18 @@ func sendHandler(w http.ResponseWriter, r *http.Request) {
 	content.SetSubject(body.Subject)
 	content.SetBody([]ElasticEmail.BodyPart{*part})
 
-	sent, resp, err := sendTransactional(body.To, content)
+	// Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+	idempotencyKey := r.Header.Get("Idempotency-Key")
+	if idempotencyKey == "" {
+		idempotencyKey = ee.NewIdempotencyKey()
+	}
+
+	recipients := ElasticEmail.NewTransactionalRecipient([]string{body.To})
+	data := ElasticEmail.NewEmailTransactionalMessageData(*recipients, *content)
+	sent, resp, err := client.EmailsAPI.EmailsTransactionalPost(ctx).
+		EmailTransactionalMessageData(*data).
+		IdempotencyKey(idempotencyKey).
+		Execute()
 	if err != nil {
 		apiErrorResponse(w, resp, err)
 		return

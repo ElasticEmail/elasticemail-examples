@@ -7,7 +7,7 @@ description: Add Elastic Email to an existing project - sending transactional or
 
 Copy a working example from https://github.com/ElasticEmail/elasticemail-examples and adapt it,
 instead of writing API calls from memory. The examples target REST API v4 with the official SDKs
-(4.2 line); older v2 code you may remember uses different endpoints and parameters.
+(4.4 line); older v2 code you may remember uses different endpoints and parameters.
 
 ## 1. Find the matching example
 
@@ -49,6 +49,13 @@ instead of writing API calls from memory. The examples target REST API v4 with t
   UI pages.
 - Transactional (one message) uses `emailsTransactionalPost`; bulk with per-recipient merge fields
   uses `emailsPost`. Keep both an HTML and a plain-text body.
+- Retried sends need an `Idempotency-Key` (SDKs 4.4.0+; TS: `emailsTransactionalPost(message, key)`,
+  other languages in `docs/api-map.md#idempotency-key`). Create one key per logical send (a UUID)
+  before the first attempt, reuse it only for that send's retries with an identical body, and never
+  derive it from the attempt number. In background jobs use the job, event or run id. Retry
+  timeouts, 409, 429, 5xx and 503 (after `Retry-After`) with the same key; 422 means the body changed
+  or keys collide, so fix the code. If the app exposes its own send endpoint, forward the caller's
+  `Idempotency-Key` header.
 - Webhook handlers: create webhooks with `EnableSigning: true` and `DeliveryMethod: "PostJson"`
   (SDKs 4.3.0+). Verify `X-ElasticEmail-Signature: v1=<hex>` = HMAC-SHA256 of
   `{X-ElasticEmail-Timestamp}\n{METHOD}\n{raw path+query}\n{raw body}` with the signing secret, against

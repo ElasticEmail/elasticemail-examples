@@ -4,7 +4,7 @@ Three Deno functions built on the [Elastic Email](https://elasticemail.com/email
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Deno (Supabase CLI 1.200+) · Supabase Edge Functions
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Deno (Supabase CLI 1.200+) · Supabase Edge Functions
 
 ## Prerequisites
 
@@ -21,7 +21,7 @@ supabase login
 supabase link --project-ref <your-project-ref>
 ```
 
-No `npm install`: the functions import `npm:@elasticemail/elasticemail-client-ts-axios@4.3.0` and `npm:axios@1.18.1` directly and Deno fetches them.
+No `npm install`: the functions import `npm:@elasticemail/elasticemail-client-ts-axios@4.4.0` and `npm:axios@1.18.1` directly and Deno fetches them.
 
 ## Secrets
 
@@ -79,8 +79,10 @@ For local development `supabase/config.toml` already enables the hook pointing a
 
 ## Notes on runtime quirks
 
+- `POST /send` takes an optional `Idempotency-Key` request header: it is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key; the fallback key comes from the global `crypto.randomUUID()`.
+- Deno skips npm versions published less than 24 hours ago (its minimum dependency age, on by default). Right after an SDK release, `@4.4.0` may not resolve yet: wait a day, or pass `--min-dep-age 0` once if you need it sooner.
 - Deno's npm compatibility layer does not provide a working `node:http` client for axios, so every `EmailsApi` is created with `axios.create({ adapter: "fetch" })` as the third constructor argument.
-- Pin versions in `npm:` specifiers (`@4.3.0`, `axios@1.18.1`, the axios range the SDK itself depends on). Unpinned specifiers make cold starts slower and deployments non-reproducible.
+- Pin versions in `npm:` specifiers (`@4.4.0`, `axios@1.18.1`, the axios range the SDK itself depends on). Unpinned specifiers make cold starts slower and deployments non-reproducible.
 - Elastic Email posts webhooks without a JWT. Set `verify_jwt = false` for `webhook` (done in `config.toml`, or pass `--no-verify-jwt` on deploy) and rely on the signature check (or, for unsigned webhooks, the `?token=` check).
 - The webhook signature is checked with WebCrypto (`crypto.subtle`). The handler reads `await req.text()` before parsing JSON. Elastic Email signs the public path (`/functions/v1/webhook?...`), while the function's `req.url` may carry the path without the `/functions/v1` prefix, so the handler checks `pathname + search` of `new URL(req.url)` both as is and with the prefix added.
 - Functions are single endpoints. `send` answers GET with `{ status: "ok" }` so it doubles as `/health`.
@@ -91,12 +93,13 @@ For local development `supabase/config.toml` already enables the hook pointing a
 
 ```
 Write Supabase Edge Functions (Deno, Deno.serve) in TypeScript that send email with Elastic Email.
-Import { Configuration, EmailsApi } from "npm:@elasticemail/elasticemail-client-ts-axios@4.3.0" and
+Import { Configuration, EmailsApi } from "npm:@elasticemail/elasticemail-client-ts-axios@4.4.0" and
 axios from "npm:axios@1.18.1". Read the key with Deno.env.get("ELASTICEMAIL_API_KEY"), set via
 `supabase secrets set`; never hardcode keys. Create `new Configuration({ apiKey })` and
 `new EmailsApi(configuration, undefined, axios.create({ adapter: "fetch" }))` because Deno has no node:http for axios.
 POST /send takes { to, subject, message } and calls emailsApi.emailsTransactionalPost with
 Recipients.To = [to] and Content = { From, Subject, Body: [{ ContentType: "HTML", Content }] }.
+Forward an incoming Idempotency-Key header as the second argument of emailsTransactionalPost (a new UUID if absent).
 The From address must be a sender verified in Elastic Email. Return { success, transactionId, messageId }
 from response.data, and { error } with the API status on failure (err.response.data.Error).
 Add a webhook function that verifies the Elastic Email signature when ELASTICEMAIL_WEBHOOK_SECRET is set:

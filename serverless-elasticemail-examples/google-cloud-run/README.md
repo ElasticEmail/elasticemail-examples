@@ -4,7 +4,7 @@ A containerised Hono server on Node.js 20 that sends transactional email through
 
 > Part of the [Elastic Email serverless examples](../README.md). New to the API? Start with the [serverless quickstart](../QUICKSTART.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20 (container) · Google Cloud Run
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20 (container) · Google Cloud Run
 
 ## Prerequisites
 
@@ -97,6 +97,7 @@ Logs: `gcloud run services logs read elasticemail-example --region europe-west1`
 
 ## Notes on runtime quirks
 
+- `POST /send` takes an optional `Idempotency-Key` request header: it is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key.
 - Full Node.js in a container, so the SDK uses its default axios adapter and `node:crypto` is available for the HMAC signature check and the constant-time token compare.
 - The webhook reads the raw body with `await c.req.text()` before parsing JSON, and takes the signed request target from `c.env.incoming.url` (Node's `IncomingMessage.url`, the path + query exactly as on the request line). The app is typed `new Hono<{ Bindings: HttpBindings }>()` so `c.env.incoming` is available.
 - Cloud Run sets `PORT` (8080 unless you change it). The server binds `0.0.0.0:$PORT`; binding to `localhost` makes the revision fail its startup check.
@@ -117,6 +118,7 @@ if it is missing, and never hardcode keys. Create `new Configuration({ apiKey })
 Routes: GET /health returns { status: "ok" }; POST /send takes { to, subject, message } and calls
 emailsApi.emailsTransactionalPost with Recipients.To = [to] and Content = { From, Subject,
 Body: [{ ContentType: "HTML", Content }, { ContentType: "PlainText", Content }] }. The From address must be
+Forward an incoming Idempotency-Key header as the second argument of emailsTransactionalPost (a new UUID if absent).
 a sender verified in Elastic Email. Return { success, transactionId, messageId } from response.data, and
 { error } with the API status on failure (err.response.data.Error). POST|GET /webhook verifies the Elastic Email signature when ELASTICEMAIL_WEBHOOK_SECRET is set:
 X-ElasticEmail-Signature holds comma-separated v1=<hex> entries, each the hex HMAC-SHA256 (node:crypto, key = the

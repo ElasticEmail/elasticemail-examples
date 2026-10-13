@@ -4,7 +4,7 @@ A `send_email` tool for the Vercel AI SDK that sends transactional email through
 
 > Part of the [Elastic Email AI agent examples](../README.md). New here? The [AI agent quickstart](../QUICKSTART.md) walks through this project step by step.
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · Vercel AI SDK 7 (`ai@7`, `@ai-sdk/anthropic@4`)
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20+ · Vercel AI SDK 7 (`ai@7`, `@ai-sdk/anthropic@4`)
 
 ## Prerequisites
 
@@ -85,6 +85,7 @@ Give the agent its own Elastic Email API key with only the access it needs (send
 - `EMAIL_FROM` must be on a domain verified in your Elastic Email account, or the send fails.
 - The tool reads `EMAIL_ALLOWED_DOMAINS` on every call, so changes to the environment apply without rebuilding the tool.
 - `npm run typecheck` checks the project with `tsc`. There are no unit tests; the demo calls live APIs.
+- The tool passes `toolCallId` from the AI SDK's execute options to Elastic Email as the `Idempotency-Key`, so running the same tool call again (a retried step, a resumed run) returns the first result instead of sending twice. A new tool call from the model is a new send.
 
 ## AI assistant prompt
 
@@ -102,6 +103,7 @@ comma-separated env var EMAIL_ALLOWED_DOMAINS (default: the domain of EMAIL_TO) 
 @ai-sdk/anthropic provider, model from process.env.ANTHROPIC_MODEL, and stopWhen: isStepCount(5).
 Strip { and } from subject and text, remove line breaks from the subject, and in the HTML
 body escape HTML and turn braces into &#123; and &#125;. Never hardcode keys.
+Pass the execute options' toolCallId as the second argument of emailsTransactionalPost (the Idempotency-Key).
 ```
 
 ## Resources

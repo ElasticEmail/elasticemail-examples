@@ -38,7 +38,7 @@ These files drop into a fresh Laravel 11 project. Copy `app/`, `config/`, `route
 `resources/views/emails/` over the skeleton, then:
 
 ```bash
-composer require elasticemail/elasticemail-php:^4.2
+composer require elasticemail/elasticemail-php:^4.4
 
 cp .env.example .env
 php artisan key:generate

@@ -84,8 +84,10 @@ with a 4xx, the worker throws `UnrecoverableError`, and the job fails on the fir
 [2] attempt 1/5 failed - Permanent failure (400: ...) - giving up
 ```
 
-A 429, a 5xx or a network error would log `will retry` instead and come back after an exponential
-backoff. Put the real key back when you are done.
+A 409, a 429, a 5xx or a network error would log `will retry` instead and come back after an
+exponential backoff. Every attempt sends the same `Idempotency-Key`, built from the job id, so a
+retry after a timeout that actually went through gets the first response back instead of sending a
+second email. Put the real key back when you are done.
 
 ## 8. Fan out
 
@@ -94,13 +96,14 @@ npm run fanout
 ```
 
 This adds one job per recipient with `addBulk`. Each job id is built from a campaign name and a user
-id, so running it a second time adds nothing new.
+id, so running it a second time adds nothing new. The job id stops duplicate jobs; the
+`Idempotency-Key` on each send stops a job's retries from sending twice.
 
 Stop Redis with `docker compose down`.
 
 ## Next steps
 
-- [BullMQ README](bullmq/README.md) - retry settings, idempotency and running in production
+- [BullMQ README](bullmq/README.md) - retry settings, idempotency keys and running in production
 - [Inngest](inngest/README.md) and [Trigger.dev](trigger-dev/README.md) - the same pattern without running Redis
 - [Which failures to retry](README.md#which-failures-to-retry)
 - [Sending email](../docs/sending-email.md) - when one bulk call beats one job per recipient

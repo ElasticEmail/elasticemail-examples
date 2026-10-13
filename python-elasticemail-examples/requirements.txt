@@ -1,4 +1,4 @@
-ElasticEmail==4.3.0
+ElasticEmail==4.4.0
 python-dotenv>=1.0.0
 flask>=3.0.0
 fastapi>=0.109.0

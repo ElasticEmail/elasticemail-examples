@@ -21,7 +21,7 @@ python manage.py runserver 8001
 ## Endpoints
 
 - `GET /health` - Health check
-- `POST /send` - Send a transactional email
+- `POST /send` - Send a transactional email; an optional `Idempotency-Key` request header is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key
 - `GET|POST /webhook` - Elastic Email event notifications (signed with `ELASTICEMAIL_WEBHOOK_SECRET`, or `?token=...` for unsigned webhooks)
 - `POST /inbound?token=...` - Inbound email pushed by an inbound route
 - `POST /double-optin/subscribe` - Store contact and send confirmation email

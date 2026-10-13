@@ -10,6 +10,7 @@ import com.elasticemail.model.EmailTransactionalMessageData;
 import com.elasticemail.model.TransactionalRecipient;
 
 import java.util.List;
+import java.util.UUID;
 
 public class BasicSend {
     public static void main(String[] args) {
@@ -28,11 +29,15 @@ public class BasicSend {
                                         .contentType(BodyContentType.PLAIN_TEXT)
                                         .content("Welcome! This email was sent using the Elastic Email Java SDK."))));
 
+        // Reuse this key only to retry this same send.
+        String idempotencyKey = UUID.randomUUID().toString();
+
         try {
-            EmailSend result = emailsApi.emailsTransactionalPost(data);
+            EmailSend result = emailsApi.emailsTransactionalPost(data, idempotencyKey);
             System.out.println("Email sent successfully!");
             System.out.println("Transaction ID: " + result.getTransactionID());
             System.out.println("Message ID: " + result.getMessageID());
+            System.out.println("Idempotency key: " + idempotencyKey);
         } catch (ApiException e) {
             Ee.printApiError("send email", e);
             System.exit(1);

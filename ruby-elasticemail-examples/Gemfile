@@ -3,7 +3,7 @@ source "https://rubygems.org"
 ruby ">= 3.1"
 
 # Elastic Email SDK
-gem "ElasticEmail", "~> 4.3"
+gem "ElasticEmail", "~> 4.4"
 
 # Environment variables
 gem "dotenv", "~> 3.0"

@@ -1,5 +1,5 @@
 import axios from "npm:axios@1.18.1";
-import { Configuration, EmailsApi } from "npm:@elasticemail/elasticemail-client-ts-axios@4.3.0";
+import { Configuration, EmailsApi } from "npm:@elasticemail/elasticemail-client-ts-axios@4.4.0";
 
 const apiKey = Deno.env.get("ELASTICEMAIL_API_KEY");
 if (!apiKey) {
@@ -83,6 +83,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ error: "Missing required fields: to, subject, message" }, 400);
     }
 
+    // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+    const idempotencyKey = req.headers.get("idempotency-key") || crypto.randomUUID();
+
     try {
       const { data } = await emailsApi.emailsTransactionalPost({
         Recipients: { To: [to] },
@@ -91,7 +94,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           Subject: subject,
           Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
         },
-      });
+      }, idempotencyKey);
       return json({ success: true, transactionId: data.TransactionID, messageId: data.MessageID });
     } catch (err) {
       const { status, message: error } = apiError(err);

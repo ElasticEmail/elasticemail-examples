@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import Fastify from "fastify";
 import formbody from "@fastify/formbody";
 import {
@@ -123,6 +123,9 @@ app.post("/send", async (req, reply) => {
     return reply.status(400).send({ error: "Missing required fields: to, subject, message" });
   }
 
+  // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new key.
+  const idempotencyKey = req.headers["idempotency-key"]?.toString() || randomUUID();
+
   try {
     const { data } = await emailsApi.emailsTransactionalPost({
       Recipients: { To: [to] },
@@ -131,7 +134,7 @@ app.post("/send", async (req, reply) => {
         Subject: subject,
         Body: [{ ContentType: "HTML", Content: `<p>${message}</p>` }],
       },
-    });
+    }, idempotencyKey);
     return { success: true, transactionId: data.TransactionID, messageId: data.MessageID };
   } catch (err) {
     const { status, message: error } = apiError(err);

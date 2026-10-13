@@ -204,6 +204,13 @@ app.MapPost("/send", async (HttpRequest request) =>
         return Results.BadRequest(new { error = "Missing required fields: to, subject, message" });
     }
 
+    // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+    string? idempotencyKey = request.Headers["Idempotency-Key"];
+    if (string.IsNullOrEmpty(idempotencyKey))
+    {
+        idempotencyKey = Guid.NewGuid().ToString();
+    }
+
     try
     {
         var result = await emailsApi.EmailsTransactionalPostAsync(new EmailTransactionalMessageData(
@@ -211,7 +218,13 @@ app.MapPost("/send", async (HttpRequest request) =>
             content: new EmailContent(
                 from: from,
                 subject: subject,
-                body: new List<BodyPart> { new BodyPart(BodyContentType.HTML, $"<p>{message}</p>") })));
+                body: new List<BodyPart> { new BodyPart(BodyContentType.HTML, $"<p>{message}</p>") })),
+            idempotencyKey: idempotencyKey);
+        // null means no response from Elastic Email (network error, timeout): safe to retry with the same key.
+        if (result == null)
+        {
+            return Results.Json(new { error = "No response from Elastic Email" }, statusCode: 502);
+        }
         return Results.Json(new { success = true, transactionId = result.TransactionID, messageId = result.MessageID });
     }
     catch (ApiException e)

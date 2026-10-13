@@ -5,7 +5,7 @@ Send transactional and bulk email from a NestJS 11 app on Node.js with the [Elas
 > **First time here?** The [NestJS quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.3.0` · Node.js 20+ · NestJS 11
+**Versions:** Elastic Email REST API v4 · SDK `@elasticemail/elasticemail-client-ts-axios@4.4.0` · Node.js 20+ · NestJS 11
 
 ## Prerequisites
 
@@ -92,7 +92,7 @@ Keep that pattern, or switch to the Nest CLI (`nest start`) or SWC if you prefer
 ## API Endpoints
 
 - `GET /health` - Health check
-- `POST /send` - Send a transactional email
+- `POST /send` - Send a transactional email. An optional `Idempotency-Key` request header is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key
 - `POST|GET /webhook` - Handle Elastic Email event notifications (signed POST, or `?token=...` when unsigned)
 - `POST /inbound?token=...` - Receive inbound email pushed by an inbound route
 - `POST /double-optin/subscribe` - Store a contact and send a confirmation email

@@ -22,7 +22,7 @@ php -S localhost:8081 -t public
 ## Endpoints
 
 - `GET /health` - health check
-- `POST /send` - `{ to, subject, message }` -> `{ success, transactionId, messageId }`
+- `POST /send` - `{ to, subject, message }` -> `{ success, transactionId, messageId }`; an optional `Idempotency-Key` request header is forwarded to Elastic Email (a new key is generated otherwise), so clients can retry safely with the same key
 - `POST /send-prevent-threading` - same subject, unique `X-Entity-Ref-ID` header
 - `POST /send-batch` - bulk send with merge fields (`{firstname}`)
 - `POST /send-attachment` - text file attachment

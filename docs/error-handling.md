@@ -121,9 +121,13 @@ problems: there is no 401, 402 or 403. Read the `Error` message to tell them apa
 | 400 | The key lacks the access level the call needs, or the account is disabled | `Access Denied.` |
 | 400 | Invalid or missing parameter, unverified sender, or "already exists" from `listsPost` / `domainsPost` (see below) | `A list with the given name already exists.` |
 | 404 | No such template, contact, domain, transaction, endpoint or method | `List not found.` |
+| 400 | A send's `Idempotency-Key` header is empty, longer than 255 characters or not printable ASCII | |
 | 409 | A file upload that conflicts with an existing file | |
+| 409 | A send with an `Idempotency-Key` whose first request is still running. Retry shortly with the same key | `Request with this Idempotency-Key is in progress` |
 | 412 | An account or plan limit, an invalid address in a contact upload, or a list that doesn't exist when adding contacts | `Too many contacts for current billing plan.` |
 | 413 | Too many items in one request: more than 50 transactional recipients, or more than 1000 contacts or suppressions | `You cannot provide more than 50 transactional recipients` |
+| 422 | An `Idempotency-Key` reused with a different body or endpoint. A bug, not something to retry | `Idempotency-Key was already used with a different request` |
+| 503 | A keyed send whose `Idempotency-Key` couldn't be confirmed. Nothing was sent: wait `Retry-After` seconds and retry with the same key | |
 | 5xx | Server side; retry with backoff | |
 
 Besides `Error`, an error body can carry `ErrorData`: an error reference ID for unexpected
@@ -149,8 +153,15 @@ Python, Ruby, Go, Java and C# examples.
 
 Retry 5xx with exponential backoff, and 429 if you ever get one (the v4 API does not rate limit
 today, but a proxy in between might). Do not retry other 4xx - the payload will not become valid on
-its own. Sends are not idempotent: a retry after a timeout can deliver twice. If that matters, record
-the `TransactionID` and check the status before retrying.
+its own.
+
+A send that timed out may have gone through, so retry sends with an `Idempotency-Key`: create one
+key per send before the first attempt and pass the same key, with the same body, on every retry. If
+an earlier attempt already went through, the retry gets the stored response (same `TransactionID`,
+`Idempotency-Replayed: true`) and nothing is sent twice. With a key, also retry `409` (the first
+attempt is still running) and `503` (honour `Retry-After`; nothing was sent), and treat `422` as a
+bug: the body changed between attempts, or two sends share a key. Without a key, a retry after a
+timeout can deliver twice. Details: [Retrying safely](sending-email.md#retrying-safely-idempotency-key).
 
 ## Logging
 

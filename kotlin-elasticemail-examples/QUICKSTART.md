@@ -37,7 +37,7 @@ already configures next to the `kotlin-maven-plugin`:
 <dependency>
   <groupId>com.github.ElasticEmail</groupId>
   <artifactId>elasticemail-java</artifactId>
-  <version>4.3.0</version>
+  <version>4.4.0</version>
 </dependency>
 ```
 

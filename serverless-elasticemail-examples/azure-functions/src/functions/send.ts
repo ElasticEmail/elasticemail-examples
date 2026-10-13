@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
 import { apiError, getEmailsApi } from "../lib.js";
 
@@ -6,6 +7,9 @@ export async function send(req: HttpRequest): Promise<HttpResponseInit> {
   if (!to || !subject || !message) {
     return { status: 400, jsonBody: { error: "Missing required fields: to, subject, message" } };
   }
+
+  // Forward the caller's Idempotency-Key so its retries can't send twice; otherwise use a new one.
+  const idempotencyKey = req.headers.get("idempotency-key") || randomUUID();
 
   try {
     const { data } = await getEmailsApi().emailsTransactionalPost({
@@ -18,7 +22,7 @@ export async function send(req: HttpRequest): Promise<HttpResponseInit> {
           { ContentType: "PlainText", Content: message },
         ],
       },
-    });
+    }, idempotencyKey);
     return { jsonBody: { success: true, transactionId: data.TransactionID, messageId: data.MessageID } };
   } catch (err) {
     const { status, message: error } = apiError(err);

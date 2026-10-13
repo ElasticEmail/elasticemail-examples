@@ -31,6 +31,7 @@ The same tool, written for each framework:
 - **Send:** `emailsTransactionalPost` with `From` set to `EMAIL_FROM`, and both a plain-text and an HTML body. When the model leaves out `html`, the tool builds simple, HTML-escaped paragraphs from `text`. Braces are removed from the subject and plain text, and turned into HTML entities in the HTML body.
 - **Output:** `{ transactionId, messageId }` on success, `{ error }` on failure. API failures carry Elastic Email's own `Error` message, so the model sees `Elastic Email API 400: ...` rather than a stack trace.
 - **Allowlist:** only recipients whose domain is in `EMAIL_ALLOWED_DOMAINS` are sent.
+- **Idempotency-Key:** the framework's tool call id is sent as the `Idempotency-Key` (a new UUID when there is none). If the framework executes the same tool call twice, for example when a step is retried or a run is resumed, Elastic Email returns the first result instead of sending a second email.
 
 ## Safety
 
