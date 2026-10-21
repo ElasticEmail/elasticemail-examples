@@ -49,6 +49,11 @@ The SDK method names in every language are in [api-map.md](api-map.md). Signing 
 For an unsigned webhook, leave out `EnableSigning` and `DeliveryMethod` and put the token in the URL:
 `${publicUrl}/webhook?token=${encodeURIComponent(token)}`.
 
+You can also create it in the dashboard (Email API and Email Marketing, PRO plans): **Settings > Manage
+webhooks > Create webhook**, choose **POST (JSON body)** under **Delivery and security**, tick **Sign
+requests**, and copy the secret from the **Webhook created.** window into `ELASTICEMAIL_WEBHOOK_SECRET`.
+It is shown only there. Signed webhooks get a **Signed** label in the list.
+
 ## Verifying a signed request
 
 Signed requests carry three headers:
@@ -127,7 +132,8 @@ webhook on a different URL (for example `/webhook?v=2`), deploy verification, th
 
 ## Rotating the secret
 
-`POST /webhook/{id}/secret/rotate` returns a new `SigningSecret`. There is no grace period: within
+`POST /webhook/{id}/secret/rotate` returns a new `SigningSecret`. In the dashboard, open the webhook
+from **Manage webhooks** and click **Rotate secret**; the new secret is shown once. There is no grace period: within
 about a minute only the new secret is used. Update `ELASTICEMAIL_WEBHOOK_SECRET` straight away; events
 your endpoint rejects in the meantime are retried and signed with the new secret.
 

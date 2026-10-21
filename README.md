@@ -288,7 +288,7 @@ derive the key from the job id so every retry of a job reuses it. See
 ## Notes on webhooks and inbound
 
 Webhooks can be signed. The examples create webhooks with `EnableSigning: true` and `DeliveryMethod: "PostJson"`
-(SDKs 4.3.0+), store the `SigningSecret` returned once by the create call as `ELASTICEMAIL_WEBHOOK_SECRET`, and
+(SDKs 4.3.0+; in the dashboard, **POST (JSON body)** and **Sign requests**), store the `SigningSecret` returned once by the create call as `ELASTICEMAIL_WEBHOOK_SECRET`, and
 verify the HMAC-SHA256 `X-ElasticEmail-Signature` header on every request against the raw JSON body. Webhooks
 created without signing (the default, and all older ones) arrive as unsigned GET requests with the details in the
 query string (`status`, `to`, `transaction`, `messageid`, `category`, `target`); when
