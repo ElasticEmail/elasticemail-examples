@@ -28,7 +28,7 @@ A machine-readable map from use case to source file for every stack is in [examp
 
 - [Send email with Next.js](https://github.com/ElasticEmail/elasticemail-examples/blob/main/nextjs-elasticemail-examples/QUICKSTART.md): Next.js 15 route handlers and server actions, TypeScript and JavaScript
 - [Send email with PHP](https://github.com/ElasticEmail/elasticemail-examples/blob/main/php-elasticemail-examples/QUICKSTART.md): elasticemail-php SDK, Slim and Symfony
-- [Send email with Laravel](https://github.com/ElasticEmail/elasticemail-examples/blob/main/laravel-elasticemail-examples/QUICKSTART.md): Laravel 11 controllers and an Artisan command
+- [Send email with Laravel](https://github.com/ElasticEmail/elasticemail-examples/blob/main/laravel-elasticemail-examples/QUICKSTART.md): Laravel 13 controllers and an Artisan command
 - [Send email with Python](https://github.com/ElasticEmail/elasticemail-examples/blob/main/python-elasticemail-examples/QUICKSTART.md): ElasticEmail PyPI SDK, Flask, FastAPI, Django
 - [Send email with Ruby](https://github.com/ElasticEmail/elasticemail-examples/blob/main/ruby-elasticemail-examples/QUICKSTART.md): ElasticEmail gem, Sinatra and Rails
 - [Send email with Go](https://github.com/ElasticEmail/elasticemail-examples/blob/main/go-elasticemail-examples/QUICKSTART.md): elasticemail-go/v4, Chi and Gin

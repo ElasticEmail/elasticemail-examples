@@ -159,7 +159,7 @@ every example and route for that language.
 |----------|-----------|---------|-----------|
 | **Next.js** | [Send email with Next.js](nextjs-elasticemail-examples/QUICKSTART.md) | [TypeScript](nextjs-elasticemail-examples/typescript/) / [JavaScript](nextjs-elasticemail-examples/javascript/) | Next.js 15, React 19 |
 | **PHP** | [Send email with PHP](php-elasticemail-examples/QUICKSTART.md) | [PHP examples](php-elasticemail-examples/) | Slim, Symfony |
-| **Laravel** | [Send email with Laravel](laravel-elasticemail-examples/QUICKSTART.md) | [Laravel examples](laravel-elasticemail-examples/) | Laravel 11 |
+| **Laravel** | [Send email with Laravel](laravel-elasticemail-examples/QUICKSTART.md) | [Laravel examples](laravel-elasticemail-examples/) | Laravel 13 |
 | **Python** | [Send email with Python](python-elasticemail-examples/QUICKSTART.md) | [Python examples](python-elasticemail-examples/) | Flask, FastAPI, Django |
 | **Ruby** | [Send email with Ruby](ruby-elasticemail-examples/QUICKSTART.md) | [Ruby examples](ruby-elasticemail-examples/) | Sinatra, Rails |
 | **Go** | [Send email with Go](go-elasticemail-examples/QUICKSTART.md) | [Go examples](go-elasticemail-examples/) | Chi, Gin |

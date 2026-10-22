@@ -196,7 +196,7 @@
       "quickstart": "php-elasticemail-examples/QUICKSTART.md",
       "language": "PHP",
       "sdk": "elasticemail/elasticemail-php@4.4.0",
-      "runtime": "PHP 8.1+",
+      "runtime": "PHP 8.2+",
       "frameworks": [
         "Slim 4",
         "Symfony 6.4/7"
@@ -273,9 +273,9 @@
       "quickstart": "laravel-elasticemail-examples/QUICKSTART.md",
       "language": "PHP",
       "sdk": "elasticemail/elasticemail-php@4.4.0",
-      "runtime": "PHP 8.2+",
+      "runtime": "PHP 8.3+",
       "frameworks": [
-        "Laravel 11"
+        "Laravel 13"
       ],
       "apps": [
         "laravel-elasticemail-examples/routes/api.php"

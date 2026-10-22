@@ -1,6 +1,6 @@
 # Laravel Email API Examples - Elastic Email
 
-Send transactional and bulk email from Laravel 11 with the [Elastic Email](https://elasticemail.com/email-api) email API, with Blade templates rendered into the HTML body.
+Send transactional and bulk email from Laravel 13 with the [Elastic Email](https://elasticemail.com/email-api) email API, with Blade templates rendered into the HTML body.
 
 The examples call the Elastic Email PHP SDK directly through a small service class
 (`app/Services/ElasticEmail.php`). Blade views are rendered with `view()->render()` and passed
@@ -10,18 +10,18 @@ as the HTML body. Laravel's Mail transport is not used, so you get the `Transact
 > **First time here?** The [Laravel quickstart](QUICKSTART.md) gets you from nothing to a delivered email in five minutes.
 > For the concepts behind these examples, see the [Elastic Email guides](../docs/README.md).
 
-**Versions:** Elastic Email REST API v4 · SDK `elasticemail/elasticemail-php@4.4.0` · PHP 8.2+ · Laravel 11
+**Versions:** Elastic Email REST API v4 · SDK `elasticemail/elasticemail-php@4.4.0` · PHP 8.3+ · Laravel 13
 
 ## Prerequisites
 
-- PHP 8.2+
+- PHP 8.3+ (8.3.36, 8.4.27, 8.5.12 or newer; earlier releases are open to CVE-2026-109618 and CVE-2026-109619)
 - Composer
 - An Elastic Email account with a verified sender domain ([How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain))
 - API key from [app.elasticemail.com](https://app.elasticemail.com/marketing/settings/new/manage-api) ([API settings](https://help.elasticemail.com/en/articles/4799160-api-settings))
 
 ## Installation
 
-These files drop into a fresh Laravel 11 project (`composer create-project laravel/laravel`).
+These files drop into a fresh Laravel 13 project (`composer create-project laravel/laravel`).
 Copy `app/`, `config/`, `routes/api.php` and `resources/views/emails/` over the skeleton, then:
 
 ```bash
@@ -34,7 +34,7 @@ php artisan key:generate
 
 # Add your Elastic Email API key to .env
 
-# Enable API routes (Laravel 11 does not ship routes/api.php by default)
+# Enable API routes (Laravel 13 does not ship routes/api.php by default)
 php artisan install:api
 
 php artisan serve

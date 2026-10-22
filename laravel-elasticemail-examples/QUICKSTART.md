@@ -1,6 +1,6 @@
 # Send your first email with Laravel
 
-Five minutes from a clean Laravel 11 project to a delivered email, calling the Elastic Email PHP SDK
+Five minutes from a clean Laravel 13 project to a delivered email, calling the Elastic Email PHP SDK
 through a small service class.
 
 ## Why not Laravel's Mail facade?
@@ -13,8 +13,8 @@ to a mailer.
 
 ## Prerequisites
 
-- PHP 8.2+ and Composer
-- A Laravel 11 project (`composer create-project laravel/laravel`)
+- PHP 8.3+ (8.3.36, 8.4.27, 8.5.12 or newer; earlier releases are open to CVE-2026-109618 and CVE-2026-109619) and Composer
+- A Laravel 13 project (`composer create-project laravel/laravel`)
 - An [Elastic Email account](https://app.elasticemail.com)
 - A verified sending domain
 
@@ -34,7 +34,7 @@ Step by step, with the exact DNS records to publish: [How to verify your domain]
 
 ## 3. Install
 
-These files drop into a fresh Laravel 11 project. Copy `app/`, `config/`, `routes/api.php` and
+These files drop into a fresh Laravel 13 project. Copy `app/`, `config/`, `routes/api.php` and
 `resources/views/emails/` over the skeleton, then:
 
 ```bash
@@ -42,7 +42,7 @@ composer require elasticemail/elasticemail-php:^4.4
 
 cp .env.example .env
 php artisan key:generate
-php artisan install:api     # Laravel 11 ships without routes/api.php
+php artisan install:api     # Laravel 13 ships without routes/api.php
 ```
 
 ## 4. Set your environment variables

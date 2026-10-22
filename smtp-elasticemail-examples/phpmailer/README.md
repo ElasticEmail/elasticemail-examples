@@ -9,7 +9,7 @@ scripts and any codebase where PHP's `mail()` depends on the host's local mail s
 
 ## Prerequisites
 
-- PHP 8.1+ with the `openssl` extension, and Composer
+- PHP 8.2+ (8.2.35, 8.3.36, 8.4.27, 8.5.12 or newer; earlier releases are open to CVE-2026-109618 and CVE-2026-109619) with the `openssl` extension, and Composer
 - An Elastic Email account with a verified sender domain ([How to verify your domain](https://help.elasticemail.com/en/articles/4934400-how-to-verify-your-domain))
 - SMTP credentials from Settings > SMTP in the Elastic Email dashboard ([SMTP settings](https://help.elasticemail.com/en/articles/4803409-smtp-settings))
 
@@ -87,7 +87,7 @@ credentials.
 ## AI assistant prompt
 
 ```
-Send email from PHP 8.1+ with PHPMailer through the Elastic Email SMTP relay. Use isSMTP() with
+Send email from PHP 8.2+ with PHPMailer through the Elastic Email SMTP relay. Use isSMTP() with
 Host smtp.elasticemail.com, Port 2525, SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS (ENCRYPTION_SMTPS
 only for port 465), SMTPAuth = true, and Username/Password from ELASTICEMAIL_SMTP_USERNAME and
 ELASTICEMAIL_SMTP_PASSWORD loaded with vlucas/phpdotenv. The password is the SMTP password from

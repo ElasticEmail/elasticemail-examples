@@ -44,9 +44,9 @@ const STACKS = [
     readme: "nextjs-elasticemail-examples/typescript/README.md",
     versionReadmes: ["nextjs-elasticemail-examples/typescript/README.md", "nextjs-elasticemail-examples/javascript/README.md"],
     apps: ["nextjs-elasticemail-examples/typescript", "nextjs-elasticemail-examples/javascript"] },
-  { id: "php", name: "PHP", dir: "php-elasticemail-examples", language: "PHP", sdk: `elasticemail/elasticemail-php@${SDK_VERSION}`, runtime: "PHP 8.1+", frameworks: ["Slim 4", "Symfony 6.4/7"],
+  { id: "php", name: "PHP", dir: "php-elasticemail-examples", language: "PHP", sdk: `elasticemail/elasticemail-php@${SDK_VERSION}`, runtime: "PHP 8.2+", frameworks: ["Slim 4", "Symfony 6.4/7"],
     apps: ["php-elasticemail-examples/src/slim_app.php", "php-elasticemail-examples/symfony_app"] },
-  { id: "laravel", name: "Laravel", dir: "laravel-elasticemail-examples", language: "PHP", sdk: `elasticemail/elasticemail-php@${SDK_VERSION}`, runtime: "PHP 8.2+", frameworks: ["Laravel 11"],
+  { id: "laravel", name: "Laravel", dir: "laravel-elasticemail-examples", language: "PHP", sdk: `elasticemail/elasticemail-php@${SDK_VERSION}`, runtime: "PHP 8.3+", frameworks: ["Laravel 13"],
     apps: ["laravel-elasticemail-examples/routes/api.php"],
     // One controller holds every send variant; see routes/api.php.
     extra: Object.fromEntries(["basic-send", "batch-send", "attachments", "cid-attachments", "templates", "scheduled-send", "prevent-threading"]

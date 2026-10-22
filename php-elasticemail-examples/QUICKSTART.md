@@ -5,7 +5,7 @@ with Slim, or with Symfony.
 
 ## Prerequisites
 
-- PHP 8.1+ and Composer
+- PHP 8.2+ (8.2.35, 8.3.36, 8.4.27, 8.5.12 or newer; earlier releases are open to CVE-2026-109618 and CVE-2026-109619) and Composer
 - An [Elastic Email account](https://app.elasticemail.com)
 - A verified sending domain
 
