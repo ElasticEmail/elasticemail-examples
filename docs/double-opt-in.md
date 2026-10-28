@@ -5,6 +5,10 @@ keeps bots and typos off your list, and it is the evidence you want when a compl
 
 The examples implement two flows. Both end with the contact on `ELASTICEMAIL_LIST_NAME`.
 
+> Contacts, lists and segments are available on Email Marketing plans. On Email API plans, the
+> contact feature you can use is [suppressions](suppressions.md). See
+> [pricing](https://elasticemail.com/email-api-pricing).
+
 ## Flow A - signed confirm link (default)
 
 Three steps, no dependency on click tracking.

@@ -17,7 +17,7 @@ const TS_SDK = "@elasticemail/elasticemail-client-ts-axios";
 const USE_CASES = [
   { id: "basic-send", title: "Basic send", doc: "docs/sending-email.md",
     pattern: /(basic-send|send-basic|(api|functions|email)-send-(route-|server-|post-|index-)?(js|ts|mts)$)/ },
-  { id: "batch-send", title: "Batch send with merge fields", doc: "docs/sending-email.md", pattern: /(batch-send|send-batch)/ },
+  { id: "batch-send", title: "Bulk send with merge fields", doc: "docs/sending-email.md", pattern: /(batch-send|send-batch)/ },
   { id: "attachments", title: "File attachments", doc: "docs/attachments.md", pattern: /(with-attachments|send-attachment|attachments-send-php$)/ },
   { id: "cid-attachments", title: "Inline (CID) images", doc: "docs/attachments.md", pattern: /(cid-attachments|send-cid)/ },
   { id: "templates", title: "Hosted templates", doc: "docs/templates.md", pattern: /(with-template|send-template|templates-send-php$)/ },

@@ -39,7 +39,7 @@ Run every script from this folder.
 python examples/basic_send.py
 ```
 
-### Batch Sending
+### Bulk Sending
 ```bash
 python examples/batch_send.py
 ```

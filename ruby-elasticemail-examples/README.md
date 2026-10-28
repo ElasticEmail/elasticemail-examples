@@ -36,7 +36,7 @@ configures the SDK and exits early when `ELASTICEMAIL_API_KEY` is missing.
 ruby examples/basic_send.rb
 ```
 
-### Batch Sending
+### Bulk Sending
 ```bash
 ruby examples/batch_send.rb
 ```

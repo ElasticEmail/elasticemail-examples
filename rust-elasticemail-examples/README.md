@@ -36,7 +36,7 @@ Run every command from this folder. Each example loads `.env`.
 cargo run --example basic_send
 ```
 
-### Batch Sending
+### Bulk Sending
 ```bash
 cargo run --example batch_send
 ```

@@ -25,7 +25,7 @@ const { data } = await domainsApi.domainsByDomainGet("yourdomain.com");
 | DKIM | Cryptographically signs your mail | No |
 | DMARC | Tells receivers what to do when SPF and DKIM fail, and where to send reports | Technically yes, increasingly not in practice |
 | MX | Required only for [inbound email](inbound-email.md) | Yes, unless you receive |
-| Tracking CNAME | Serves open and click tracking from your own domain instead of a shared one | Yes, but shared tracking domains carry other senders' reputation |
+| Tracking CNAME | `tracking.yourdomain.com` pointing to `api.elasticemail.com`. Serves open and click tracking from your own domain instead of a shared one | Yes, but shared tracking domains carry other senders' reputation |
 
 Gmail and Yahoo require SPF, DKIM and DMARC from bulk senders. "Bulk" is lower than most people
 assume. Publish all three.

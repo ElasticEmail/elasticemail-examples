@@ -35,7 +35,7 @@ Run every script from this folder. All scripts share `src/bootstrap.php`, which 
 php src/send/basic.php
 ```
 
-### Batch Sending
+### Bulk Sending
 ```bash
 php src/send/batch.php
 ```

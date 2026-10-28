@@ -438,6 +438,10 @@ in-memory, so they run without any sample file on disk.
 Elastic Email lists are addressed by **name**, not by id. That makes the API pleasant to use and
 means a typo creates a second list rather than an error.
 
+> Contacts, lists and segments are available on Email Marketing plans. On Email API plans, the
+> contact feature you can use is [suppressions](suppressions.md). See
+> [pricing](https://elasticemail.com/email-api-pricing).
+
 ## The five operations the examples use
 
 ```typescript
@@ -479,8 +483,9 @@ confirmation email without ever having treated the address as a subscriber. See
 
 ## Custom fields
 
-`CustomFields` only stores keys that already exist as custom fields on the account. Unknown keys are
-dropped silently - no error, no value. Create the field in the dashboard first, then populate it.
+Custom contact fields are available on Email Marketing Pro plans. `CustomFields` only stores keys
+that already exist as custom fields on the account. Unknown keys are dropped silently - no error, no
+value. Create the field in the dashboard first, then populate it.
 
 ## "Already exists" is not an error
 
@@ -563,7 +568,7 @@ const { data } = await domainsApi.domainsByDomainGet("yourdomain.com");
 | DKIM | Cryptographically signs your mail | No |
 | DMARC | Tells receivers what to do when SPF and DKIM fail, and where to send reports | Technically yes, increasingly not in practice |
 | MX | Required only for [inbound email](inbound-email.md) | Yes, unless you receive |
-| Tracking CNAME | Serves open and click tracking from your own domain instead of a shared one | Yes, but shared tracking domains carry other senders' reputation |
+| Tracking CNAME | `tracking.yourdomain.com` pointing to `api.elasticemail.com`. Serves open and click tracking from your own domain instead of a shared one | Yes, but shared tracking domains carry other senders' reputation |
 
 Gmail and Yahoo require SPF, DKIM and DMARC from bulk senders. "Bulk" is lower than most people
 assume. Publish all three.
@@ -626,6 +631,10 @@ Double opt-in means nobody joins a list until they click a link in an email sent
 keeps bots and typos off your list, and it is the evidence you want when a complaint arrives.
 
 The examples implement two flows. Both end with the contact on `ELASTICEMAIL_LIST_NAME`.
+
+> Contacts, lists and segments are available on Email Marketing plans. On Email API plans, the
+> contact feature you can use is [suppressions](suppressions.md). See
+> [pricing](https://elasticemail.com/email-api-pricing).
 
 ## Flow A - signed confirm link (default)
 
@@ -1278,8 +1287,10 @@ await emailsApi.emailsTransactionalPost({
 });
 ```
 
-There is no cancel endpoint for a single delayed message. Pick the offset deliberately, and prefer
-your own job queue when you need the ability to change your mind.
+There is no endpoint that cancels or reschedules a single delayed message. Pick the offset
+deliberately, and prefer your own job queue when you need the ability to change your mind. A
+campaign (Email Marketing plans) can go out at an exact date with `ScheduleFor`, or at each
+contact's local time, and pausing it cancels the emails still waiting.
 
 ## Preventing Gmail threading
 
@@ -1326,6 +1337,8 @@ Polling status is for debugging. For production, subscribe to [webhooks](webhook
 |---|---|
 | Recipients per transactional call | 50 |
 | Recipients per bulk call | 1000 |
+| Concurrent connections | Keep to 20 per account. The API doesn't return 429; a 5xx under load means slow down |
+| Request duration | No response for about 50 seconds fails with a gateway error (5xx) |
 | `TimeOffset` | 50400 minutes (35 days) |
 | Message size | account-dependent; attachments are base64, so they cost about a third more than the file on disk |
 
@@ -1348,7 +1361,8 @@ See the [API map](api-map.md) for the method name in your language.
 # Suppressions
 
 A suppression stops mail to an address regardless of what your lists say. Elastic Email keeps three
-kinds: unsubscribes, bounces and complaints.
+kinds: unsubscribes, bounces and complaints. Suppressions apply to the whole account and are
+available on both Email API and Email Marketing plans.
 
 ```typescript
 // Add
@@ -1463,7 +1477,8 @@ dashboard or delete it and let the script recreate it.
 
 ## Placeholder rules
 
-- Single braces: `{firstname}`, not `{{firstname}}`.
+- Single braces: `{firstname}`. Double braces, `{{ }}`, belong to Template Scripting, which runs
+  JavaScript inside a template and has to be turned on in your account settings first.
 - Unmatched placeholders stay in the message as literal text. That is the usual cause of an email
   reading "Hi {firstname}".
 - Merge keys are supplied per send with `Merge`, or per recipient with `Fields` on a bulk send. Both

@@ -3,6 +3,10 @@
 Elastic Email lists are addressed by **name**, not by id. That makes the API pleasant to use and
 means a typo creates a second list rather than an error.
 
+> Contacts, lists and segments are available on Email Marketing plans. On Email API plans, the
+> contact feature you can use is [suppressions](suppressions.md). See
+> [pricing](https://elasticemail.com/email-api-pricing).
+
 ## The five operations the examples use
 
 ```typescript
@@ -44,8 +48,9 @@ confirmation email without ever having treated the address as a subscriber. See
 
 ## Custom fields
 
-`CustomFields` only stores keys that already exist as custom fields on the account. Unknown keys are
-dropped silently - no error, no value. Create the field in the dashboard first, then populate it.
+Custom contact fields are available on Email Marketing Pro plans. `CustomFields` only stores keys
+that already exist as custom fields on the account. Unknown keys are dropped silently - no error, no
+value. Create the field in the dashboard first, then populate it.
 
 ## "Already exists" is not an error
 

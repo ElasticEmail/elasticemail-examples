@@ -34,7 +34,7 @@ Run every command from this folder. `.env` is loaded automatically.
 dotnet run -- basic-send
 ```
 
-### Batch Sending
+### Bulk Sending
 ```bash
 dotnet run -- batch-send
 ```

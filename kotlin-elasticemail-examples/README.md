@@ -41,7 +41,7 @@ compiles it to a class named after the file with a `Kt` suffix (`BasicSend.kt` -
 mvn -q compile exec:java -Dexec.mainClass=com.elasticemail.examples.BasicSendKt
 ```
 
-### Batch Sending
+### Bulk Sending
 ```bash
 mvn -q compile exec:java -Dexec.mainClass=com.elasticemail.examples.BatchSendKt
 ```

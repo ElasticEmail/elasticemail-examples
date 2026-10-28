@@ -211,7 +211,7 @@ TanStack Start, Laravel) skip some account-level ones, and the serverless folder
 
 ### Sending
 - **Basic Send** - HTML and plain text transactional email
-- **Batch Send** - One bulk call with per-recipient merge fields
+- **Bulk Send** - One bulk call with per-recipient merge fields
 - **With Attachments** - Base64 file attachments
 - **With CID Attachments** - Inline images referenced by Content-ID
 - **With Templates** - Hosted templates with merge variables (created on first run)

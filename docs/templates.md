@@ -54,7 +54,8 @@ dashboard or delete it and let the script recreate it.
 
 ## Placeholder rules
 
-- Single braces: `{firstname}`, not `{{firstname}}`.
+- Single braces: `{firstname}`. Double braces, `{{ }}`, belong to Template Scripting, which runs
+  JavaScript inside a template and has to be turned on in your account settings first.
 - Unmatched placeholders stay in the message as literal text. That is the usual cause of an email
   reading "Hi {firstname}".
 - Merge keys are supplied per send with `Merge`, or per recipient with `Fields` on a bulk send. Both

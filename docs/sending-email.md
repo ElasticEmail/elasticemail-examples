@@ -133,8 +133,10 @@ await emailsApi.emailsTransactionalPost({
 });
 ```
 
-There is no cancel endpoint for a single delayed message. Pick the offset deliberately, and prefer
-your own job queue when you need the ability to change your mind.
+There is no endpoint that cancels or reschedules a single delayed message. Pick the offset
+deliberately, and prefer your own job queue when you need the ability to change your mind. A
+campaign (Email Marketing plans) can go out at an exact date with `ScheduleFor`, or at each
+contact's local time, and pausing it cancels the emails still waiting.
 
 ## Preventing Gmail threading
 
@@ -181,6 +183,8 @@ Polling status is for debugging. For production, subscribe to [webhooks](webhook
 |---|---|
 | Recipients per transactional call | 50 |
 | Recipients per bulk call | 1000 |
+| Concurrent connections | Keep to 20 per account. The API doesn't return 429; a 5xx under load means slow down |
+| Request duration | No response for about 50 seconds fails with a gateway error (5xx) |
 | `TimeOffset` | 50400 minutes (35 days) |
 | Message size | account-dependent; attachments are base64, so they cost about a third more than the file on disk |
 

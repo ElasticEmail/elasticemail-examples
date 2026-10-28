@@ -40,7 +40,7 @@ Run every script from this folder with `mix run`.
 mix run examples/basic_send.exs
 ```
 
-### Batch Sending
+### Bulk Sending
 ```bash
 mix run examples/batch_send.exs
 ```

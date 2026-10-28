@@ -1,7 +1,8 @@
 # Suppressions
 
 A suppression stops mail to an address regardless of what your lists say. Elastic Email keeps three
-kinds: unsubscribes, bounces and complaints.
+kinds: unsubscribes, bounces and complaints. Suppressions apply to the whole account and are
+available on both Email API and Email Marketing plans.
 
 ```typescript
 // Add

@@ -38,7 +38,7 @@ Run every command from this folder. `mvn -q exec:java` recompiles when needed.
 mvn -q exec:java -Dexec.mainClass=com.elasticemail.examples.BasicSend
 ```
 
-### Batch Sending
+### Bulk Sending
 ```bash
 mvn -q exec:java -Dexec.mainClass=com.elasticemail.examples.BatchSend
 ```

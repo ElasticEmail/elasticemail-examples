@@ -34,7 +34,7 @@ Run every program from this folder. Each one reads `.env` from the current direc
 go run ./examples/basic_send/
 ```
 
-### Batch Sending
+### Bulk Sending
 ```bash
 go run ./examples/batch_send/
 ```
