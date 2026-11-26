@@ -13,7 +13,7 @@
     "dev": "rw dev",
     "build": "rw build",
     "serve": "rw serve",
-    "typecheck": "rw type-check"
+    "typecheck": "rw type-check --prisma=false --generate=false"
   },
   "devDependencies": {
     "@redwoodjs/core": "^8.4.0"

@@ -43,18 +43,11 @@
     "redwoodjs-elasticemail-examples/typescript": {
       "why": "Redwood is a Yarn workspace and its CLI expects Yarn. The node image ships Yarn 1, which unlike the Yarn 4 the README uses enforces engines; current @whatwg-node deps want Node 22.15+ while Redwood 8 declares 20.x.",
       "install": "yarn install --non-interactive --ignore-engines --network-timeout 600000",
-      "check": "yarn rw type-check",
-      "knownFailure": "yarn rw type-check (the typecheck script) fails at type generation: rw prisma generate finds no api/db/schema.prisma, which the example doesn't ship."
+      "check": "yarn typecheck"
     },
     "serverless-elasticemail-examples/netlify-functions": {
       "why": "netlify-cli's postinstall (jwa -> buffer-equal-constant-time) uses SlowBuffer, which Node 25+ removed.",
       "image": "node:24-bookworm"
-    },
-    "tanstack-elasticemail-examples/javascript": {
-      "knownFailure": "npm install fails with ERESOLVE: package.json pins vite ^7.0.0, but @tanstack/react-start ^1.132.0 now resolves to 1.169.x, which needs vite >=8."
-    },
-    "tanstack-elasticemail-examples/typescript": {
-      "knownFailure": "npm install fails with ERESOLVE: package.json pins vite ^7.0.0, but @tanstack/react-start ^1.132.0 now resolves to 1.169.x, which needs vite >=8."
     }
   }
 }

@@ -57,7 +57,7 @@ Webhooks: create the webhook with `EnableSigning: true` and `DeliveryMethod: Pos
 
 Inbound routes are not signed: use `PUBLIC_URL/.redwood/functions/inbound?token=<ELASTICEMAIL_WEBHOOK_TOKEN>`; the token in the query string is what the inbound handler verifies.
 
-Production build: `yarn rw build && yarn rw serve`. Type check: `yarn rw type-check`.
+Production build: `yarn rw build && yarn rw serve`. Type check: `yarn typecheck` (runs `rw type-check --prisma=false --generate=false`: there is no Prisma schema to generate from).
 
 ## API Endpoints
 
