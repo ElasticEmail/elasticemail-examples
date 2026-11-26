@@ -1,0 +1,107 @@
+# Compiles, typechecks or syntax-checks the example projects. Nothing here calls the Elastic Email API
+# and no secrets are used. Projects and their checks come from scripts/ci-projects.mjs and
+# .github/ci/projects.json; each check runs in a Docker image, so the same command works locally:
+#   node scripts/ci-projects.mjs
+name: Check examples
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  discover:
+    name: Find projects to check
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.projects.outputs.matrix }}
+      count: ${{ steps.projects.outputs.count }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # A pull request is checked out as a merge commit; its first parent is the base branch.
+          fetch-depth: 2
+          persist-credentials: false
+      - name: List projects
+        id: projects
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git diff --name-only HEAD^1 HEAD > "$RUNNER_TEMP/changed.txt"
+            echo "Changed files:"
+            cat "$RUNNER_TEMP/changed.txt"
+            node scripts/ci-projects.mjs --json --changed "$RUNNER_TEMP/changed.txt"
+          else
+            node scripts/ci-projects.mjs --json
+          fi
+
+  check:
+    name: ${{ matrix.path }}${{ matrix.known_failure != '' && ' (known failure)' || '' }}
+    needs: discover
+    if: needs.discover.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: ${{ matrix.known_failure != '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.discover.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check
+        env:
+          PROJECT: ${{ matrix.path }}
+          IMAGE: ${{ matrix.image }}
+          RUN: ${{ matrix.run }}
+          KNOWN_FAILURE: ${{ matrix.known_failure }}
+        run: |
+          if [ -n "$KNOWN_FAILURE" ]; then
+            echo "::warning title=Known failure::$PROJECT: $KNOWN_FAILURE"
+          fi
+          echo "In $PROJECT with $IMAGE:"
+          printf '  %s\n' "$RUN"
+          docker run --rm -v "$GITHUB_WORKSPACE:/repo" -w "/repo/$PROJECT" --entrypoint bash "$IMAGE" -eo pipefail -c "$RUN"
+
+  # One stable status to require in branch protection, whatever the matrix contains.
+  checks-passed:
+    name: All checks passed
+    needs: [discover, check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Result
+        env:
+          DISCOVER: ${{ needs.discover.result }}
+          CHECK: ${{ needs.check.result }}
+        run: |
+          echo "discover: $DISCOVER, check: $CHECK"
+          [ "$DISCOVER" = "success" ] && { [ "$CHECK" = "success" ] || [ "$CHECK" = "skipped" ]; }
+
+  generated-files:
+    name: Generated agent files are up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Regenerate examples.json and llms-full.txt
+        run: node scripts/build-agent-files.mjs
+      - name: Fail if anything changed
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --short
+            git --no-pager diff --stat
+            echo "::error::Generated files are out of date. Run node scripts/build-agent-files.mjs and commit the result."
+            exit 1
+          fi

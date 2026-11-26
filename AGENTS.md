@@ -117,6 +117,10 @@ the stack's own checks pass:
 | Elixir | `mix compile` |
 | PHP / Laravel | `composer install && php -l` on changed files |
 
+CI ([.github/workflows/check.yml](.github/workflows/check.yml)) runs these checks in Docker on every pull
+request, for each project the PR touches; `node scripts/ci-projects.mjs` lists the projects and the
+exact commands, and per-project exceptions go in [.github/ci/projects.json](.github/ci/projects.json).
+
 To actually send, put real values in `.env` and follow the stack's README. Never commit `.env`.
 
 ## Editing docs and READMEs

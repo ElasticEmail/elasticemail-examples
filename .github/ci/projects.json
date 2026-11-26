@@ -1,0 +1,60 @@
+{
+  "$comment": [
+    "Data for scripts/ci-projects.mjs, which finds every buildable example project from its manifest",
+    "(package.json, requirements.txt, Gemfile, go.mod, pom.xml, *.csproj, Cargo.toml, mix.exs, composer.json, ...).",
+    "shared: changes under these paths check every project on a pull request.",
+    "ignore: changed files ending in one of these never trigger a check.",
+    "images: Docker image per toolchain; {version} is filled from the manifest (engines.node, go.mod, Java release,",
+    "TargetFramework), or from defaults when the manifest doesn't pin one.",
+    "projects: per-project exceptions, with why saying the reason. install/check replace the default commands, image the default image.",
+    "knownFailure: the check still runs but may fail without failing the workflow; say why and remove it once fixed."
+  ],
+  "shared": [
+    ".github/workflows/check.yml",
+    ".github/ci/",
+    "scripts/ci-projects.mjs"
+  ],
+  "ignore": [".md"],
+  "images": {
+    "node": "node:{version}-bookworm",
+    "deno": "denoland/deno:debian-2.9.8",
+    "python": "python:3.13-bookworm",
+    "ruby": "ruby:3.4-bookworm",
+    "go": "golang:{version}-bookworm",
+    "maven": "maven:3.9-eclipse-temurin-{version}",
+    "dotnet": "mcr.microsoft.com/dotnet/sdk:{version}",
+    "rust": "rust:1-bookworm",
+    "elixir": "elixir:1.19",
+    "php": "composer:2"
+  },
+  "defaults": {
+    "node": "26",
+    "java": "21"
+  },
+  "projects": {
+    "laravel-elasticemail-examples": {
+      "why": "The files drop into a fresh Laravel project, so there is no artisan for composer's post-autoload-dump script.",
+      "install": "composer install --no-interaction --no-progress --quiet --no-scripts"
+    },
+    "redwoodjs-elasticemail-examples/javascript": {
+      "why": "Redwood is a Yarn workspace and its CLI expects Yarn. The node image ships Yarn 1, which unlike the Yarn 4 the README uses enforces engines; current @whatwg-node deps want Node 22.15+ while Redwood 8 declares 20.x.",
+      "install": "yarn install --non-interactive --ignore-engines --network-timeout 600000"
+    },
+    "redwoodjs-elasticemail-examples/typescript": {
+      "why": "Redwood is a Yarn workspace and its CLI expects Yarn. The node image ships Yarn 1, which unlike the Yarn 4 the README uses enforces engines; current @whatwg-node deps want Node 22.15+ while Redwood 8 declares 20.x.",
+      "install": "yarn install --non-interactive --ignore-engines --network-timeout 600000",
+      "check": "yarn rw type-check",
+      "knownFailure": "yarn rw type-check (the typecheck script) fails at type generation: rw prisma generate finds no api/db/schema.prisma, which the example doesn't ship."
+    },
+    "serverless-elasticemail-examples/netlify-functions": {
+      "why": "netlify-cli's postinstall (jwa -> buffer-equal-constant-time) uses SlowBuffer, which Node 25+ removed.",
+      "image": "node:24-bookworm"
+    },
+    "tanstack-elasticemail-examples/javascript": {
+      "knownFailure": "npm install fails with ERESOLVE: package.json pins vite ^7.0.0, but @tanstack/react-start ^1.132.0 now resolves to 1.169.x, which needs vite >=8."
+    },
+    "tanstack-elasticemail-examples/typescript": {
+      "knownFailure": "npm install fails with ERESOLVE: package.json pins vite ^7.0.0, but @tanstack/react-start ^1.132.0 now resolves to 1.169.x, which needs vite >=8."
+    }
+  }
+}

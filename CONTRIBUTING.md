@@ -20,7 +20,8 @@ support, not here. Reach them through the chat widget on [elasticemail.com](http
 - Configuration comes from environment variables only. Add any new variable to the stack's
   `.env.example` and to [docs/environment-variables.md](docs/environment-variables.md).
 - Run the stack's checks before opening a pull request. The commands are in
-  [AGENTS.md](AGENTS.md#checking-your-change).
+  [AGENTS.md](AGENTS.md#checking-your-change). CI runs the same checks on every pull request for the
+  projects it changes, and fails if `examples.json` or `llms-full.txt` are out of date.
 - If you add, rename or remove an example file, run `node scripts/build-agent-files.mjs` and commit
   the regenerated `examples.json`, `llms-full.txt` and README version lines.
 
